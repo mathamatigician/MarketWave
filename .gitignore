@@ -13,3 +13,6 @@ db/
 
 # OS / editor
 .DS_Store
+
+# Mermaid CLI local render config (machine-specific Chrome path)
+docs/diagrams/puppeteer.json
