@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# embedchain / Chroma local vector store
+db/
+*.sqlite3
+
+# OS / editor
+.DS_Store

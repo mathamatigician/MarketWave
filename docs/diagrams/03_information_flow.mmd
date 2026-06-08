@@ -1,0 +1,45 @@
+sequenceDiagram
+    autonumber
+    participant U as User (browser)
+    participant S as Streamlit (app.py)
+    participant F as functions.py
+    participant C as articles.csv
+    participant Y as Yahoo Finance
+    participant E as embedchain + Chroma
+    participant O as OpenAI API
+
+    U->>S: Open app / rerun
+    S->>S: render index.html banner + sidebar (login disabled)
+    S->>S: session_state.logged_in=True, watchlist="Tesla"
+
+    rect rgb(235,245,255)
+    note over S,F: Tab 1 — Sentiment (runs every rerun)
+    S->>C: pd.read_csv()
+    C-->>S: articles dataframe
+    S->>F: aggregate_sentiment() / transform_sentiment()
+    F-->>S: ranked + wide sentiment tables
+    S-->>U: gradient heatmaps
+    end
+
+    rect rgb(235,255,240)
+    note over S,Y: Tab 2 — Price vs Sentiment
+    S->>F: get_stock_history('TSLA','30d','1d')
+    F->>Y: ticker.history()  (cached)
+    Y-->>F: price series
+    S->>F: transform_date_sentiment() + plot_chart()
+    F-->>U: overlaid price/sentiment chart
+    end
+
+    rect rgb(255,245,235)
+    note over S,O: Tab 3 — Chatbot
+    S->>S: read OPENAI_API_KEY (secrets→env, else warn+stop)
+    S->>F: load_bot(urls)  (cached resource)
+    F->>E: embed 9 URLs into Chroma
+    U->>S: ask question
+    S->>E: bot.chat(prompt, citations=True)
+    E->>O: retrieve + generate (gpt-3.5-turbo)
+    O-->>E: answer
+    E-->>S: response + citations
+    S->>F: get_sources(citations)
+    S-->>U: answer + source link
+    end

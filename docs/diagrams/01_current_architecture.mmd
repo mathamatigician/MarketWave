@@ -1,0 +1,54 @@
+flowchart TB
+    user(("👤 User<br/>Browser"))
+
+    subgraph ST["Streamlit App (app.py)"]
+        header["index.html banner<br/>(components.html)"]
+        sidebar["Sidebar login form<br/>(disabled — demo)"]
+        state["session_state<br/>logged_in=True · watchlist='Tesla'"]
+
+        subgraph TABS["st.tabs"]
+            t1["Tab 1 — Sentiment Analysis"]
+            t2["Tab 2 — Price vs Sentiment"]
+            t3["Tab 3 — Chatbot"]
+        end
+    end
+
+    subgraph FN["functions.py (helpers)"]
+        agg["aggregate_sentiment()<br/>median per topic"]
+        trans["transform_sentiment()<br/>wide-by-date table"]
+        tds["transform_date_sentiment()<br/>histogram series"]
+        gsh["get_stock_history()<br/>@cache_data"]
+        plot["plot_chart()<br/>lightweight-charts"]
+        bot["load_bot()<br/>@cache_resource"]
+        src["get_sources()"]
+    end
+
+    csv[("articles.csv<br/>static snapshot")]
+    yaml[["openai.yaml<br/>llm config"]]
+    secrets[["st.secrets / env<br/>OPENAI_API_KEY"]]
+
+    yf["Yahoo Finance<br/>(yahooquery)"]
+    emb["embedchain App<br/>+ local Chroma vector store"]
+    openai["OpenAI API<br/>gpt-3.5-turbo"]
+    urls["9 hard-coded<br/>Tesla news URLs"]
+
+    user <--> ST
+    header -.reads.-> idx[["index.html"]]
+    state --> TABS
+
+    t1 --> csv
+    t1 --> agg & trans
+    t2 --> gsh --> yf
+    t2 --> tds --> plot
+    t3 --> secrets
+    t3 --> bot
+    bot --> yaml
+    bot --> emb
+    emb --> urls
+    emb --> openai
+    t3 --> src
+
+    classDef ext fill:#fde,stroke:#c39;
+    classDef data fill:#eef,stroke:#669;
+    class yf,openai,urls ext;
+    class csv,yaml,secrets,idx data;

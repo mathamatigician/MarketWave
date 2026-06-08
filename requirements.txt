@@ -1,0 +1,9 @@
+streamlit
+openai
+embedchain
+yahooquery
+streamlit_lightweight_charts
+pandas
+numpy
+matplotlib
+protobuf==3.20

@@ -1,0 +1,28 @@
+flowchart LR
+    subgraph NB1["01 · Scrape, Clean & Load"]
+        u[("users table<br/>watchlist")] --> ddg["DuckDuckGo News API<br/>(RapidAPI)"]
+        ddg --> sg["ScrapeGraphAI + Playwright<br/>extract article text"]
+        sg --> clean["clean text + dates<br/>(regex)"]
+    end
+
+    subgraph NB2["02 · Extract & Analyze Sentiment"]
+        llm1["ChatDatabricks (dbrx-instruct)<br/>+ Pydantic 18-topic schema"]
+    end
+
+    subgraph NB3["03 · RAG Index"]
+        split["RecursiveCharacterTextSplitter<br/>chunk 1000/200"]
+        vidx["Databricks Vector Search<br/>bge-large-en embeddings"]
+    end
+
+    art[("Delta: hackathon_schema.articles")]
+    srct[("Delta: source_table<br/>CDF enabled")]
+
+    clean --> art
+    art --> llm1 --> |MERGE sentiment col| art
+    art --> split --> srct --> vidx
+
+    art -.exported snapshot.-> csv[("articles.csv")]
+    csv -.consumed by.-> app["Streamlit app"]
+
+    classDef ext fill:#fde,stroke:#c39;
+    class ddg,sg,llm1,vidx ext;
