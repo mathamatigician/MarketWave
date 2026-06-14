@@ -16,3 +16,6 @@ db/
 
 # Mermaid CLI local render config (machine-specific Chrome path)
 docs/diagrams/puppeteer.json
+
+# Local user database
+users.json

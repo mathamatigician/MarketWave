@@ -16,6 +16,7 @@ import functions
 from yahooquery import search
 import json
 import requests
+from streamlit_option_menu import option_menu
 
 
 # wide streamlit format
@@ -28,49 +29,141 @@ with open('index.html', 'r') as file:
 html(html_content, height=250)
 
 # create a session state for login
-# if 'logged_in' not in st.session_state:
-#     st.session_state['logged_in'] = False
-
-# watchlist = []
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+if 'mobile_prompts' not in st.session_state:
+    st.session_state['mobile_prompts'] = 0
+if 'phone_number' not in st.session_state:
+    st.session_state['phone_number'] = ""
+if 'show_phone_prompt' not in st.session_state:
+    st.session_state['show_phone_prompt'] = False
 
 server_hostname = "YOUR_SERVER_HOSTNAME"
 http_path = "YOUR HTTP_PATH"
 access_token = "YOUR_ACCESS TOKEN"
 
+USERS_FILE = 'users.json'
 
-# establish connection to databricks db
-# connection = functions.get_conn(server_hostname, http_path, access_token)
+def load_users():
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+    return {}
 
-with st.sidebar:
-    with st.form(key='login_form'):
-        username = st.text_input(label='Username')
-        password = st.text_input(label='Password', type='password', placeholder='********')
-        submit_button = st.form_submit_button(label='Log In')
-    st.info("Logging in has been disabled for demo purposes")
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
 
-# if submit_button and username != "" and password != "":
+def login_page():
+    st.markdown("<h2 style='text-align: center;'>Welcome to GlobePulse</h2>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        auth_mode = option_menu(
+            menu_title=None,
+            options=["Sign Up", "Log In"],
+            icons=["person-plus", "box-arrow-in-right"],
+            orientation="horizontal",
+        )
+        
+        if auth_mode == "Log In":
+            with st.form(key='login_form_only'):
+                email = st.text_input(label='Email ID *')
+                submit_button = st.form_submit_button(label='Log In')
+                
+                if submit_button:
+                    if not email:
+                        st.error("Please provide an Email ID.")
+                    else:
+                        users = load_users()
+                        email_key = email.lower()
+                        if email_key not in users:
+                            st.error("User does not exist. Please Sign Up.")
+                        else:
+                            st.session_state['logged_in'] = True
+                            phone = users[email_key].get('phone', '')
+                            st.session_state['phone_number'] = phone
+                            st.session_state['first_name'] = users[email_key]['first_name']
+                            st.session_state['email'] = email_key
+                            st.session_state['login_time'] = time.time()
+                            if not phone:
+                                st.session_state['show_phone_prompt'] = True
+                            st.rerun()
+                            
+        else:
+            with st.form(key='signup_form_main'):
+                first_name = st.text_input(label='First Name *')
+                last_name = st.text_input(label='Last Name')
+                email = st.text_input(label='Email ID *')
+                phone = st.text_input(label='Phone Number')
+                submit_button = st.form_submit_button(label='Sign Up')
+                
+                if submit_button:
+                    if not first_name or not email:
+                        st.error("Please fill in First Name and Email ID.")
+                    else:
+                        users = load_users()
+                        email_key = email.lower()
+                        
+                        if email_key in users:
+                            st.error("User with this Email ID already exists. Please Log In.")
+                        else:
+                            users[email_key] = {
+                                "first_name": first_name,
+                                "last_name": last_name,
+                                "email": email,
+                                "phone": phone
+                            }
+                            save_users(users)
+                            
+                            st.session_state['logged_in'] = True
+                            st.session_state['phone_number'] = phone
+                            st.session_state['first_name'] = first_name
+                            st.session_state['email'] = email_key
+                            st.session_state['login_time'] = time.time()
+                            if not phone:
+                                st.session_state['show_phone_prompt'] = True
+                            st.rerun()
 
-#     with st.sidebar:
-#         with st.spinner("logging you in..."):
-#             user_row = functions.find_user(connection, username, password)
+if not st.session_state['logged_in']:
+    login_page()
+else:
+    if st.session_state['show_phone_prompt'] and st.session_state['mobile_prompts'] < 3 and (time.time() - st.session_state.get('login_time', 0)) > 600:
+        @st.dialog("Update Mobile Number")
+        def update_phone_dialog():
+            st.write("You haven't provided a mobile number. Please update it below:")
+            new_phone = st.text_input("Mobile Number")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Update"):
+                    st.session_state['phone_number'] = new_phone
+                    st.session_state['show_phone_prompt'] = False
+                    
+                    users = load_users()
+                    email_key = st.session_state.get('email')
+                    if email_key and email_key in users:
+                        users[email_key]['phone'] = new_phone
+                        save_users(users)
+                        
+                    st.rerun()
+            with col2:
+                if st.button("Skip for now"):
+                    st.session_state['mobile_prompts'] += 1
+                    st.session_state['show_phone_prompt'] = False
+                    st.rerun()
+                    
+        update_phone_dialog()
+        
+    with st.sidebar:
+        st.write(f"Logged in as: {st.session_state.get('first_name', 'User')}")
+        if st.button("Log Out"):
+            st.session_state['logged_in'] = False
+            st.session_state['show_phone_prompt'] = False
+            st.rerun()
 
-#     if len(user_row) == 0:
-#         st.error('Invalid username or password')
-#         st.stop()
-#     else:
-#         get company that a user added to their watchlist
-#         watchlist = user_row[0].watchlist
-
-#         with st.sidebar:
-#             st.write("You're logged in as: ", username)
-
-#         st.session_state['logged_in'] = True
-
-# FOR DEV
-st.session_state['logged_in'] = True
-watchlist = "Tesla"
-
-if st.session_state['logged_in']:
+    watchlist = "Tesla"
 
     # load articles associated with the company
     # articles = functions.get_data(connection, watchlist)
