@@ -28,6 +28,11 @@ with open('index.html', 'r') as file:
 
 html(html_content, height=250)
 
+# Display GlobePulse logo in the sidebar on all pages
+with st.sidebar:
+    st.image("Logo.png.jpeg", use_column_width=True)
+    st.markdown("---")
+
 # create a session state for login
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
