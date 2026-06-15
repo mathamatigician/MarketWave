@@ -209,24 +209,76 @@ else:
             st.session_state['show_phone_prompt'] = False
             st.rerun()
 
-    watchlist = "Tesla"
+        st.markdown("---")
+        st.write("### Data Pipeline")
+        if st.button("🔄 Run Ingestion Pipeline"):
+            with st.spinner("Scraping news & generating sentiments..."):
+                try:
+                    import pipeline
+                    pipeline.run_pipeline()
+                    st.success("Ingestion complete!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Pipeline error: {e}")
 
-    # load articles associated with the company
-    # articles = functions.get_data(connection, watchlist)
+    # Watchlist Mapping to handle names vs tickers
+    COMPANY_TICKER_MAP = {
+        "Tesla": "TSLA",
+        "TSLA": "TSLA",
+        "Apple": "AAPL",
+        "AAPL": "AAPL",
+        "Google": "GOOGL",
+        "GOOGL": "GOOGL",
+        "Microsoft": "MSFT",
+        "MSFT": "MSFT",
+        "Nvidia": "NVDA",
+        "NVDA": "NVDA",
+        "Amazon": "AMZN",
+        "AMZN": "AMZN"
+    }
+
+    # Load users to get the current user's watchlist
+    users = load_users()
+    email_key = st.session_state.get('email', '')
+    user_data = users.get(email_key, {}) if email_key else {}
     
-    # convert to df
-    # articles_df = pd.DataFrame(articles)
-    articles_df = pd.read_csv('articles.csv')
+    watchlist_str = user_data.get('watchlist', 'Tesla')
+    watchlist_list = [w.strip() for w in watchlist_str.split(',') if w.strip()]
+    
+    # Options list includes existing user choices and defaults
+    options = sorted(list(set(watchlist_list + ["Tesla", "Apple", "Google", "Microsoft", "Nvidia", "Amazon"])))
+    
+    selected_watchlist = st.multiselect("Your Watchlist", options, default=watchlist_list)
+    
+    # If selection changes, save it to users.json
+    if selected_watchlist != watchlist_list and email_key and email_key in users:
+        users[email_key]['watchlist'] = ",".join(selected_watchlist)
+        save_users(users)
+        st.success("Watchlist updated!")
+        st.rerun()
 
-    # close connection
-    # connection.close()
-
-    # rename columns to be: url, content, company_name, date, sentiment
+    # Load articles
+    try:
+        articles_df = pd.read_csv('articles.csv')
+    except Exception:
+        # Create empty df if not present
+        articles_df = pd.DataFrame(columns=['url', 'content', 'company_name', 'date', 'sentiment'])
+        
     articles_df.columns = ['url', 'content', 'company_name', 'date', 'sentiment']
 
-    # convert watchlist to list
-    watchlist = watchlist.split(',')
-    st.multiselect("Your Watchlist", watchlist, default=watchlist)
+    # Filter articles to show only those in the user's watchlist (including tickers)
+    allowed_companies = set()
+    for item in selected_watchlist:
+        allowed_companies.add(item)
+        mapped = COMPANY_TICKER_MAP.get(item)
+        if mapped:
+            allowed_companies.add(mapped)
+        for name, tick in COMPANY_TICKER_MAP.items():
+            if tick == item:
+                allowed_companies.add(name)
+
+    articles_df = articles_df[articles_df['company_name'].isin(allowed_companies)]
+
 
     tab1, tab2, tab3 = st.tabs(['Sentiment Analysis', 'Stock Price vs Sentiment', 'Chatbot'])
 
@@ -234,63 +286,85 @@ else:
     with tab1:
         st.info('Below heatmaps present the sentiment analysis of the most recent news articles. The range of sentiment is from -1 to 1, where -1 is negative sentiment, 0 is neutral sentiment, and 1 is positive sentiment.')
         
-        # replace null with None
-        articles_df['sentiment'] = articles_df['sentiment'].apply(lambda x: x.replace('null', 'None'))
+        if articles_df.empty:
+            st.warning("No articles found for the selected watchlist. Click the 'Run Ingestion Pipeline' button in the sidebar to fetch stock news!")
+        else:
+            # replace null with None
+            articles_df['sentiment'] = articles_df['sentiment'].apply(lambda x: str(x).replace('null', 'None'))
 
-        # put sentiment column into a list
-        sentiment_data = articles_df['sentiment'].tolist()
+            # put sentiment column into a list
+            sentiment_data = articles_df['sentiment'].tolist()
 
-        # force convert to dict
-        clean_sentiment_list = [eval(x) for x in sentiment_data]
+            # force convert to dict
+            clean_sentiment_list = [eval(x) for x in sentiment_data]
 
-        agg_df = functions.aggregate_sentiment(clean_sentiment_list)
+            agg_df = functions.aggregate_sentiment(clean_sentiment_list)
 
-        # keep only the date and Sentiment columns
-        date_df = functions.transform_sentiment(articles_df[['date', 'sentiment']])
+            # keep only the date and Sentiment columns
+            date_df = functions.transform_sentiment(articles_df[['date', 'sentiment']])
 
-        # columns to list
-        columns = date_df.columns.tolist()
+            # columns to list
+            columns = date_df.columns.tolist()
 
-        # drop sentiment topic from columns
-        columns.remove('Sentiment Topic')
+            # drop sentiment topic from columns
+            columns.remove('Sentiment Topic')
 
-        # Apply gradient coloring
-        styled_date_df = date_df.style.background_gradient(
-            cmap="RdYlGn",
-            subset=columns,
-            vmin=-1,
-            vmax=1
-        ).format("{:.2f}", subset=columns)
+            # Apply gradient coloring
+            if columns:
+                styled_date_df = date_df.style.background_gradient(
+                    cmap="RdYlGn",
+                    subset=columns,
+                    vmin=-1,
+                    vmax=1
+                ).format("{:.2f}", subset=columns)
+            else:
+                styled_date_df = date_df
 
-        styled_agg_df = agg_df.style.background_gradient(
-            cmap="RdYlGn",
-            subset=['Sentiment Score'],
-            vmin=-1,
-            vmax=1
-        ).format("{:.2f}", subset=['Sentiment Score'])
+            styled_agg_df = agg_df.style.background_gradient(
+                cmap="RdYlGn",
+                subset=['Sentiment Score'],
+                vmin=-1,
+                vmax=1
+            ).format("{:.2f}", subset=['Sentiment Score'])
 
-        col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-        with col1:
-            st.dataframe(styled_date_df, hide_index=True, use_container_width=True)
-        with col2:
-            st.dataframe(styled_agg_df, hide_index=True, use_container_width=True)
+            with col1:
+                st.dataframe(styled_date_df, hide_index=True, use_container_width=True)
+            with col2:
+                st.dataframe(styled_agg_df, hide_index=True, use_container_width=True)
 
 
     # stock price vs sentiment tab
     with tab2:
-
         st.info("The histogram shows the sentiment score of the articles published on a given date. The color represents negative or positive sentiment and the value is intensity (0-100)."
                 "The stock price is plotted on the area chart.")
     
-        # load stock price data
-        # tkr = functions.get_ticker(watchlist[0])
+        # load stock price data dynamically
+        chart_tickers = sorted(list(set(COMPANY_TICKER_MAP.get(item, item) for item in selected_watchlist)))
+        if not chart_tickers:
+            chart_tickers = ["TSLA"]
+        selected_chart_ticker = st.selectbox("Select Stock Symbol", chart_tickers)
         
-        price_series = functions.get_stock_history('TSLA', '30d', '1d')
+        try:
+            price_series = functions.get_stock_history(selected_chart_ticker, '30d', '1d')
+        except Exception as e:
+            st.error(f"Failed to fetch stock history for {selected_chart_ticker}: {e}")
+            price_series = []
 
-        priceVolumeSeriesHistogram = functions.transform_date_sentiment(date_df)
-
-        functions.plot_chart(price_series, priceVolumeSeriesHistogram)
+        if articles_df.empty:
+            st.warning("No news articles available to compute sentiment trends. Click the 'Run Ingestion Pipeline' button in the sidebar to fetch stock news!")
+        elif not price_series:
+            st.warning("Stock price history is unavailable.")
+        else:
+            try:
+                temp_df = articles_df.copy()
+                temp_df['sentiment'] = temp_df['sentiment'].apply(lambda x: str(x).replace('null', 'None'))
+                date_df = functions.transform_sentiment(temp_df[['date', 'sentiment']])
+                priceVolumeSeriesHistogram = functions.transform_date_sentiment(date_df)
+                functions.plot_chart(price_series, priceVolumeSeriesHistogram)
+            except Exception as e:
+                st.error(f"Error displaying chart: {e}")
 
     # chatbot tab. For demo purposes will use embedchain and a few sample news articles.
     with tab3:
