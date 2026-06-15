@@ -6,13 +6,14 @@ This document outlines the proposal and implementation details for migrating the
 
 ## 1. Component Mapping & Architecture
 
-| Databricks Component | Google Cloud / Google AI Equivalent | Rationale & Benefits |
+| Databricks Component / Local Store | Google Cloud / Google AI Equivalent | Rationale & Benefits |
 | :--- | :--- | :--- |
 | **Databricks SQL / Delta Lake** (users, articles, chunks) | **Google BigQuery** | Serverless, SQL-compatible data warehouse. Simplifies data management and eliminates dedicated cluster hosting costs. |
 | **Databricks Notebooks** (pipeline orchestrator) | **Vertex AI Workbench (Colab Enterprise)** / **Google Cloud Run** | Easy migration of `.ipynb` files. Scheduled Cloud Run jobs (using Cloud Scheduler) provide serverless pipeline execution. |
 | **ChatDatabricks (dbrx-instruct)** (Sentiment Extraction / Summarization) | **Vertex AI Gemini 1.5 Flash / 2.5 Flash** | Significantly faster and more cost-effective. Supports structured JSON outputs natively. |
 | **Databricks Vector Search** | **BigQuery Vector Search** | Indexes and queries embeddings natively within BigQuery using standard SQL (via `VECTOR_SEARCH`). No separate vector database required. |
 | **databricks-bge-large-en** (Embeddings) | **Vertex AI Text Embeddings (`text-embedding-004`)** | High-performance embedding model fully integrated with the Vertex AI ecosystem. |
+| **Local File (`users.json`) / SQLite** (User Credentials & Profiles) | **Google Cloud Identity Platform** + **Cloud Firestore** | **Identity Platform** provides enterprise-grade, secure authentication (Gmail SSO, phone/email login), while **Firestore** (serverless NoSQL database) stores user metadata and watchlists with real-time sync. |
 
 ---
 
@@ -51,10 +52,14 @@ This document outlines the proposal and implementation details for migrating the
   * Update credentials helper to look for Google Application Default Credentials (ADC) or a local service account key/API key via Streamlit secrets (`secrets.toml`).
   * (Optional) Update `embedchain` config to use `google` provider instead of `openai`.
 
+* **User Authentication & Profiles:**
+  * Replace the passwordless `users.json` local flat-file storage with **Google Cloud Identity Platform** for user sign-in and authorization (allowing Gmail/Google SSO and phone verification).
+  * Store user profile details (first name, last name, phone, watchlist) inside **Google Cloud Firestore**, securing access using Firestore Security Rules.
+
 ---
 
 ## 3. Next Steps & Prerequisites
 
-1. **GCP Setup:** Enable the BigQuery API, Vertex AI API, and generate credentials (a service account key or API key).
-2. **Package Updates:** Add `google-cloud-bigquery` and `google-generativeai` (or `google-genai`) to `requirements.txt`.
+1. **GCP Setup:** Enable the BigQuery API, Vertex AI API, Cloud Identity Platform API, and Firestore API.
+2. **Package Updates:** Add `google-cloud-bigquery`, `google-generativeai`, and `google-cloud-firestore` to `requirements.txt`.
 3. **Execution:** Update the notebook scripts and app backend helpers once ready to transition.
