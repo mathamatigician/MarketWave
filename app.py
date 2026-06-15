@@ -17,10 +17,40 @@ from yahooquery import search
 import json
 import requests
 from streamlit_option_menu import option_menu
+import base64
 
 
 # wide streamlit format
 st.set_page_config(page_title='GlobePulse', page_icon='🌍', layout='wide')
+
+# Convert local logo image to base64 for background watermark rendering
+try:
+    with open("Logo.png.jpeg", "rb") as image_file:
+        encoded_logo = base64.b64encode(image_file.read()).decode()
+except Exception:
+    encoded_logo = ""
+
+if encoded_logo:
+    # Inject subtle fixed watermark CSS behind all components
+    st.markdown(f"""
+    <style>
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: url("data:image/jpeg;base64,{encoded_logo}");
+        background-size: 550px;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.035; /* Subtle watermark */
+        pointer-events: none;
+        z-index: -1;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
 # read text from index.txt
 with open('index.html', 'r') as file:
@@ -30,7 +60,7 @@ html(html_content, height=250)
 
 # Display GlobePulse logo in the sidebar on all pages
 with st.sidebar:
-    st.image("Logo.png.jpeg", use_column_width=True)
+    st.image("Logo.png.jpeg", use_container_width=True)
     st.markdown("---")
 
 # create a session state for login
