@@ -106,38 +106,48 @@ def login_page():
         if auth_mode == "Log In":
             with st.form(key='login_form_only'):
                 email = st.text_input(label='Email ID *')
+                password = st.text_input(label='Password *', type='password')
                 submit_button = st.form_submit_button(label='Log In')
                 
                 if submit_button:
-                    if not email:
-                        st.error("Please provide an Email ID.")
+                    if not email or not password:
+                        st.error("Please provide both Email ID and Password.")
                     else:
                         users = load_users()
                         email_key = email.lower()
                         if email_key not in users:
                             st.error("User does not exist. Please Sign Up.")
                         else:
-                            st.session_state['logged_in'] = True
-                            phone = users[email_key].get('phone', '')
-                            st.session_state['phone_number'] = phone
-                            st.session_state['first_name'] = users[email_key]['first_name']
-                            st.session_state['email'] = email_key
-                            st.session_state['login_time'] = time.time()
-                            if not phone:
-                                st.session_state['show_phone_prompt'] = True
-                            st.rerun()
+                            stored_hash = users[email_key].get('password_hash')
+                            entered_hash = functions.hash_password(password)
+                            if stored_hash and stored_hash != entered_hash:
+                                st.error("Incorrect password.")
+                            else:
+                                st.session_state['logged_in'] = True
+                                phone = users[email_key].get('phone', '')
+                                st.session_state['phone_number'] = phone
+                                st.session_state['first_name'] = users[email_key]['first_name']
+                                st.session_state['email'] = email_key
+                                st.session_state['login_time'] = time.time()
+                                if not phone:
+                                    st.session_state['show_phone_prompt'] = True
+                                st.rerun()
                             
         else:
             with st.form(key='signup_form_main'):
                 first_name = st.text_input(label='First Name *')
                 last_name = st.text_input(label='Last Name')
                 email = st.text_input(label='Email ID *')
+                password = st.text_input(label='Password *', type='password')
+                confirm_password = st.text_input(label='Confirm Password *', type='password')
                 phone = st.text_input(label='Phone Number')
                 submit_button = st.form_submit_button(label='Sign Up')
                 
                 if submit_button:
-                    if not first_name or not email:
-                        st.error("Please fill in First Name and Email ID.")
+                    if not first_name or not email or not password:
+                        st.error("Please fill in First Name, Email ID, and Password.")
+                    elif password != confirm_password:
+                        st.error("Passwords do not match.")
                     else:
                         users = load_users()
                         email_key = email.lower()
@@ -149,7 +159,8 @@ def login_page():
                                 "first_name": first_name,
                                 "last_name": last_name,
                                 "email": email,
-                                "phone": phone
+                                "phone": phone,
+                                "password_hash": functions.hash_password(password)
                             }
                             save_users(users)
                             
