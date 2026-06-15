@@ -7,3 +7,4 @@ pandas
 numpy
 matplotlib
 protobuf==3.20
+streamlit-option-menu
