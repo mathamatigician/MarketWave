@@ -15,6 +15,7 @@ import os
 from yahooquery import search
 import json
 import requests
+import hashlib
 
 
 @st.cache_resource(show_spinner=False)
@@ -322,3 +323,8 @@ def custom_sort_key(topic):
 #     result = cursor.fetchall()
 #     cursor.close()
 #     return result
+
+
+def hash_password(password):
+    """Hashes a password using SHA-256."""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
