@@ -368,9 +368,10 @@ else:
 
     # chatbot tab. For demo purposes will use embedchain and a few sample news articles.
     with tab3:
-        st.info("The chatbot is trained only on selected articles for demo purposes")
-
-        urls = ["https://www.msn.com/en-us/autos/news/tesla-s-supercharger-layoffs-couldn-t-have-come-at-a-worse-time/ar-AA1o6uYb",
+        # Collect sources for RAG (URLs or raw news contents)
+        HARDCODED_STOCK_DOCS = {
+            "Tesla": [
+                "https://www.msn.com/en-us/autos/news/tesla-s-supercharger-layoffs-couldn-t-have-come-at-a-worse-time/ar-AA1o6uYb",
                 "https://www.msn.com/en-us/money/news/i-landed-a-dream-internship-at-tesla-now-im-scrambling-after-the-company-cancelled-my-internship-3-weeks-before-i-was-set-to-start/ar-AA1o3OFp",
                 "https://www.wired.com/story/tesla-supercharger-pullback-filling-the-power-gap/",
                 "https://www.ft.com/content/114effb2-1071-4d93-b53d-00a96a0336a2",
@@ -379,24 +380,60 @@ else:
                 "https://www.msn.com/en-us/autos/news/tesla-staff-say-entire-supercharger-team-fired/ar-AA1nYAl8",
                 "https://www.msn.com/en-us/money/other/tesla-retreat-from-ev-charging-leaves-growth-of-u-s-network-in-doubt/ar-AA1o64CD",
                 "https://arstechnica.com/cars/2024/05/chaos-at-tesla-what-analysts-think-about-elon-musks-cuts-and-layoffs/"
-                ]
+            ]
+        }
 
-        # set openai api key (fall back to env var; degrade gracefully if missing)
+        sources_list = []
+        for stock in selected_watchlist:
+            if stock in HARDCODED_STOCK_DOCS:
+                for url in HARDCODED_STOCK_DOCS[stock]:
+                    sources_list.append((url, "url"))
+            else:
+                # Find matching company names/tickers in articles_df
+                matched_names = {stock}
+                mapped = COMPANY_TICKER_MAP.get(stock)
+                if mapped:
+                    matched_names.add(mapped)
+                for name, tick in COMPANY_TICKER_MAP.items():
+                    if tick == stock:
+                        matched_names.add(name)
+
+                stock_news = articles_df[articles_df['company_name'].isin(matched_names)]
+                
+                # Check if we have articles loaded
+                for _, row in stock_news.iterrows():
+                    content = row.get('content')
+                    if pd.notna(content) and len(str(content).strip()) > 30:
+                        sources_list.append((str(content).strip(), "text"))
+                    elif pd.notna(row.get('url')) and str(row.get('url')).startswith("http"):
+                        sources_list.append((str(row.get('url')), "url"))
+
+        # Convert to tuple for Streamlit cache compatibility
+        sources_tuple = tuple(sources_list)
+
+        if not sources_tuple:
+            st.warning("No news articles or documentation found for the selected stock(s). Please run the 'Ingestion Pipeline' in the sidebar to fetch news first!")
+            st.stop()
+
+        st.info(f"The chatbot is trained dynamically on {len(sources_tuple)} source documents for: {', '.join(selected_watchlist)}")
+
+        # set gemini api key (fall back to env var; degrade gracefully if missing)
         try:
-            api_key = st.secrets["openai_credentials"]["API_KEY"]
+            api_key = st.secrets["gemini_credentials"]["API_KEY"]
         except Exception:
-            api_key = os.environ.get("OPENAI_API_KEY")
+            api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
         if not api_key:
             st.warning(
-                "Chatbot disabled: set `[openai_credentials] API_KEY` in "
-                "`.streamlit/secrets.toml` or the `OPENAI_API_KEY` environment variable."
+                "Chatbot disabled: set `[gemini_credentials] API_KEY` in "
+                "`.streamlit/secrets.toml` or the `GEMINI_API_KEY` / `GOOGLE_API_KEY` environment variable."
             )
             st.stop()
 
-        os.environ["OPENAI_API_KEY"] = api_key
+        os.environ["GOOGLE_API_KEY"] = api_key
+        os.environ["GEMINI_API_KEY"] = api_key
 
-        bot = functions.load_bot(urls)
+        bot = functions.load_bot(sources_tuple)
         query_config = BaseLlmConfig(number_documents=1)
 
         if "messages" not in st.session_state.keys():  # Initialize the chat messages history
@@ -405,30 +442,32 @@ else:
 
         if prompt := st.chat_input("Your question"):  # Prompt for user input and save to chat history
             st.session_state.messages.append({"role": "user", "content": prompt})
+            st.rerun()
 
         for message in st.session_state.messages:  # Display the prior chat messages
-            # if role is user
             if message["role"] == "user":
-                with st.chat_message(message["role"]):
+                with st.chat_message("user"):
                     st.write(message["content"])
             elif message["role"] == "assistant":
-                with st.chat_message(message["role"]):
+                with st.chat_message("assistant"):
                     st.write(message["content"])
 
-        # If last message is not from assistant, generate a new response
+        # If last message is not from assistant, generate a new response using the stored query
         if st.session_state.messages[-1]["role"] != "assistant":
+            user_query = st.session_state.messages[-1]["content"]
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
-                    response, citations = bot.chat(prompt, citations=True, config=query_config)
-
-                    sources = functions.get_sources(citations)
-                    # italicized_sources = [f"*{source}*" for source in sources]
-
-                    full_response = response + "\n\n**Source**:\n" + f"*{sources[0]}*"
+                    try:
+                        response, citations = bot.chat(user_query, citations=True, config=query_config)
+                        sources = functions.get_sources(citations)
+                        source_text = f"\n\n**Source**:\n*{sources[0]}*" if sources else ""
+                        full_response = response + source_text
+                    except Exception as e:
+                        full_response = f"An error occurred while answering your question: {e}"
 
                     st.write(full_response)
-
-                    message = {"role": "assistant", "content": full_response}
-    #                 st.session_state.messages.append(message)  # Add response to message history
+                    
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    st.rerun()
 
 

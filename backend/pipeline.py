@@ -11,6 +11,11 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
 from typing import Optional
 
+# Add path for backend module imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import database
+
+
 # Setup API Key configuration
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
@@ -50,32 +55,8 @@ class TopicSentimentSchema(BaseModel):
 
 def load_all_watchlist_tickers() -> list:
     """Reads all unique tickers from users.json."""
-    users_file = 'users.json'
-    default_tickers = ["Tesla", "Apple", "Google", "Microsoft", "Nvidia", "Amazon"]
-    
-    if not os.path.exists(users_file):
-        return default_tickers
-        
-    try:
-        with open(users_file, 'r') as f:
-            users = json.load(f)
-    except Exception as e:
-        print(f"Error reading users.json: {e}. Using defaults.")
-        return default_tickers
-        
-    tickers = set()
-    for user_info in users.values():
-        watchlist = user_info.get("watchlist", "")
-        if watchlist:
-            for symbol in watchlist.split(','):
-                symbol = symbol.strip()
-                if symbol:
-                    tickers.add(symbol)
-                    
-    if not tickers:
-        return default_tickers
-        
-    return sorted(list(tickers))
+    return database.load_all_watchlist_tickers()
+
 
 def fetch_news_items(ticker: str, limit: int = 5) -> list:
     """Fetches recent news items from Google News RSS feed for a ticker."""
@@ -217,17 +198,17 @@ def analyze_sentiment(text: str, company: str) -> str:
 
 def run_pipeline(ticker_arg: Optional[str] = None):
     """Orchestrates the entire scraping and sentiment ingestion pipeline."""
-    csv_file = 'articles.csv'
-    
-    # 1. Load existing URLs to prevent duplicate scraping
+    # 1. Load existing URLs from Firestore to prevent duplicate scraping
     existing_urls = set()
-    if os.path.exists(csv_file):
-        try:
-            df_existing = pd.read_csv(csv_file)
-            existing_urls = set(df_existing['url'].dropna().tolist())
-            print(f"Loaded {len(existing_urls)} existing URLs from {csv_file}")
-        except Exception as e:
-            print(f"Could not load existing CSV: {e}")
+    try:
+        docs = database.db.collection("articles").select(["url"]).stream()
+        for doc in docs:
+            url_val = doc.to_dict().get("url")
+            if url_val:
+                existing_urls.add(url_val)
+        print(f"Loaded {len(existing_urls)} existing URLs from Firestore articles collection.")
+    except Exception as e:
+        print(f"Could not load existing URLs from Firestore: {e}")
             
     # 2. Determine tickers to scrape
     if ticker_arg:
@@ -278,7 +259,7 @@ def run_pipeline(ticker_arg: Optional[str] = None):
             # Add to list
             new_articles.append({
                 'url': real_url,
-                'content': cleaned_text[:1500],  # Truncate content to keep CSV size reasonable
+                'content': cleaned_text[:1500],  # Truncate content to keep database size reasonable
                 'company_name': ticker,
                 'date': date,
                 'Sentiment': sentiment_json_str
@@ -288,18 +269,27 @@ def run_pipeline(ticker_arg: Optional[str] = None):
             existing_urls.add(google_link)
             existing_urls.add(real_url)
             
-    # 3. Append to CSV
+    # 3. Save to Firestore
     if new_articles:
-        df_new = pd.DataFrame(new_articles)
-        # Rename columns to match existing csv casing (url,content,company_name,date,Sentiment)
-        df_new.columns = ['url', 'content', 'company_name', 'date', 'Sentiment']
-        
-        if os.path.exists(csv_file):
-            df_new.to_csv(csv_file, mode='a', header=False, index=False)
-        else:
-            df_new.to_csv(csv_file, index=False)
-            
-        print(f"\nSuccessfully ingested and appended {len(new_articles)} new articles to {csv_file}!")
+        try:
+            import hashlib
+            batch = database.db.batch()
+            for article in new_articles:
+                doc_id = hashlib.sha256(article['url'].encode('utf-8')).hexdigest()
+                sentiment_map = json.loads(article['Sentiment'])
+                
+                doc_ref = database.db.collection("articles").document(doc_id)
+                batch.set(doc_ref, {
+                    'url': article['url'],
+                    'content': article['content'],
+                    'company_name': article['company_name'],
+                    'date': article['date'],
+                    'sentiment': sentiment_map
+                })
+            batch.commit()
+            print(f"\nSuccessfully ingested and saved {len(new_articles)} new articles to Firestore!")
+        except Exception as e:
+            print(f"Error saving new articles to Firestore: {e}")
     else:
         print("\nNo new articles to ingest.")
 

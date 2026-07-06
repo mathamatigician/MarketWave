@@ -19,3 +19,8 @@ docs/diagrams/puppeteer.json
 
 # Local user database
 users.json
+
+# Local logs & debug files
+*.log
+.claude/
+
