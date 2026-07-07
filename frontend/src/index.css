@@ -1,111 +1,53 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
 
-:root {
-  font-family: 'Inter', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@variant dark (&:where(.dark, .dark *));
 
-  color-scheme: dark;
-  color: #e2e8f0;
-  background-color: #08090c;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  /* Custom Neon Gradients */
-  --bg-gradient: radial-gradient(circle at 50% 0%, #151824 0%, #08090c 70%);
-  --card-bg: rgba(22, 23, 30, 0.7);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --accent-neon-cyan: #00f2fe;
-  --accent-neon-purple: #4facfe;
-  --text-muted: #94a3b8;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  background: var(--bg-gradient);
-  background-attachment: fixed;
-  overflow-x: hidden;
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900 dark:bg-[#070709] dark:text-white antialiased selection:bg-[#00FF94]/30;
+  }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Outfit', sans-serif;
-  color: #ffffff;
-  margin-top: 0;
-}
-
-/* Glassmorphism Classes */
-.glass-card {
-  background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-card:hover {
-  border-color: rgba(0, 242, 254, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(0, 242, 254, 0.05);
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, var(--accent-neon-cyan) 0%, var(--accent-neon-purple) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.gradient-btn {
-  background: linear-gradient(135deg, var(--accent-neon-cyan) 0%, var(--accent-neon-purple) 100%);
-  border: none;
-  color: #08090c;
-  font-family: 'Outfit', sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: opacity 0.2s ease;
-}
-
-.gradient-btn:hover {
-  opacity: 0.9;
-}
-
-/* Custom Scrollbars */
+/* Collapsible and custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #08090c;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Grid Layout */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  min-height: 100vh;
+.gradient-btn {
+  background: linear-gradient(135deg, #00FF94 0%, #00b8ff 100%);
+  color: #000000;
+  font-weight: 700;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 255, 148, 0.2);
+  transition: all 0.2s ease-out;
 }
 
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
+.gradient-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 255, 148, 0.3);
+}
+
+.gradient-btn:active {
+  transform: scale(0.98);
 }

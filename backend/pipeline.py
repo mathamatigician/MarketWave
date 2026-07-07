@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 # Add path for backend module imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database
 
 
@@ -21,6 +21,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_
 
 # Load keys from Streamlit secrets.toml if not already set in environment
 secrets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
+if not os.path.exists(secrets_path):
+    # Try the parent directory (workspace root)
+    secrets_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".streamlit", "secrets.toml")
+
 if os.path.exists(secrets_path):
     try:
         import tomllib
@@ -29,8 +33,15 @@ if os.path.exists(secrets_path):
         if not GEMINI_API_KEY:
             # check both gemini_credentials -> API_KEY and simple gemini -> api_key
             GEMINI_API_KEY = secrets.get("gemini_credentials", {}).get("API_KEY") or secrets.get("gemini", {}).get("api_key")
+        if GEMINI_API_KEY:
+            os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+            os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
     except Exception as e:
         print(f"Warning: Could not read secrets from secrets.toml: {e}")
+
+if GEMINI_API_KEY:
+    os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+    os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
 
 # Define structured output schema for Topic Sentiment
 class TopicSentimentSchema(BaseModel):

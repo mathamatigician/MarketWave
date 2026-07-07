@@ -58,20 +58,27 @@ def transform_date_sentiment(df):
     overall_sentiment_data = []
     for column in overall_sentiment_df.columns:
         value = overall_sentiment_df[column].iloc[0]
-        if value == '':
+        if value == '' or value is None or pd.isna(value):
             continue
 
-        # Make value positive and multiply by 100
-        value = abs(float(value)) * 100
+        try:
+            val_float = float(value)
+            import math
+            if math.isnan(val_float) or math.isinf(val_float):
+                continue
 
-        # Determine the color based on the original value
-        color = 'rgba(0, 150, 136, 0.8)' if float(
-            overall_sentiment_df[column].iloc[0]) >= 0 else 'rgba(255, 82, 82, 0.8)'
+            # Make value positive and multiply by 100
+            val_scaled = abs(val_float) * 100
 
-        # Convert date format to 'YYYY-MM-DD'
-        date = pd.to_datetime(column, format='%m/%d/%Y').strftime('%Y-%m-%d')
+            # Determine the color based on the original value
+            color = 'rgba(0, 150, 136, 0.8)' if val_float >= 0 else 'rgba(255, 82, 82, 0.8)'
 
-        overall_sentiment_data.append({"time": date, "value": value, "color": color})
+            # Convert date format to 'YYYY-MM-DD'
+            date = pd.to_datetime(column, format='%m/%d/%Y').strftime('%Y-%m-%d')
+
+            overall_sentiment_data.append({"time": date, "value": val_scaled, "color": color})
+        except Exception:
+            continue
 
     # Sort the list of dictionaries by date
     overall_sentiment_data.sort(key=lambda x: datetime.datetime.strptime(x["time"], '%Y-%m-%d'))
@@ -88,29 +95,61 @@ def get_ticker(company_name):
 
 @st.cache_data(show_spinner=False)
 def get_stock_history(tkr, period, interval):
-    ticker = Ticker(tkr)
-
-    df = ticker.history(period=period, interval=interval)
-
-    # reset index
-    df.reset_index(inplace=True)
-
-    # Keep only columns 'date' and 'adjclose'
-    df = df[['date', 'adjclose']]
-    
-    # Ensure the 'date' column is datetime-like
-    df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
-    
-    # Convert to time zone naive (optional step based on your preference)
-    df['date'] = df['date'].dt.tz_convert(None)
-    
-    # Format the 'date' column to "YYYY-MM-DD"
-    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-
-    # Convert to list of dictionaries
-    price_series = [{"time": row['date'], "value": row['adjclose']} for _, row in df.iterrows()]
-
-    return price_series
+    try:
+        ticker = Ticker(tkr)
+        df = ticker.history(period=period, interval=interval)
+        
+        if df is None or (isinstance(df, dict) and 'error' in df) or getattr(df, 'empty', True):
+            return []
+            
+        # reset index
+        df.reset_index(inplace=True)
+        
+        # Keep only columns 'date' and the closest close column available
+        close_col = 'adjclose'
+        if 'adjclose' not in df.columns:
+            for col in ['close', 'Close', 'adjClose']:
+                if col in df.columns:
+                    close_col = col
+                    break
+                    
+        if 'date' not in df.columns or close_col not in df.columns:
+            return []
+            
+        df = df[['date', close_col]].copy()
+        df.rename(columns={close_col: 'adjclose'}, inplace=True)
+        
+        # Drop rows with NaN
+        df = df.dropna(subset=['date', 'adjclose'])
+        
+        # Ensure the 'date' column is datetime-like
+        df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+        df = df.dropna(subset=['date'])
+        
+        # Convert to time zone naive
+        df['date'] = df['date'].dt.tz_convert(None)
+        
+        # Format the 'date' column to "YYYY-MM-DD"
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        price_series = []
+        for _, row in df.iterrows():
+            val = row['adjclose']
+            if pd.isna(val) or val is None:
+                continue
+            try:
+                f_val = float(val)
+                import math
+                if math.isnan(f_val) or math.isinf(f_val):
+                    continue
+                price_series.append({"time": row['date'], "value": f_val})
+            except (ValueError, TypeError):
+                continue
+                
+        return price_series
+    except Exception as e:
+        print(f"Error in get_stock_history for {tkr}: {e}")
+        return []
 
 
 def plot_chart(price_series, sentiment_series):

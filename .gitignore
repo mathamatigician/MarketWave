@@ -23,4 +23,5 @@ users.json
 # Local logs & debug files
 *.log
 .claude/
+.globepulse.pids
 

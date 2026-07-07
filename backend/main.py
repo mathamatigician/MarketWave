@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 
-# Ensure parent directory is in sys.path so we can import sibling files
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Ensure backend directory is first in sys.path so we prioritize backend files
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import database
 import functions
@@ -23,10 +23,14 @@ logger = logging.getLogger("GlobePulseBackend")
 
 app = FastAPI(title="GlobePulse API Backend")
 
+@app.on_event("startup")
+def startup_event():
+    database.seed_demo_users()
+
 # Setup CORS to allow React Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify frontend domain e.g., ["http://localhost:5173"]
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8000"],  # In production, specify frontend domain e.g., ["http://localhost:5173"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -175,8 +179,19 @@ def get_heatmap(email: str = Query(...)):
         return []
         
     agg_df = functions.aggregate_sentiment(sentiments_list)
-    # Convert dataframe to JSON response list
-    return agg_df.to_dict(orient="records")
+    # Convert dataframe to JSON response list and sanitize NaN/inf values
+    import math
+    records = agg_df.to_dict(orient="records")
+    cleaned_records = []
+    for r in records:
+        cleaned_r = {}
+        for k, v in r.items():
+            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                cleaned_r[k] = None
+            else:
+                cleaned_r[k] = v
+        cleaned_records.append(cleaned_r)
+    return cleaned_records
 
 @app.get("/api/stock/history")
 def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
@@ -191,6 +206,7 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
         
     # 2. Get Daily Sentiment Trend from Firestore
     sentiment_series = []
+    recent_articles = []
     try:
         # Filter articles for ticker name/symbol
         allowed = {ticker, resolved_ticker}
@@ -202,6 +218,7 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
         # Stream matching articles from Firestore
         docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
         rows = []
+        raw_articles = []
         for doc in docs:
             data = doc.to_dict()
             sentiment_map = data.get("sentiment")
@@ -212,17 +229,28 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
                     "date": date_val,
                     "sentiment": str(sentiment_map)
                 })
+                raw_articles.append(data)
                 
         if rows:
             df = pd.DataFrame(rows)
             date_df = functions.transform_sentiment(df)
             sentiment_series = functions.transform_date_sentiment(date_df)
+            
+        # Get the 3 most recent articles
+        sorted_articles = sorted(raw_articles, key=lambda x: x.get("date", ""), reverse=True)
+        recent_articles = [{
+            "url": a.get("url"),
+            "content": a.get("content")[:180] + "..." if len(a.get("content", "")) > 180 else a.get("content", ""),
+            "date": a.get("date"),
+            "sentiment": a.get("sentiment", {})
+        } for a in sorted_articles[:3]]
     except Exception as e:
         logger.error(f"Error parsing sentiment series from Firestore for chart: {e}")
             
     return {
         "price_series": price_series,
-        "sentiment_series": sentiment_series
+        "sentiment_series": sentiment_series,
+        "recent_articles": recent_articles
     }
 
 @app.post("/api/pipeline/run")

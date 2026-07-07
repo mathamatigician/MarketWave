@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Watchlist } from './components/Watchlist';
-import { ChartPanel } from './components/ChartPanel';
-import { Heatmap } from './components/Heatmap';
+import { Activity, Sun, Moon, MessageSquare, LogOut, X } from 'lucide-react';
+import { Dashboard } from './components/Dashboard';
+import { Home } from './components/Home';
+import { SignIn, SignUp } from './components/AuthForms';
+import { About, Contact, FAQ } from './components/StaticPages';
 import { AgentChat } from './components/AgentChat';
-import { LogOut, User, Lock, Mail, ChevronRight, TrendingUp, Sparkles, BarChart2 } from 'lucide-react';
+
+type ViewState = 'home' | 'dashboard' | 'signin' | 'signup' | 'about' | 'contact' | 'faq';
+type ThemeState = 'dark' | 'light';
 
 interface UserInfo {
   email: string;
@@ -12,336 +16,202 @@ interface UserInfo {
   watchlist: string[];
 }
 
-function App() {
+export default function App() {
+  const [view, setView] = useState<ViewState>('home');
+  const [theme, setTheme] = useState<ThemeState>('dark');
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [selectedTicker, setSelectedTicker] = useState<string>('Tesla');
-  const [heatmapData, setHeatmapData] = useState<any[]>([]);
-  const [loadingHeatmap, setLoadingHeatmap] = useState<boolean>(false);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
 
-  // Auth States
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // Fetch heatmap data whenever user or their watchlist changes
+  // Load user session from localStorage on startup
   useEffect(() => {
-    if (user) {
-      fetchHeatmapData();
-    }
-  }, [user]);
-
-  const fetchHeatmapData = async () => {
-    if (!user) return;
-    setLoadingHeatmap(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/sentiment/heatmap?email=${encodeURIComponent(user.email)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHeatmapData(data || []);
+      const storedUser = localStorage.getItem('globepulse_user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+        setView('dashboard');
       }
     } catch (e) {
-      console.error("Error loading heatmap data", e);
-    } finally {
-      setLoadingHeatmap(false);
+      console.error('Failed to load user session', e);
     }
-  };
+  }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    try {
-      const res = await fetch('http://localhost:8000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-        if (data.watchlist && data.watchlist.length > 0) {
-          setSelectedTicker(data.watchlist[0]);
-        }
-      } else {
-        const err = await res.json();
-        setErrorMsg(err.detail || 'Login failed.');
-      }
-    } catch (e) {
-      setErrorMsg('Network error connecting to backend.');
+  // Sync theme
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-  };
+  }, [theme]);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.');
-      return;
-    }
-    try {
-      const res = await fetch('http://localhost:8000/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          password,
-          phone
-        })
-      });
-      if (res.ok) {
-        setAuthMode('login');
-        setErrorMsg('');
-        alert('Registration successful! Please log in.');
-      } else {
-        const err = await res.json();
-        setErrorMsg(err.detail || 'Signup failed.');
-      }
-    } catch (e) {
-      setErrorMsg('Network error connecting to backend.');
-    }
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  const handleLoginSuccess = (loggedInUser: UserInfo) => {
+    setUser(loggedInUser);
+    localStorage.setItem('globepulse_user', JSON.stringify(loggedInUser));
+    setView('dashboard');
   };
 
   const handleLogout = () => {
     setUser(null);
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setFirstName('');
-    setLastName('');
-    setPhone('');
+    localStorage.removeItem('globepulse_user');
+    setView('home');
+    setIsAgentOpen(false);
   };
 
-  const onWatchlistChange = (newWatchlist: string[]) => {
-    if (user) {
-      setUser({ ...user, watchlist: newWatchlist });
-      if (newWatchlist.length > 0 && !newWatchlist.includes(selectedTicker)) {
-        setSelectedTicker(newWatchlist[0]);
-      }
+  const renderView = () => {
+    switch (view) {
+      case 'home': 
+        return <Home onEnter={() => setView(user ? 'dashboard' : 'signin')} />;
+      case 'dashboard': 
+        if (!user) {
+          return <SignIn onToggleMode={() => setView('signup')} onLoginSuccess={handleLoginSuccess} />;
+        }
+        return <Dashboard email={user.email} />;
+      case 'signin': 
+        return <SignIn onToggleMode={() => setView('signup')} onLoginSuccess={handleLoginSuccess} />;
+      case 'signup': 
+        return <SignUp onToggleMode={() => setView('signin')} onSignupSuccess={() => setView('signin')} />;
+      case 'about': 
+        return <About />;
+      case 'contact': 
+        return <Contact />;
+      case 'faq': 
+        return <FAQ />;
+      default: 
+        return <Home onEnter={() => setView(user ? 'dashboard' : 'signin')} />;
     }
   };
 
-  // --- Auth View (Login / Signup) ---
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 0%, #151824 0%, #08090c 70%)' }}>
-        {/* Decorative Blurred Spots */}
-        <div className="absolute top-[-100px] left-[10%] w-[300px] h-[300px] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-100px] right-[10%] w-[300px] h-[300px] rounded-full bg-purple-500/10 blur-[120px] pointer-events-none" />
-
-        <div className="glass-card w-full max-w-md p-8 flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-3xl">🌍</span>
-            <span className="text-2xl font-bold Outfit tracking-tight text-white">GlobePulse</span>
-          </div>
-
-          <h2 className="text-xl font-bold tracking-tight text-white mb-6 text-center">
-            {authMode === 'login' ? 'Access Financial Intelligence' : 'Create Intelligence Account'}
-          </h2>
-
-          {errorMsg && (
-            <div className="w-full bg-red-950/40 border border-red-500/30 rounded-lg p-3 text-rose-400 text-xs text-center mb-4">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={authMode === 'login' ? handleLogin : handleSignup} className="w-full space-y-4">
-            {authMode === 'signup' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Last Name</label>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40"
-                  />
-                </div>
+  return (
+    <div className="min-h-screen dark:bg-[#070709] bg-slate-50 dark:text-white text-slate-900 flex flex-col font-sans transition-colors duration-300 relative overflow-x-hidden">
+      <div className="flex-grow flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        
+        {/* Top Navigation */}
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 border-b dark:border-white/10 border-slate-200 gap-4 shrink-0">
+          <button onClick={() => setView('home')} className="text-left group flex-shrink-0">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase flex items-center gap-3 group-hover:opacity-80 transition-opacity">
+              <Activity className="w-6 h-6 md:w-8 md:h-8 text-[#00FF94] dark:text-[#00FF94] text-emerald-500 animate-pulse" />
+              GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">.ai</span>
+            </h1>
+            <p className="text-[9px] uppercase tracking-[0.3em] dark:text-white/40 text-slate-500 mt-1 font-mono">Sentiment Ingestion Engine v2.5</p>
+          </button>
+          
+          <nav className="flex flex-wrap gap-4 sm:gap-5 items-center w-full sm:w-auto justify-start sm:justify-end">
+            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors" title="Toggle Theme">
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-white/60 hover:text-white" /> : <Moon className="w-4 h-4 text-slate-600 hover:text-slate-900" />}
+            </button>
+            <button 
+              onClick={() => setView(user ? 'dashboard' : 'signin')}
+              className={`text-[11px] font-black uppercase tracking-widest ${view === 'dashboard' ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 pb-1' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors pb-1'}`}
+            >
+              Dashboard
+            </button>
+            <div className="w-px h-4 dark:bg-white/20 bg-slate-300 hidden sm:block"></div>
+            
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-mono dark:text-white/60 text-slate-600 font-bold uppercase truncate max-w-[150px]">
+                  👤 {user.first_name || user.email}
+                </span>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-colors"
+                  title="Secure Logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
               </div>
-            )}
-
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email Address *</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 text-slate-500" size={14} />
-                <input
-                  type="email"
-                  required
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Password *</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 text-slate-500" size={14} />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-400/40"
-                />
-              </div>
-            </div>
-
-            {authMode === 'signup' && (
+            ) : (
               <>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Confirm Password *</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 text-slate-500" size={14} />
-                    <input
-                      type="password"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-400/40"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Phone Number</label>
-                  <input
-                    type="text"
-                    placeholder="+91 XXXXX XXXXX"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/40"
-                  />
-                </div>
+                <button 
+                  onClick={() => setView('signin')}
+                  className={`text-[11px] font-black uppercase tracking-widest ${view === 'signin' ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 pb-1' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors pb-1'}`}
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => setView('signup')}
+                  className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 ${view === 'signup' ? 'dark:bg-[#00FF94] bg-emerald-500 text-white dark:text-black' : 'dark:bg-white bg-slate-800 text-white dark:text-black hover:bg-emerald-500 dark:hover:bg-[#00FF94]'} transition-colors rounded-sm`}
+                >
+                  Sign Up
+                </button>
               </>
             )}
-
-            <button type="submit" className="w-full py-2.5 px-4 gradient-btn flex items-center justify-center gap-2 mt-2">
-              <span>{authMode === 'login' ? 'Log In' : 'Sign Up'}</span>
-              <ChevronRight size={14} />
-            </button>
-          </form>
-
-          <div className="flex items-center gap-1.5 mt-6 text-xs text-slate-400">
-            <span>{authMode === 'login' ? "Don't have an account?" : "Already have an account?"}</span>
-            <button
-              onClick={() => {
-                setAuthMode(authMode === 'login' ? 'signup' : 'login');
-                setErrorMsg('');
-              }}
-              className="text-cyan-400 font-semibold bg-transparent border-none p-0 cursor-pointer hover:underline"
-            >
-              {authMode === 'login' ? 'Sign Up' : 'Log In'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Main Dashboard View ---
-  return (
-    <div className="dashboard-grid min-h-screen">
-      {/* 1. Left Sidebar */}
-      <aside className="p-4 bg-slate-950/20 border-r border-slate-800/40">
-        <Watchlist
-          email={user.email}
-          activeWatchlist={user.watchlist}
-          onChange={onWatchlistChange}
-        />
-      </aside>
-
-      {/* 2. Main Content Plane */}
-      <div className="flex flex-col min-h-screen">
-        {/* Top Navbar */}
-        <header className="flex justify-between items-center px-8 py-4 bg-slate-950/30 border-b border-slate-900">
-          <div className="flex items-center gap-2.5">
-            <Sparkles size={16} className="text-cyan-400" />
-            <h1 className="text-base font-bold text-white tracking-tight m-0">GlobePulse Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
-              <User size={14} className="text-cyan-400" />
-              Welcome, <strong className="text-white font-semibold">{user.first_name}</strong>
-            </span>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 bg-transparent text-xs tracking-wide"
-              style={{ cursor: 'pointer', outline: 'none' }}
-            >
-              <LogOut size={12} />
-              <span>Log Out</span>
-            </button>
-          </div>
+          </nav>
         </header>
 
-        {/* Dashboard Panels Layout */}
-        <main className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
-          {/* Main Visuals (2/3 width on large screens) */}
-          <div className="xl:col-span-2 space-y-6">
-            {/* Stock and Daily Sentiment Chart */}
-            <section className="glass-card p-6 min-h-[350px]">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-                <TrendingUp size={14} className="text-cyan-400" />
-                <span>Price Trend & Sentiment Overlay</span>
-              </div>
-              <div className="flex items-center gap-2 mb-4 bg-slate-900/40 p-2 rounded-lg border border-slate-800/60 w-fit">
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider px-1">Selected Stock:</span>
-                <select
-                  value={selectedTicker}
-                  onChange={(e) => setSelectedTicker(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-white font-medium focus:outline-none"
-                >
-                  {user.watchlist.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="h-[280px]">
-                <ChartPanel ticker={selectedTicker} />
-              </div>
-            </section>
-
-            {/* Overall Sentiment Heatmap */}
-            <section className="glass-card p-6 min-h-[250px]">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-                <BarChart2 size={14} className="text-emerald-400" />
-                <span>Topic Sentiment Heatmap</span>
-              </div>
-              {loadingHeatmap ? (
-                <div className="flex justify-center items-center h-[200px] text-xs text-slate-500 font-medium animate-pulse">
-                  Aggregating topic sentiments...
-                </div>
-              ) : (
-                <Heatmap data={heatmapData} />
-              )}
-            </section>
-          </div>
-
-          {/* Right AI Orchestrator Panel (1/3 width) */}
-          <section className="glass-card p-6 flex flex-col h-full min-h-[500px]">
-            <AgentChat />
-          </section>
+        {/* Main Content */}
+        <main className="flex-grow w-full mx-auto py-6 flex flex-col overflow-y-auto min-h-0">
+          {renderView()}
         </main>
+
+        {/* Footer */}
+        <footer className="border-t dark:border-white/10 border-slate-200 py-6 mt-auto flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+          <nav className="flex flex-wrap gap-6 justify-center">
+            <button 
+              onClick={() => setView('about')}
+              className={`text-[10px] uppercase tracking-widest ${view === 'about' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}
+            >
+              About Us
+            </button>
+            <button 
+              onClick={() => setView('contact')}
+              className={`text-[10px] uppercase tracking-widest ${view === 'contact' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}
+            >
+              Contact
+            </button>
+            <button 
+              onClick={() => setView('faq')}
+              className={`text-[10px] uppercase tracking-widest ${view === 'faq' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}
+            >
+              FAQ
+            </button>
+          </nav>
+          
+          <div className="flex items-center gap-4">
+             <p className="text-[10px] dark:text-white/20 text-slate-400 font-mono uppercase tracking-widest text-center sm:text-right">
+              GlobePulse AI &copy; {new Date().getFullYear()}
+            </p>
+          </div>
+        </footer>
+      </div>
+
+      {/* Floating Agent Chat Bubble */}
+      {user && view === 'dashboard' && (
+        <button 
+          onClick={() => setIsAgentOpen(true)}
+          className="fixed bottom-6 right-6 p-4 rounded-full bg-slate-900 dark:bg-white text-white dark:text-black shadow-[0_0_15px_#00FF94] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 transition-transform flex items-center justify-center z-40 group"
+          title="Open AI Agent Terminal"
+        >
+          <MessageSquare className="w-6 h-6 animate-bounce" />
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 font-black uppercase text-[10px] tracking-widest pl-0 group-hover:pl-2">
+            Agent Terminal
+          </span>
+        </button>
+      )}
+
+      {/* Sliding Agent Panel Drawer */}
+      <div 
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-[#0E0E10] border-l border-slate-200 dark:border-white/10 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isAgentOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center dark:bg-white/2">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#00FF94] animate-pulse"></span>
+            <span className="text-xs font-black uppercase tracking-widest dark:text-white">AI Agent Terminal</span>
+          </div>
+          <button 
+            onClick={() => setIsAgentOpen(false)}
+            className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 dark:text-white/60 hover:dark:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0">
+          <AgentChat />
+        </div>
       </div>
     </div>
   );
 }
-
-export default App;
