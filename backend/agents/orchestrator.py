@@ -8,13 +8,7 @@ from google.antigravity import Agent, LocalAgentConfig, types
 from pipeline import TopicSentimentSchema
 from backend.agents.tools import fetch_news_tool, get_stock_history_tool
 
-# Setup API Key configuration
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-
-# Expose credentials to ensure Agent config can read them automatically
-if GEMINI_API_KEY:
-    os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
-    os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
+from config import settings
 
 # 1. Research Agent Configuration
 # Dedicated to fetching and parsing raw news texts
@@ -25,7 +19,7 @@ research_agent_config = LocalAgentConfig(
         "news contents. Clean and summarize the output for downstream sentiment analysis."
     ),
     tools=[fetch_news_tool],
-    model="gemini-2.5-flash"
+    model=settings.agent_model
 )
 
 # 2. Sentiment Analyst Agent Configuration
@@ -38,7 +32,7 @@ sentiment_analyst_config = LocalAgentConfig(
         "If a topic is not mentioned, its score must be null."
     ),
     response_schema=TopicSentimentSchema,
-    model="gemini-2.5-flash"
+    model=settings.agent_model
 )
 
 # 3. Market Correlator Agent Configuration
@@ -50,7 +44,7 @@ correlator_config = LocalAgentConfig(
         "sentiment scores and news events. Highlight any cause-and-effect patterns."
     ),
     tools=[get_stock_history_tool],
-    model="gemini-2.5-flash"
+    model=settings.agent_model
 )
 
 # 4. Orchestrator Agent Configuration
@@ -69,7 +63,7 @@ orchestrator_config = LocalAgentConfig(
     capabilities=types.CapabilitiesConfig(
         enable_subagents=True
     ),
-    model="gemini-2.5-flash"
+    model=settings.agent_model
 )
 
 # Shared conversation session

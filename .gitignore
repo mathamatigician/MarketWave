@@ -25,3 +25,6 @@ users.json
 .claude/
 .globepulse.pids
 
+# Ignore .env file
+
+.env

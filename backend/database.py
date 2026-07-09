@@ -5,15 +5,12 @@ from google.cloud import firestore
 # Setup Logger
 logger = logging.getLogger("Database")
 
-# Automatically default to the local Firestore Emulator if not running in cloud production
-if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ and "K_SERVICE" not in os.environ:
-    os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8080")
-    logger.info("Configured default FIRESTORE_EMULATOR_HOST to 127.0.0.1:8080")
+from config import settings
 
 # Initialize Firestore Client
 # Specifying a project name is required when connecting to the emulator
 try:
-    db = firestore.Client(project="globepulse-demo")
+    db = firestore.Client(project=settings.firestore_project_id)
     logger.info("Firestore Client initialized successfully.")
 except Exception as e:
     logger.error(f"Failed to initialize Firestore Client: {e}")

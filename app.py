@@ -19,6 +19,9 @@ import requests
 from streamlit_option_menu import option_menu
 import base64
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # wide streamlit format
 st.set_page_config(page_title='GlobePulse', page_icon='🌍', layout='wide')

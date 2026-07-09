@@ -12,20 +12,9 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 # Setup API Key configuration
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-
-# Load keys from Streamlit secrets.toml if not already set in environment
-secrets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
-if os.path.exists(secrets_path):
-    try:
-        import tomllib
-        with open(secrets_path, "rb") as f:
-            secrets = tomllib.load(f)
-        if not GEMINI_API_KEY:
-            # check both gemini_credentials -> API_KEY and simple gemini -> api_key
-            GEMINI_API_KEY = secrets.get("gemini_credentials", {}).get("API_KEY") or secrets.get("gemini", {}).get("api_key")
-    except Exception as e:
-        print(f"Warning: Could not read secrets from secrets.toml: {e}")
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend"))
+from config import settings
+GEMINI_API_KEY = settings.gemini_api_key or settings.google_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 # Define structured output schema for Topic Sentiment
 class TopicSentimentSchema(BaseModel):
@@ -163,7 +152,7 @@ def analyze_sentiment_gemini(text: str, company: str) -> Optional[dict]:
         
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = genai.GenerativeModel(settings.agent_model)
         
         prompt = f"""
         Analyze the news about {company} and return sentiment values for the provided topics.

@@ -11,4 +11,5 @@ google-generativeai
 yahooquery
 websockets
 google-cloud-firestore
+pydantic-settings
 
