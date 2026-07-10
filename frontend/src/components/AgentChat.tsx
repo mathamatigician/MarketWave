@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Terminal, ChevronDown, ChevronUp, Bot, User } from 'lucide-react';
 
+import { WS_URL } from '../config';
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -34,7 +36,7 @@ export const AgentChat: React.FC = () => {
   }, []);
 
   const connectWebSocket = () => {
-    const ws = new WebSocket('ws://localhost:8000/ws/chat');
+    const ws = new WebSocket(`${WS_URL}/ws/chat`);
     
     ws.onopen = () => {
       console.log('Connected to agent chat WebSocket');

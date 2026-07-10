@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Check, AlertTriangle, RefreshCw } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface WatchlistProps {
   email: string;
@@ -23,7 +24,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ email, activeWatchlist, on
 
   const fetchWatchlistOptions = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/watchlist?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`);
       if (res.ok) {
         const data = await res.json();
         setOptions(data.all_options || []);
@@ -35,7 +36,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ email, activeWatchlist, on
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/alerts');
+      const res = await fetch(`${API_URL}/api/alerts`);
       if (res.ok) {
         const data = await res.json();
         setAlerts(data || []);
@@ -56,7 +57,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ email, activeWatchlist, on
     }
 
     try {
-      const res = await fetch('http://localhost:8000/api/watchlist', {
+      const res = await fetch(`${API_URL}/api/watchlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, tickers: updated })
@@ -73,7 +74,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ email, activeWatchlist, on
     setPipelineRunning(true);
     setPipelineMessage('Ingestion pipeline started...');
     try {
-      const res = await fetch('http://localhost:8000/api/pipeline/run', { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/pipeline/run`, { method: 'POST' });
       if (res.ok) {
         setPipelineMessage('Pipeline running in background...');
         setTimeout(() => {

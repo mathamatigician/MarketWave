@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts';
 import { Loader2 } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface ChartPanelProps {
   ticker: string;
@@ -18,7 +19,7 @@ export const ChartPanel: React.FC<ChartPanelProps> = ({ ticker }) => {
   const fetchHistoryData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=${period}`);
+      const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=${period}`);
       if (res.ok) {
         const payload = await res.json();
         const prices = payload.price_series || [];

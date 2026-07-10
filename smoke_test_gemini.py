@@ -1,7 +1,7 @@
 import os
 import sys
 
-def test_key():
+def run_smoke_test():
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
     secrets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
@@ -50,8 +50,28 @@ def test_key():
         print(f"\n✨ Response from Gemini ({target_model}): \"{output}\"")
         if "is working" in output.lower():
             print("\n✅ Verification Successful! Your Gemini API key is working perfectly.")
+
+        # Test Antigravity connection
+        print("\nTesting google-antigravity connection...")
+        import asyncio
+        from google.antigravity import Agent, LocalAgentConfig
+        
+        async def test_antigravity():
+            config = LocalAgentConfig(
+                system_instructions="Respond with exactly: 'Antigravity SDK is working!'"
+            )
+            async with Agent(config) as agent:
+                response = await agent.chat("Test connection")
+                text = await response.text()
+                print(f"✨ Response from Antigravity: \"{text.strip()}\"")
+                if "is working" in text.lower():
+                    print("\n✅ Antigravity SDK connection successful!")
+                else:
+                    print("\n❌ Antigravity SDK connection returned unexpected response.")
+                    
+        asyncio.run(test_antigravity())
     except Exception as e:
         print(f"\n❌ API Call Failed: {e}")
 
 if __name__ == "__main__":
-    test_key()
+    run_smoke_test()

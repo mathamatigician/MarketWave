@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { getSentimentColor, formatPrice } from '../lib/utils';
 import { RefreshCw, AlertCircle, Globe, Calendar, Tag } from 'lucide-react';
 import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { API_URL } from '../config';
 
 interface RecentArticle {
   url: string;
@@ -47,7 +48,7 @@ export function StockPriceSentimentTab({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/stock/history?ticker=${encodeURIComponent(activeTicker)}&period=30d`);
+      const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(activeTicker)}&period=30d`);
       if (!res.ok) throw new Error('Failed to retrieve stock history data.');
       const data = await res.json();
       

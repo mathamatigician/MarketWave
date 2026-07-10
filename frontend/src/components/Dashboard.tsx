@@ -6,10 +6,25 @@ import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { Activity, RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
+import { API_URL } from '../config';
 
 interface DashboardProps {
   email: string;
 }
+
+const formatAlertDate = (timestamp: any) => {
+  if (!timestamp) return '';
+  const num = Number(timestamp);
+  if (!isNaN(num) && num > 0) {
+    const ms = num < 99999999999 ? num * 1000 : num;
+    return new Date(ms).toLocaleString();
+  }
+  const parsed = Date.parse(timestamp);
+  if (!isNaN(parsed)) {
+    return new Date(parsed).toLocaleString();
+  }
+  return String(timestamp);
+};
 
 export function Dashboard({ email }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<string[]>([]);
@@ -36,21 +51,21 @@ export function Dashboard({ email }: DashboardProps) {
     if (isRefresh) setRefreshing(true);
     try {
       // 1. Fetch Watchlist
-      const wlRes = await fetch(`http://localhost:8000/api/watchlist?email=${encodeURIComponent(email)}`);
+      const wlRes = await fetch(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`);
       if (!wlRes.ok) throw new Error("Failed to load watchlist");
       const wlData = await wlRes.json();
       const wl = wlData.watchlist || [];
       setWatchlist(wl);
 
       // 2. Fetch Alerts
-      const alertsRes = await fetch(`http://localhost:8000/api/alerts`);
+      const alertsRes = await fetch(`${API_URL}/api/alerts`);
       if (alertsRes.ok) {
         const alData = await alertsRes.json();
         setAlerts(alData || []);
       }
 
       // 3. Fetch Heatmap
-      const hmRes = await fetch(`http://localhost:8000/api/sentiment/heatmap?email=${encodeURIComponent(email)}`);
+      const hmRes = await fetch(`${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}`);
       if (hmRes.ok) {
         const hmData = await hmRes.json();
         setHeatmapData(hmData || []);
@@ -60,7 +75,7 @@ export function Dashboard({ email }: DashboardProps) {
       const stockSummaries: Stock[] = [];
       for (const ticker of wl) {
         try {
-          const res = await fetch(`http://localhost:8000/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
+          const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
           if (res.ok) {
             const hist = await res.json();
             const prices = hist.price_series || [];
@@ -120,7 +135,7 @@ export function Dashboard({ email }: DashboardProps) {
   // Handle Watchlist Updates (Star / Add Ticker)
   const handleWatchlistChange = async (newWatchlist: string[]) => {
     try {
-      const res = await fetch('http://localhost:8000/api/watchlist', {
+      const res = await fetch(`${API_URL}/api/watchlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, tickers: newWatchlist })
@@ -137,7 +152,7 @@ export function Dashboard({ email }: DashboardProps) {
   const handleRunPipeline = async () => {
     try {
       setPipelineRunning(true);
-      const res = await fetch('http://localhost:8000/api/pipeline/run', {
+      const res = await fetch(`${API_URL}/api/pipeline/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -178,6 +193,29 @@ export function Dashboard({ email }: DashboardProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Active Alerts Banner */}
+      {alerts.length > 0 && alerts.some(alert => watchlist.includes(alert.ticker)) && (
+        <div className="space-y-3">
+          {alerts
+            .filter(alert => watchlist.includes(alert.ticker))
+            .map((alert, idx) => (
+              <div key={idx} className="bg-red-950/40 border border-red-500/30 rounded-lg p-4 text-rose-300 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">⚠️</span>
+                  <span>
+                    <strong>Critical Sentiment Alert:</strong> {alert.ticker} has experienced a negative sentiment drop! (Average Sentiment: {alert.average_sentiment})
+                  </span>
+                </div>
+                {alert.timestamp && (
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+                    {formatAlertDate(alert.timestamp)}
+                  </span>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
+
       {/* Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-4">
         <div>

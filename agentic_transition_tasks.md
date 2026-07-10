@@ -6,7 +6,7 @@ This document contains a structured list of development tasks to migrate the Glo
 
 ## 👥 Role Matrix & Assignment Guidelines
 *   **AI-BE**: Lead AI / Backend Engineer (Agent, Tool, & Pipeline Development)
-*   **FE**: Frontend UI Engineer (Streamlit Interface & Log Viewer)
+*   **FE**: Frontend UI Engineer (React Interface & Log Viewer)
 *   **QA-DO**: DevOps / QA Engineer (Dependencies, Configs, & Integration Testing)
 
 ---
@@ -15,19 +15,19 @@ This document contains a structured list of development tasks to migrate the Glo
 
 | Task ID | Phase | Task Title | Primary Role | Est. Effort | Dependencies | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-1.1** | Phase 1 | Setup SDK & Environment Configuration | QA-DO | 3 hours | None | ⬜ Not Started |
-| **TSK-2.1** | Phase 2 | Implement News Fetcher Tool | AI-BE | 4 hours | TSK-1.1 | ⬜ Not Started |
-| **TSK-2.2** | Phase 2 | Implement Stock Price Retrieval Tool | AI-BE | 3 hours | TSK-1.1 | ⬜ Not Started |
-| **TSK-2.3** | Phase 2 | Implement Sentiment Extraction Schema & Tool | AI-BE | 4 hours | TSK-1.1 | ⬜ Not Started |
-| **TSK-3.1** | Phase 3 | Implement Sub-Agents Configurations | AI-BE | 6 hours | TSK-2.1, 2.2, 2.3 | ⬜ Not Started |
-| **TSK-3.2** | Phase 3 | Implement Orchestrator Chat Loop | AI-BE | 8 hours | TSK-3.1 | ⬜ Not Started |
-| **TSK-3.3** | Phase 3 | Implement Watchlist & Conversation Context | AI-BE | 6 hours | TSK-3.2 | ⬜ Not Started |
-| **TSK-4.1** | Phase 4 | Streamlit Chat Interface Refactoring | FE | 6 hours | TSK-3.2 | ⬜ Not Started |
-| **TSK-4.2** | Phase 4 | Implement Expandable Agent Thought Log Viewer | FE | 5 hours | TSK-4.1 | ⬜ Not Started |
-| **TSK-4.3** | Phase 4 | Visual Rendering of Sentiment & Price Charts | FE | 6 hours | TSK-4.1, TSK-2.2 | ⬜ Not Started |
-| **TSK-5.1** | Phase 5 | Implement Periodic Sentiment Watchdog Trigger | AI-BE | 6 hours | TSK-1.1, TSK-2.3 | ⬜ Not Started |
-| **TSK-5.2** | Phase 5 | Watchdog UI Notifications & Alert Flagging | FE | 4 hours | TSK-5.1 | ⬜ Not Started |
-| **TSK-6.1** | Phase 6 | End-to-End Integration Testing | QA-DO | 6 hours | All Phase 1–5 tasks | ⬜ Not Started |
+| **TSK-1.1** | Phase 1 | Setup SDK & Environment Configuration | QA-DO | 3 hours | None | ✅ Completed |
+| **TSK-2.1** | Phase 2 | Implement News Fetcher Tool | AI-BE | 4 hours | TSK-1.1 | ✅ Completed |
+| **TSK-2.2** | Phase 2 | Implement Stock Price Retrieval Tool | AI-BE | 3 hours | TSK-1.1 | ✅ Completed |
+| **TSK-2.3** | Phase 2 | Implement Sentiment Extraction Schema & Tool | AI-BE | 4 hours | TSK-1.1 | ✅ Completed |
+| **TSK-3.1** | Phase 3 | Implement Sub-Agents Configurations | AI-BE | 6 hours | TSK-2.1, 2.2, 2.3 | ✅ Completed |
+| **TSK-3.2** | Phase 3 | Implement Orchestrator Chat Loop | AI-BE | 8 hours | TSK-3.1 | ✅ Completed |
+| **TSK-3.3** | Phase 3 | Implement Watchlist & Conversation Context | AI-BE | 6 hours | TSK-3.2 | ✅ Completed |
+| **TSK-4.1** | Phase 4 | React Chat Interface Refactoring | FE | 6 hours | TSK-3.2 | ✅ Completed |
+| **TSK-4.2** | Phase 4 | Implement Expandable Agent Thought Log Viewer | FE | 5 hours | TSK-4.1 | ✅ Completed |
+| **TSK-4.3** | Phase 4 | Visual Rendering of Sentiment & Price Charts | FE | 6 hours | TSK-4.1, TSK-2.2 | ✅ Completed |
+| **TSK-5.1** | Phase 5 | Implement Periodic Sentiment Watchdog Trigger | AI-BE | 6 hours | TSK-1.1, TSK-2.3 | ✅ Completed |
+| **TSK-5.2** | Phase 5 | Watchdog UI Notifications & Alert Flagging | FE | 4 hours | TSK-5.1 | ✅ Completed |
+| **TSK-6.1** | Phase 6 | End-to-End Integration Testing | QA-DO | 6 hours | All Phase 1–5 tasks | ✅ Completed |
 
 ---
 
@@ -228,54 +228,49 @@ This document contains a structured list of development tasks to migrate the Glo
 
 ---
 
-### 🖥️ Phase 4: Streamlit Frontend Integration (`app.py`)
+### 🖥️ Phase 4: React Frontend Integration (`frontend/`)
 
-#### **TSK-4.1: Streamlit Chat Interface Refactoring**
+#### **TSK-4.1: React Chat Interface Refactoring**
 *   **Assigned Role:** Frontend UI Engineer (`FE`)
 *   **Estimated Effort:** 6 hours
 *   **Dependencies:** TSK-3.2
 *   **Description:**
-    Refactor the chatbot section in `app.py` to replace Embedchain's `bot.chat` with a run-loop wrapper for the Google Antigravity `Agent`.
+    Integrate the React Chatbot panel with the FastAPI backend's WebSocket chat endpoint (`/ws/chat`).
 *   **Implementation Spec:**
-    Import `asyncio` to run the async agent methods within the Streamlit UI:
-    ```python
-    import asyncio
-    from backend.agents.orchestrator import get_orchestrator_response
-    
-    # Inside Streamlit response loop:
-    # response_obj = asyncio.run(get_orchestrator_response(user_query))
+    Connect to the WebSocket inside the React component and handle streaming tokens:
+    ```typescript
+    const ws = new WebSocket('ws://localhost:8000/ws/chat');
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'token') {
+            // Append token to last assistant message
+        }
+    };
     ```
 *   **Acceptance Criteria:**
-    - User messages are submitted and the Agent returns replies successfully in the main dashboard tab.
+    - User messages can be submitted and replies stream back successfully in the Chatbot panel.
 
 #### **TSK-4.2: Implement Expandable Agent Thought Log Viewer**
 *   **Assigned Role:** Frontend UI Engineer (`FE`)
 *   **Estimated Effort:** 5 hours
 *   **Dependencies:** TSK-4.1
 *   **Description:**
-    Expose the agent's internal thought process and reasoning steps (e.g. subagent delegation, tool selections) on the UI.
+    Expose the agent's internal thought process and reasoning steps (subagent delegation, tool selections) on the React UI.
 *   **Implementation Spec:**
-    Create a `st.expander("🔍 Agent Reasoning & Thoughts", expanded=False)` right above or below the agent response.
-    Stream tokens from `response.thoughts` directly into the expander component:
-    ```python
-    thought_container = st.empty()
-    thoughts_accumulated = ""
-    async for thought_chunk in response_obj.thoughts:
-        thoughts_accumulated += thought_chunk
-        thought_container.markdown(f"```\n{thoughts_accumulated}\n```")
-    ```
+    Render a collapsible logs panel (`Orchestrator Thought Stream`) right above the agent input.
+    Stream messages with `data.type === 'thought'` directly into the logs panel.
 *   **Acceptance Criteria:**
     - Thought process is visible in real-time or updated progressively in the expander.
-    - Expander stays collapsed by default to keep the UI clean, but is fully viewable upon clicking.
+    - Log panel is collapsible by default to keep the UI clean.
 
 #### **TSK-4.3: Visual Rendering of Sentiment & Price Charts**
 *   **Assigned Role:** Frontend UI Engineer (`FE`)
 *   **Estimated Effort:** 6 hours
 *   **Dependencies:** TSK-4.1, TSK-2.2
 *   **Description:**
-    Render interactive charts based on the stock prices and sentiments extracted by the agent.
+    Render interactive charts in the React UI based on stock historical price data and daily sentiments.
 *   **Implementation Spec:**
-    Parse structured output from the Sentiment Analyst and historical prices from the Correlator, then feed them into `functions.plot_chart(price_series, sentiment_series)`.
+    Retrieve stock data via `/api/stock/history` and render using the `<ChartPanel />` lightweight chart component.
 *   **Acceptance Criteria:**
     - The price chart correctly displays historical prices synchronized with sentiment bars.
 
@@ -316,9 +311,9 @@ This document contains a structured list of development tasks to migrate the Glo
 *   **Estimated Effort:** 4 hours
 *   **Dependencies:** TSK-5.1
 *   **Description:**
-    Render warning flags or alert banners on the Streamlit dashboard when the watchdog agent reports low average sentiment.
+    Render warning flags or alert banners on the React dashboard when the watchdog agent reports low average sentiment.
 *   **Implementation Spec:**
-    Read `db/alerts.json` on app load. If there are active alerts, display a `st.warning("⚠️ Critical Sentiment Alert: [Ticker] has experienced a negative sentiment drop!")` banner at the top of the dashboard.
+    Fetch `/api/alerts` on app load. If there are active alerts matching the user's watchlist, display alert warning cards at the top of the dashboard main content grid.
 *   **Acceptance Criteria:**
     - Dashboard renders warnings dynamically when negative events are recorded by the watchdog.
 

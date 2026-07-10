@@ -1,52 +1,14 @@
 import pandas as pd
-import streamlit as st
-import streamlit.components.v1 as components
-from streamlit.components.v1 import html
 import time
-#from databricks import sql
 import numpy as np
 from collections import defaultdict
-from streamlit_lightweight_charts import renderLightweightCharts
 from yahooquery import Ticker
 import datetime
-from embedchain import App
-from embedchain.config import BaseLlmConfig
 import os
 from yahooquery import search
 import json
 import requests
 import hashlib
-
-
-@st.cache_resource(show_spinner=False)
-def load_bot(sources):
-    bot = App.from_config(config_path="gemini.yaml")
-
-    # Embed resources
-    for item in sources:
-        if isinstance(item, tuple) and len(item) == 2:
-            source_val, source_type = item
-            if source_type == "url":
-                bot.add(source_val)
-            elif source_type == "text":
-                bot.add(source_val, data_type="text")
-        else:
-            # Fallback for simple string/url list
-            bot.add(item)
-
-    return bot
-
-
-def get_sources(citations):
-    unique_urls = set()
-
-    for item in citations:
-        for element in item:
-            if isinstance(element, dict) and 'url' in element:
-                unique_urls.add(element['url'])
-
-    return list(unique_urls)
-
 
 def transform_date_sentiment(df):
     # Filter for only the overall_sentiment row
@@ -93,7 +55,6 @@ def get_ticker(company_name):
     return None
 
 
-@st.cache_data(show_spinner=False)
 def get_stock_history(tkr, period, interval):
     try:
         ticker = Ticker(tkr)
@@ -152,75 +113,6 @@ def get_stock_history(tkr, period, interval):
         return []
 
 
-def plot_chart(price_series, sentiment_series):
-    priceVolumeChartOptions = {
-        "height": 400,
-        "rightPriceScale": {
-            "scaleMargins": {
-                "top": 0.2,
-                "bottom": 0.25,
-            },
-            "borderVisible": False,
-        },
-        "overlayPriceScales": {
-            "scaleMargins": {
-                "top": 0.7,
-                "bottom": 0,
-            }
-        },
-        "layout": {
-            "background": {
-                "type": 'solid',
-                "color": '#131722'
-            },
-            "textColor": '#d1d4dc',
-        },
-        "grid": {
-            "vertLines": {
-                "color": 'rgba(42, 46, 57, 0)',
-            },
-            "horzLines": {
-                "color": 'rgba(42, 46, 57, 0.6)',
-            }
-        }
-    }
-
-    priceVolumeSeries = [
-        {
-            "type": 'Area',
-            "data": price_series,
-            "options": {
-                "topColor": 'rgba(38,198,218, 0.56)',
-                "bottomColor": 'rgba(38,198,218, 0.04)',
-                "lineColor": 'rgba(38,198,218, 1)',
-                "lineWidth": 2,
-            }
-        },
-        {
-            "type": 'Histogram',
-            "data": sentiment_series,
-            "options": {
-                "color": '#26a69a',
-                "base": 0,
-                "priceScaleId": ""  # set as an overlay setting,
-            },
-            "priceScale": {
-                "scaleMargins": {
-                    "top": 0.7,
-                    "bottom": 0,
-                }
-            }
-        }
-    ]
-    renderLightweightCharts([
-        {
-            "chart": priceVolumeChartOptions,
-            "series": priceVolumeSeries
-        }
-    ], 'priceAndVolume')
-
-
-@st.cache_data(show_spinner=False)
 def aggregate_sentiment(sentiments: list):
     """
     Aggregates sentiment data across multiple dictionaries.
@@ -275,32 +167,31 @@ def aggregate_sentiment(sentiments: list):
     return result_df
 
 
-@st.cache_data(show_spinner=False)
 def transform_sentiment(df: pd.DataFrame):
     """
-        Transforms a dataframe of sentiment data into a wide format.
+    Transforms a dataframe of sentiment data into a wide format.
 
-        The input dataframe should have two columns: 'date' and 'Sentiment'. The
-        'Sentiment' column contains dictionaries mapping sentiment topics to their
-        respective values. The function aggregates the sentiment values for each
-        topic by date, ignoring None values, and calculates the average for each
-        topic. The resulting dataframe has one column for each date and one row for
-        each unique topic.
+    The input dataframe should have two columns: 'date' and 'Sentiment'. The
+    'Sentiment' column contains dictionaries mapping sentiment topics to their
+    respective values. The function aggregates the sentiment values for each
+    topic by date, ignoring None values, and calculates the average for each
+    topic. The resulting dataframe has one column for each date and one row for
+    each unique topic.
 
-        Parameters:
-        ----------
-        df : pandas.DataFrame
-            A dataframe with columns 'date' and 'Sentiment'. Each row contains a
-            dictionary in 'Sentiment' column, mapping topics to sentiment scores
-            or None.
+    Parameters:
+    ----------
+    df : pandas.DataFrame
+        A dataframe with columns 'date' and 'Sentiment'. Each row contains a
+        dictionary in 'Sentiment' column, mapping topics to sentiment scores
+        or None.
 
-        Returns:
-        -------
-        pandas.DataFrame
-            A wide-format dataframe where the first column is 'sentiment topic'
-            representing all unique topics, and subsequent columns are labeled by
-            dates, containing the corresponding average sentiment values or None.
-        """
+    Returns:
+    -------
+    pandas.DataFrame
+        A wide-format dataframe where the first column is 'sentiment topic'
+        representing all unique topics, and subsequent columns are labeled by
+        dates, containing the corresponding average sentiment values or None.
+    """
     aggregated_data = defaultdict(lambda: defaultdict(list))
 
     for index, row in df.iterrows():
@@ -344,32 +235,6 @@ def transform_sentiment(df: pd.DataFrame):
 
 def custom_sort_key(topic):
     return (0, '') if topic == 'overall_sentiment' else (1, topic)
-
-
-# @st.cache_resource(show_spinner=False)
-# def get_conn(server_hostname, http_path, access_token):
-#     connection = sql.connect(server_hostname = server_hostname,
-#                      http_path       = http_path,
-#                      access_token    = access_token,)
-#     return connection
-
-
-# @st.cache_data(show_spinner=False)
-# def find_user(connection, username, password):
-#     cursor = connection.cursor()
-#     cursor.execute("SELECT * FROM my_test_workspace.hackathon_schema.users WHERE username = '{}' AND password = '{}'".format(username, password))
-#     result = cursor.fetchall()
-#     cursor.close()
-#     return result
-
-
-# @st.cache_data(show_spinner=False)
-# def get_data(connection, watchlist):
-#     cursor = connection.cursor()
-#     cursor.execute("SELECT * FROM my_test_workspace.hackathon_schema.articles WHERE company_name= '{}'".format(watchlist))
-#     result = cursor.fetchall()
-#     cursor.close()
-#     return result
 
 
 def hash_password(password):

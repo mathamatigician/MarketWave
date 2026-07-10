@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, Phone, AlertTriangle } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface UserInfo {
   email: string;
@@ -31,7 +32,7 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
     
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:8000/api/login', {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -148,7 +149,7 @@ export function SignUp({ onToggleMode, onSignupSuccess }: SignUpProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/api/signup', {
+      const res = await fetch(`${API_URL}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

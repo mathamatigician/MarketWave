@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from google.antigravity import Agent, LocalAgentConfig, types
+from google.antigravity.hooks import policy
 from pipeline import TopicSentimentSchema
 from backend.agents.tools import fetch_news_tool, get_stock_history_tool
 
@@ -60,9 +61,30 @@ orchestrator_config = LocalAgentConfig(
         "Coordinate their execution based on the user's questions. State what sub-agents "
         "you are delegating tasks to."
     ),
+    tools=[fetch_news_tool, get_stock_history_tool],
+    policies=[policy.allow_all()],
     capabilities=types.CapabilitiesConfig(
         enable_subagents=True
     ),
+    subagents=[
+        types.SubagentConfig(
+            name="ResearchAgent",
+            description="Fetches, filters, and parses news from specified sources.",
+            system_instructions=research_agent_config.system_instructions,
+            tools=[fetch_news_tool]
+        ),
+        types.SubagentConfig(
+            name="SentimentAnalyst",
+            description="Analyzes article text and returns structured sentiment scores for financial topics.",
+            system_instructions=sentiment_analyst_config.system_instructions
+        ),
+        types.SubagentConfig(
+            name="MarketCorrelator",
+            description="Retrieves stock price history and correlates movements with news sentiment.",
+            system_instructions=correlator_config.system_instructions,
+            tools=[get_stock_history_tool]
+        )
+    ],
     model=settings.agent_model
 )
 
@@ -83,3 +105,21 @@ class AgentSession:
         if self.orchestrator_agent is not None:
             await self.orchestrator_agent.__aexit__(None, None, None)
             self.orchestrator_agent = None
+
+async def get_orchestrator_response(user_message: str, chat_history: list = None):
+    """Utility function to get response from Orchestrator Agent.
+    Creates an ephemeral Agent session, chats, and returns the response.
+    """
+    agent = Agent(orchestrator_config)
+    await agent.__aenter__()
+    try:
+        response = await agent.chat(user_message)
+        # We must keep the context entered to allow streaming. 
+        # The caller is responsible for close, or we return the response.
+        # But wait: if we exit the context, response thoughts/tokens won't be streamable!
+        # So we return the agent and response, or we stream it here.
+        return agent, response
+    except Exception as e:
+        await agent.__aexit__(None, None, None)
+        raise e
+

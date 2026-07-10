@@ -56,11 +56,23 @@ async def check_watchlist_sentiment(ctx: TriggerContext):
                         "ticker": ticker,
                         "average_sentiment": round(avg_sentiment, 2),
                         "message": f"Critical sentiment drop detected for {ticker}: {round(avg_sentiment, 2)}",
-                        "timestamp": datetime.datetime.now().isoformat()
+                        "timestamp": int(datetime.datetime.now().timestamp())
                     })
         except Exception as e:
             logger.error(f"Error checking sentiment for {ticker} in watchdog: {e}")
             
+    # Write alerts to local JSON file
+    try:
+        alerts_file = get_alerts_file_path()
+        dir_name = os.path.dirname(alerts_file)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        with open(alerts_file, 'w') as f:
+            json.dump(alerts, f, indent=4)
+        logger.info(f"Watchdog run completed. Active alerts saved to local file: {alerts_file}")
+    except Exception as e:
+        logger.error(f"Error saving watchdog alerts to local file: {e}")
+
     # Write alerts to Firestore
     if database.db is not None:
         try:

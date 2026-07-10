@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import type { Stock } from '../types';
 import { getSentimentColor, formatPrice } from '../lib/utils';
 import { TrendingUp, Star, X, Play, AlertTriangle } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface SectorHeatmapProps {
   heatmapData: any[];
@@ -134,7 +135,7 @@ export function TopStocks({
 
   useEffect(() => {
     if (isEditingWatchlist && email) {
-      fetch(`http://localhost:8000/api/watchlist?email=${encodeURIComponent(email)}`)
+      fetch(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`)
         .then(res => res.json())
         .then(data => {
           setAllOptions(data.all_options || []);
