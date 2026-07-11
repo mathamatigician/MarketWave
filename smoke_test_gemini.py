@@ -19,6 +19,9 @@ def run_smoke_test():
         print("\n❌ Error: No Gemini API key detected! Please add your key to `.streamlit/secrets.toml` or set GEMINI_API_KEY in your environment.")
         return
 
+    # Set environment variable for tools/SDKs like Antigravity
+    os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+
     try:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)

@@ -59,7 +59,10 @@ orchestrator_config = LocalAgentConfig(
         "- SentimentAnalyst: To evaluate structured sentiment scores from raw news. "
         "- MarketCorrelator: To pull historical stock prices and check correlations. "
         "Coordinate their execution based on the user's questions. State what sub-agents "
-        "you are delegating tasks to."
+        "you are delegating tasks to. IMPORTANT: You must call sub-agents sequentially "
+        "yourself. For example, first call ResearchAgent to fetch the news, wait for the "
+        "response, and then call SentimentAnalyst yourself with the fetched news. Do not "
+        "instruct a sub-agent to call or pass data to another sub-agent."
     ),
     tools=[fetch_news_tool, get_stock_history_tool],
     policies=[policy.allow_all()],

@@ -31,7 +31,6 @@
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "tailwindcss": "^4.0.0-beta.8",
     "@tailwindcss/vite": "^4.0.0-beta.8"
   }
 }

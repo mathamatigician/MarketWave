@@ -10,7 +10,7 @@ from config import settings
 
 # Setup Firestore Client if environment is present
 db = None
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ or "K_SERVICE" in os.environ or "USE_FIRESTORE" in os.environ:
+if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ or "K_SERVICE" in os.environ or "USE_FIRESTORE" in os.environ or "FIRESTORE_EMULATOR_HOST" in os.environ:
     try:
         db = firestore.Client(project=settings.firestore_project_id)
         logger.info("Firestore Client initialized successfully.")
@@ -113,7 +113,7 @@ def load_all_watchlist_tickers() -> list:
         return default_tickers
 
 def seed_demo_users():
-    """Seeds two default demo users in Firestore for testing persistence."""
+    """Seeds default demo users and local JSON users in Firestore for testing persistence."""
     if db is None:
         return
     try:
@@ -142,10 +142,25 @@ def seed_demo_users():
             }
         }
         
+        # Also seed any local users from users.json so that existing sessions work
+        filepath = get_users_file_path()
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    local_users = json.load(f)
+                for email, udata in local_users.items():
+                    if email not in demo_users:
+                        # Make sure there is a default watchlist if missing
+                        if "watchlist" not in udata:
+                            udata["watchlist"] = "Tesla,Apple,Google"
+                        demo_users[email] = udata
+            except Exception as e:
+                logger.error(f"Error reading users.json for seeding: {e}")
+        
         for email, data in demo_users.items():
             doc_ref = users_ref.document(email)
             doc_ref.set(data, merge=True)
-        logger.info("Successfully seeded demo users in Firestore.")
+        logger.info("Successfully seeded demo and local users in Firestore.")
         
         # Seed mock articles too
         seed_demo_articles()
