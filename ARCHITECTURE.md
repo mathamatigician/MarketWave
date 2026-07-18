@@ -1,204 +1,233 @@
 # GlobePulse — Architecture & Information Flow
 
-GlobePulse is a financial-news **sentiment monitoring** app. It has two distinct halves:
+GlobePulse is a financial-news **sentiment monitoring** platform. It is built as a
+decoupled **React + FastAPI** application backed by **Google Cloud Firestore** and
+powered by **Google Gemini** (via the **Google Antigravity** agent SDK).
 
-| Plane | Status in this repo | Where it lives |
-|-------|--------------------|----------------|
-| **Online app** (serving / demo) | ✅ Active — what runs today | `app.py`, `functions.py`, `index.html`, `articles.csv`, `openai.yaml`, `.streamlit/` |
-| **Offline data pipeline** (ingest + enrich) | 💤 Dormant — present but disabled | `databricks_notebooks/*.ipynb` (Databricks calls in `app.py`/`functions.py` are commented out) |
+| Plane | Role | Where it lives |
+|-------|------|----------------|
+| **Frontend** (SPA) | Dashboard, auth, charts, AI chat | `frontend/` (React + Vite + TypeScript, served on `:5173`) |
+| **Backend** (API) | REST + WebSocket, agents, ingestion | `backend/` (FastAPI on `:8000`) |
+| **Data store** | Users, articles, alerts | Firestore (local emulator on `:8080`), with local JSON fallbacks |
+| **Intelligence** | Sentiment scoring + conversational agent | Google Gemini through `google-antigravity` |
 
-The live demo decouples itself from Databricks by reading a **static `articles.csv`** snapshot instead of querying the Delta tables that the notebooks would normally populate.
+The frontend never talks to Firestore or Gemini directly — everything flows through the
+FastAPI backend over REST (`/api/*`) and a streaming WebSocket (`/ws/chat`).
 
 ---
 
-## 1. Current (Live Demo) Architecture
+## 1. Current Architecture
 
-This is what actually executes when you run `streamlit run app.py`.
+This is what runs when you execute `make start` (or `./start.sh`): the Firestore
+emulator, the FastAPI backend, and the React dev server come up together.
 
 ```mermaid
 flowchart TB
     user(("👤 User<br/>Browser"))
 
-    subgraph ST["Streamlit App (app.py)"]
-        header["index.html banner<br/>(components.html)"]
-        sidebar["Sidebar login form<br/>(disabled — demo)"]
-        state["session_state<br/>logged_in=True · watchlist='Tesla'"]
-
-        subgraph TABS["st.tabs"]
-            t1["Tab 1 — Sentiment Analysis"]
-            t2["Tab 2 — Price vs Sentiment"]
-            t3["Tab 3 — Chatbot"]
-        end
+    subgraph FE["React Frontend · Vite (:5173)"]
+        app["App.tsx<br/>view state machine"]
+        auth["AuthForms<br/>Sign In / Sign Up"]
+        dash["Dashboard"]
+        wl["Watchlist"]
+        hm["Heatmap · OverallSentiment"]
+        chart["ChartPanel · StockPriceSentimentTab"]
+        chat["AgentChat<br/>(WebSocket)"]
+        cfg["config.ts<br/>API_URL / WS_URL"]
     end
 
-    subgraph FN["functions.py (helpers)"]
-        agg["aggregate_sentiment()<br/>median per topic"]
-        trans["transform_sentiment()<br/>wide-by-date table"]
-        tds["transform_date_sentiment()<br/>histogram series"]
-        gsh["get_stock_history()<br/>@cache_data"]
-        plot["plot_chart()<br/>lightweight-charts"]
-        bot["load_bot()<br/>@cache_resource"]
-        src["get_sources()"]
+    subgraph BE["FastAPI Backend (:8000)"]
+        rest["REST routes<br/>/api/*"]
+        ws["WebSocket<br/>/ws/chat"]
+        orch["Antigravity Orchestrator<br/>+ 3 sub-agents"]
+        pipe["pipeline.py<br/>news ingestion"]
+        trig["triggers.py<br/>hourly watchdog"]
+        fn["functions.py<br/>sentiment / stock helpers"]
     end
 
-    csv[("articles.csv<br/>static snapshot")]
-    yaml[["openai.yaml<br/>llm config"]]
-    secrets[["st.secrets / env<br/>OPENAI_API_KEY"]]
+    fs[("Firestore Emulator (:8080)<br/>users · articles · alerts")]
+    localjson[("Local fallback<br/>users.json · db/alerts.json")]
 
-    yf["Yahoo Finance<br/>(yahooquery)"]
-    emb["embedchain App<br/>+ local Chroma vector store"]
-    openai["OpenAI API<br/>gpt-3.5-turbo"]
-    urls["9 hard-coded<br/>Tesla news URLs"]
+    gemini["Google Gemini<br/>(gemini-2.5-flash)"]
+    yahoo["Yahoo Finance<br/>(yahooquery)"]
+    gnews["Google News RSS<br/>+ article scraping"]
 
-    user <--> ST
-    header -.reads.-> idx[["index.html"]]
-    state --> TABS
+    user <--> FE
+    app --> auth & dash & chat
+    dash --> wl & hm & chart
+    FE -->|REST /api/*| rest
+    chat -->|WebSocket| ws
 
-    t1 --> csv
-    t1 --> agg & trans
-    t2 --> gsh --> yf
-    t2 --> tds --> plot
-    t3 --> secrets
-    t3 --> bot
-    bot --> yaml
-    bot --> emb
-    emb --> urls
-    emb --> openai
-    t3 --> src
+    rest --> fs
+    rest --> fn
+    fn --> yahoo
+    rest -. fallback .-> localjson
+
+    ws --> orch
+    orch --> gemini
+    orch -. tools .-> pipe & fn
+
+    pipe --> gnews & gemini --> fs
+    trig --> gnews & gemini --> fs
 
     classDef ext fill:#fde,stroke:#c39;
     classDef data fill:#eef,stroke:#669;
-    class yf,openai,urls ext;
-    class csv,yaml,secrets,idx data;
+    class gemini,yahoo,gnews ext;
+    class fs,localjson data;
 ```
 
-![Current (live demo) architecture](docs/diagrams/01_current_architecture.png)
+![Current architecture](docs/diagrams/01_current_architecture.png)
 
-### Per-tab behaviour
+### Frontend (`frontend/`)
 
-- **Tab 1 — Sentiment Analysis** (`app.py:95-138`)
-  Reads `articles.csv`, normalises the `sentiment` JSON string (`null → None`, then `eval`), then:
-  - `aggregate_sentiment()` → median score per topic across all articles (a ranked summary table).
-  - `transform_sentiment()` → wide table (rows = topics, columns = dates).
-  Both are rendered as `RdYlGn` gradient heatmaps via pandas Styler.
+A single-page React app (Vite + TypeScript + Tailwind, `lucide-react` icons).
 
-- **Tab 2 — Price vs Sentiment** (`app.py:142-154`)
-  `get_stock_history('TSLA', '30d', '1d')` pulls adjusted close prices from **Yahoo Finance**; `transform_date_sentiment()` turns the overall-sentiment row into a colored histogram series. `plot_chart()` overlays both on a TradingView **lightweight-charts** panel (area = price, histogram = sentiment intensity).
+- **`App.tsx`** — top-level view state machine (`home · dashboard · signin · signup · about · contact · faq`), dark/light theme, and session restore from `localStorage` (`globepulse_user`).
+- **`components/AuthForms.tsx`** — Sign In / Sign Up, backed by `/api/login` and `/api/signup`.
+- **`components/Dashboard.tsx`** — authenticated view that composes the widgets below.
+- **`components/Watchlist.tsx`** — reads/writes the user's watchlist via `/api/watchlist`.
+- **`components/Heatmap.tsx` / `OverallSentiment.tsx`** — render aggregated topic sentiment from `/api/sentiment/heatmap`.
+- **`components/ChartPanel.tsx` / `StockPriceSentimentTab.tsx` / `StockTrendDetails.tsx`** — overlay price vs. sentiment from `/api/stock/history` (TradingView lightweight-charts style series).
+- **`components/AgentChat.tsx`** — connects to `/ws/chat` and streams the assistant's *thoughts* and *tokens* live.
+- **`config.ts`** — derives `API_URL` (`:8000`) and `WS_URL` from the current host.
 
-- **Tab 3 — Chatbot** (`app.py:157-207`)
-  `load_bot()` builds an **embedchain** `App` from `openai.yaml`, embeds 9 hard-coded Tesla article URLs into a local **Chroma** vector store, and answers questions via RAG against the **OpenAI** API. The `OPENAI_API_KEY` is read from `st.secrets` with an env-var fallback and a graceful "disabled" warning if absent (`app.py:171-185`).
+### Backend (`backend/`)
 
-> **Note on tab execution:** Streamlit runs *all three* `with tab:` blocks on every rerun — tabs are switched client-side. That is why a missing key in Tab 3 previously crashed the whole page, and why the secret read is now guarded.
+FastAPI app (`main.py`) with CORS open to the Vite origin.
+
+| Module | Responsibility |
+|--------|----------------|
+| `main.py` | FastAPI app: REST routes, `/ws/chat` WebSocket, startup seeding, CORS |
+| `config.py` | `pydantic-settings` config; loads `.env`, exposes `GEMINI_API_KEY`/`GOOGLE_API_KEY`, wires the Firestore emulator host |
+| `database.py` | Firestore client + `users` / `articles` / `alerts` access; local `users.json` fallback; demo user + mock article seeding |
+| `functions.py` | Pure helpers: sentiment aggregation/transform, `get_stock_history()` (yahooquery), `analyze_sentiment_gemini()`, password hashing |
+| `pipeline.py` | News ingestion: Google News RSS → URL resolve → scrape → Gemini structured sentiment → Firestore; defines `TopicSentimentSchema` (18 topics) |
+| `agents/orchestrator.py` | Antigravity orchestrator agent + 3 sub-agents (ResearchAgent, SentimentAnalyst, MarketCorrelator) |
+| `agents/tools.py` | Agent tools: `fetch_news_tool`, `get_stock_history_tool` |
+| `agents/triggers.py` | Hourly watchdog (`every(3600, …)`) that flags critical sentiment drops as alerts |
+
+### REST surface (`/api/*`)
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/signup` | POST | Create a user (SHA-256 password hash, default watchlist) |
+| `/api/login` | POST | Authenticate, return profile + watchlist |
+| `/api/watchlist` | GET / POST | Read or update a user's watchlist |
+| `/api/sentiment/heatmap` | GET | Aggregated topic sentiment across the user's watchlist |
+| `/api/stock/history` | GET | Price series + daily sentiment series + recent articles |
+| `/api/pipeline/run` | POST | Kick off the ingestion pipeline as a background task |
+| `/api/alerts` | GET | Recent watchdog alerts (Firestore, else `db/alerts.json`) |
+| `/ws/chat` | WS | Streaming conversation with the Antigravity orchestrator |
 
 ---
 
-## 2. Original (Intended) Databricks Pipeline
+## 2. News Ingestion & Sentiment Pipeline
 
-The notebooks describe the production ingest path that the app was designed to consume. It is currently bypassed (the `databricks.sql` connection and `get_data`/`find_user` helpers are commented out), but it explains where `articles.csv`'s columns and the sentiment schema come from.
+`pipeline.run_pipeline()` builds the `articles` collection. It is invoked on demand
+via `POST /api/pipeline/run`, from the CLI (`python backend/pipeline.py --ticker TSLA`),
+or indirectly by the agent's `fetch_news_tool`. The hourly **watchdog** reuses the same
+scraping + scoring helpers to raise alerts.
 
 ```mermaid
 flowchart LR
-    subgraph NB1["01 · Scrape, Clean & Load"]
-        u[("users table<br/>watchlist")] --> ddg["DuckDuckGo News API<br/>(RapidAPI)"]
-        ddg --> sg["ScrapeGraphAI + Playwright<br/>extract article text"]
-        sg --> clean["clean text + dates<br/>(regex)"]
+    subgraph SRC["Sources"]
+        wl[("Watchlist tickers<br/>(from users)")]
+        rss["Google News RSS<br/>search feed"]
     end
 
-    subgraph NB2["02 · Extract & Analyze Sentiment"]
-        llm1["ChatDatabricks (dbrx-instruct)<br/>+ Pydantic 18-topic schema"]
+    subgraph ING["pipeline.run_pipeline()"]
+        fetch["fetch_news_items()"]
+        decode["googlenewsdecoder<br/>resolve real URL"]
+        scrape["BeautifulSoup<br/>extract article text"]
+        dedupe["dedupe vs existing URLs"]
+        score["analyze_sentiment_gemini()<br/>Gemini structured output<br/>TopicSentimentSchema · 18 topics"]
     end
 
-    subgraph NB3["03 · RAG Index"]
-        split["RecursiveCharacterTextSplitter<br/>chunk 1000/200"]
-        vidx["Databricks Vector Search<br/>bge-large-en embeddings"]
+    art[("Firestore: articles<br/>url · content · company_name · date · sentiment")]
+
+    wl --> fetch
+    rss --> fetch
+    fetch --> decode --> scrape --> dedupe --> score --> art
+
+    subgraph WD["triggers.py watchdog · hourly"]
+        every["every(3600)"]
+        check["check_watchlist_sentiment()<br/>flag avg overall_sentiment < -0.5"]
+        alert[("Firestore: alerts<br/>+ db/alerts.json")]
     end
-
-    art[("Delta: hackathon_schema.articles")]
-    srct[("Delta: source_table<br/>CDF enabled")]
-
-    clean --> art
-    art --> llm1 --> |MERGE sentiment col| art
-    art --> split --> srct --> vidx
-
-    art -.exported snapshot.-> csv[("articles.csv")]
-    csv -.consumed by.-> app["Streamlit app"]
+    every --> check --> rss
+    check --> alert
 
     classDef ext fill:#fde,stroke:#c39;
-    class ddg,sg,llm1,vidx ext;
+    class rss,score ext;
 ```
 
-![Original Databricks pipeline](docs/diagrams/02_databricks_pipeline.png)
+![News ingestion pipeline](docs/diagrams/02_databricks_pipeline.png)
 
-| Notebook | Role | Key tech |
-|----------|------|----------|
-| `01. Scrape, Clean & Load` | Create `users`/`articles` tables; fetch news URLs per watchlist company; scrape & clean full text; append to Delta | DuckDuckGo (RapidAPI), ScrapeGraphAI, Playwright, Spark/Delta |
-| `02. Extract & Analyze Sentiment` | Per-topic structured sentiment (18 topics, −1..1 or null) and `MERGE` back into `articles.sentiment` | LangChain, ChatDatabricks `dbrx-instruct`, Pydantic |
-| `03. RAG` | Chunk articles → `source_table` → continuous Vector Search index for retrieval QA | Databricks Vector Search, `bge-large-en`, RetrievalQA |
+**Sentiment schema.** Every article carries a `sentiment` map scoring 18 financial
+topics (`layoffs`, `revenue_growth`, `product_launches`, `overall_sentiment`, …), each in
+`[-1, 1]` or `null` when the topic is not present. Gemini is asked to return this exact
+structure via `response_schema=TopicSentimentSchema`; if Gemini is unavailable the pipeline
+falls back to a neutral default so ingestion never hard-fails.
 
-> In the **live app**, Notebook 02's sentiment schema is reproduced in `articles.csv`'s `sentiment` column, and Notebook 03's Databricks Vector Search is replaced by embedchain + local Chroma over a handful of URLs.
+> **Seeding.** On startup, `database.seed_demo_users()` seeds two demo accounts
+> (`demo1@/demo2@globepulse.com`, password `password123`) and a set of mock articles with
+> realistic sentiment, so the dashboard is populated without running the live scraper.
+> `articles.csv` remains in the repo as a legacy static snapshot of this dataset.
 
 ---
 
 ## 3. Information Flow (Request Lifecycle)
 
-End-to-end sequence for a single page load + a chatbot question.
+End-to-end sequence for a login + dashboard load, and for a streaming agent chat.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as User (browser)
-    participant S as Streamlit (app.py)
-    participant F as functions.py
-    participant C as articles.csv
+    participant U as User (React :5173)
+    participant A as FastAPI (:8000)
+    participant D as Firestore (:8080)
     participant Y as Yahoo Finance
-    participant E as embedchain + Chroma
-    participant O as OpenAI API
-
-    U->>S: Open app / rerun
-    S->>S: render index.html banner + sidebar (login disabled)
-    S->>S: session_state.logged_in=True, watchlist="Tesla"
+    participant O as Antigravity Orchestrator
+    participant G as Google Gemini
 
     rect rgb(235,245,255)
-    note over S,F: Tab 1 — Sentiment (runs every rerun)
-    S->>C: pd.read_csv()
-    C-->>S: articles dataframe
-    S->>F: aggregate_sentiment() / transform_sentiment()
-    F-->>S: ranked + wide sentiment tables
-    S-->>U: gradient heatmaps
-    end
-
-    rect rgb(235,255,240)
-    note over S,Y: Tab 2 — Price vs Sentiment
-    S->>F: get_stock_history('TSLA','30d','1d')
-    F->>Y: ticker.history()  (cached)
-    Y-->>F: price series
-    S->>F: transform_date_sentiment() + plot_chart()
-    F-->>U: overlaid price/sentiment chart
+    note over U,D: Login + Dashboard load
+    U->>A: POST /api/login {email, password}
+    A->>D: load users
+    D-->>A: profile + watchlist
+    A-->>U: session (stored in localStorage)
+    U->>A: GET /api/sentiment/heatmap?email
+    A->>D: query articles where company_name in watchlist
+    D-->>A: sentiment maps
+    A->>A: aggregate_sentiment() (median per topic)
+    A-->>U: heatmap rows
+    U->>A: GET /api/stock/history?ticker
+    A->>Y: price series (yahooquery)
+    A->>D: article sentiment by date
+    A-->>U: price + sentiment series + recent articles
     end
 
     rect rgb(255,245,235)
-    note over S,O: Tab 3 — Chatbot
-    S->>S: read OPENAI_API_KEY (secrets→env, else warn+stop)
-    S->>F: load_bot(urls)  (cached resource)
-    F->>E: embed 9 URLs into Chroma
-    U->>S: ask question
-    S->>E: bot.chat(prompt, citations=True)
-    E->>O: retrieve + generate (gpt-3.5-turbo)
-    O-->>E: answer
-    E-->>S: response + citations
-    S->>F: get_sources(citations)
-    S-->>U: answer + source link
+    note over U,G: AI Assistant chat (streaming)
+    U->>A: WS /ws/chat {prompt}
+    A->>O: agent.chat(prompt)
+    O->>O: delegate to ResearchAgent / SentimentAnalyst / MarketCorrelator
+    O->>G: reason + generate (tools: fetch_news, stock_history)
+    G-->>O: thoughts + tokens
+    O-->>A: async streams
+    A-->>U: {type: thought} … {type: token} … {type: done}
     end
 ```
 
 ![Information flow — request lifecycle](docs/diagrams/03_information_flow.png)
 
-### How the data is shaped along the way
+### How the data is shaped
 
-1. **Source record** (`articles.csv` row): `url, content, company_name, date, sentiment`. The `sentiment` field is a JSON string mapping 18 topics → score in `[-1, 1]` or `null` (e.g. `overall_sentiment`, `layoffs`, `revenue_growth`, …).
-2. **Sentiment plane** splits two ways: a **topic median** summary (`aggregate_sentiment`) and a **topic × date** matrix (`transform_sentiment`). The `overall_sentiment` row is further reshaped into a signed-color histogram series for the price chart.
-3. **Price plane** is fetched independently from Yahoo Finance and joined *visually* (shared time axis) rather than in data — sentiment and price are two overlaid series, not a merged table.
-4. **Chat plane** is fully independent of the CSV: it builds its own retrieval index from hard-coded URLs and talks to OpenAI.
+1. **User record** (`users` collection / `users.json`): `first_name, last_name, email, phone, password_hash, watchlist` (comma-separated company names).
+2. **Article record** (`articles` collection): `url, content, company_name, date, sentiment` where `sentiment` is the 18-topic map.
+3. **Heatmap plane**: `aggregate_sentiment()` reduces all watchlist articles to a median score + count (`N`) per topic.
+4. **Price-vs-sentiment plane**: `transform_sentiment()` → `transform_date_sentiment()` produce a signed, colored daily sentiment series that is overlaid on the Yahoo Finance price series (joined visually on a shared time axis, not merged in data).
+5. **Chat plane**: the orchestrator delegates to sub-agents and calls the news/stock tools as needed, streaming reasoning and answer tokens back over the WebSocket.
 
 ---
 
@@ -206,20 +235,47 @@ sequenceDiagram
 
 | File | Responsibility |
 |------|----------------|
-| `app.py` | Streamlit entrypoint, layout, tabs, session state, secret handling |
-| `functions.py` | Pure helpers: sentiment aggregation/transform, stock fetch, chart render, bot loader (cached) |
-| `articles.csv` | Static demo dataset (stand-in for the Delta `articles` table) |
-| `openai.yaml` | embedchain LLM config (`gpt-3.5-turbo-0125`, temp 0, streaming) |
-| `index.html` | HTML/CSS hero banner injected at top of the page |
-| `.streamlit/config.toml` | Dark theme + orange primary color |
-| `.streamlit/secrets.toml` | (not committed) `[openai_credentials] API_KEY` for the chatbot |
-| `databricks_notebooks/` | Dormant offline pipeline: ingest → sentiment → RAG index |
+| `backend/main.py` | FastAPI entrypoint: REST + WebSocket, CORS, startup seeding |
+| `backend/config.py` | Settings (`.env`), Gemini key exposure, Firestore emulator wiring |
+| `backend/database.py` | Firestore access + local fallback + demo/mock seeding |
+| `backend/functions.py` | Sentiment aggregation/transform, stock history, hashing |
+| `backend/pipeline.py` | News scraping + Gemini sentiment ingestion; `TopicSentimentSchema` |
+| `backend/agents/orchestrator.py` | Orchestrator + sub-agent configuration (Antigravity) |
+| `backend/agents/tools.py` | `fetch_news_tool`, `get_stock_history_tool` |
+| `backend/agents/triggers.py` | Hourly sentiment watchdog → alerts |
+| `frontend/src/App.tsx` | View state machine, theme, session |
+| `frontend/src/components/*` | Dashboard, auth, watchlist, heatmap, charts, agent chat |
+| `frontend/src/config.ts` | REST/WS base URLs |
+| `articles.csv` | Legacy static article snapshot (superseded by Firestore + seeding) |
+| `Makefile` / `start.sh` / `stop.sh` | Orchestrate the emulator + backend + frontend |
 
 ## 5. External Dependencies
 
 | Service | Used by | Required for |
 |---------|---------|--------------|
-| Yahoo Finance (`yahooquery`) | Tab 2 | Stock price chart |
-| OpenAI API | Tab 3 (via embedchain) | Chatbot answers |
-| Chroma (local, bundled w/ embedchain) | Tab 3 | Vector store for RAG |
-| *(dormant)* Databricks Delta + Vector Search, DuckDuckGo/RapidAPI, ScrapeGraphAI | notebooks | Production ingest/enrich |
+| Google Gemini (`google-generativeai`, via `google-antigravity`) | pipeline, watchdog, agents | Structured sentiment + conversational assistant |
+| Google Antigravity SDK | `agents/*` | Orchestrator + sub-agents + streaming |
+| Google Cloud Firestore (local emulator) | `database.py`, routes | Users / articles / alerts persistence |
+| Yahoo Finance (`yahooquery`) | `functions.get_stock_history` | Stock price series |
+| Google News RSS + `googlenewsdecoder` + BeautifulSoup | `pipeline.py`, `triggers.py` | News discovery + article scraping |
+
+## 6. Running Locally
+
+```bash
+make install          # backend + frontend dependencies
+make start            # Firestore emulator + FastAPI + React (or ./start.sh)
+make stop             # stop all services
+```
+
+| Service | URL |
+|---------|-----|
+| Frontend UI | http://localhost:5173 |
+| FastAPI docs (Swagger) | http://localhost:8000/docs |
+| Firestore emulator console | http://localhost:4001 |
+
+Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in a `.env` file or the environment for the
+AI agents and the sentiment pipeline. See `make help` for individual dev targets
+(`make dev-backend`, `make dev-frontend`, `make dev-emulator`).
+
+> Historical design docs for the earlier pre-migration system are preserved under
+> [`docs/archive/`](docs/archive/).

@@ -1,28 +1,30 @@
 flowchart LR
-    subgraph NB1["01 · Scrape, Clean & Load"]
-        u[("users table<br/>watchlist")] --> ddg["DuckDuckGo News API<br/>(RapidAPI)"]
-        ddg --> sg["ScrapeGraphAI + Playwright<br/>extract article text"]
-        sg --> clean["clean text + dates<br/>(regex)"]
+    subgraph SRC["Sources"]
+        wl[("Watchlist tickers<br/>(from users)")]
+        rss["Google News RSS<br/>search feed"]
     end
 
-    subgraph NB2["02 · Extract & Analyze Sentiment"]
-        llm1["ChatDatabricks (dbrx-instruct)<br/>+ Pydantic 18-topic schema"]
+    subgraph ING["pipeline.run_pipeline()"]
+        fetch["fetch_news_items()"]
+        decode["googlenewsdecoder<br/>resolve real URL"]
+        scrape["BeautifulSoup<br/>extract article text"]
+        dedupe["dedupe vs existing URLs"]
+        score["analyze_sentiment_gemini()<br/>Gemini structured output<br/>TopicSentimentSchema · 18 topics"]
     end
 
-    subgraph NB3["03 · RAG Index"]
-        split["RecursiveCharacterTextSplitter<br/>chunk 1000/200"]
-        vidx["Databricks Vector Search<br/>bge-large-en embeddings"]
+    art[("Firestore: articles<br/>url · content · company_name · date · sentiment")]
+
+    wl --> fetch
+    rss --> fetch
+    fetch --> decode --> scrape --> dedupe --> score --> art
+
+    subgraph WD["triggers.py watchdog · hourly"]
+        every["every(3600)"]
+        check["check_watchlist_sentiment()<br/>flag avg overall_sentiment < -0.5"]
+        alert[("Firestore: alerts<br/>+ db/alerts.json")]
     end
-
-    art[("Delta: hackathon_schema.articles")]
-    srct[("Delta: source_table<br/>CDF enabled")]
-
-    clean --> art
-    art --> llm1 --> |MERGE sentiment col| art
-    art --> split --> srct --> vidx
-
-    art -.exported snapshot.-> csv[("articles.csv")]
-    csv -.consumed by.-> app["Streamlit app"]
+    every --> check --> rss
+    check --> alert
 
     classDef ext fill:#fde,stroke:#c39;
-    class ddg,sg,llm1,vidx ext;
+    class rss,score ext;

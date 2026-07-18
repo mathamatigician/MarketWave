@@ -4,19 +4,8 @@ import sys
 def run_smoke_test():
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
-    secrets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml")
-    if os.path.exists(secrets_path):
-        try:
-            import tomllib
-            with open(secrets_path, "rb") as f:
-                secrets = tomllib.load(f)
-            if not GEMINI_API_KEY:
-                GEMINI_API_KEY = secrets.get("gemini_credentials", {}).get("API_KEY") or secrets.get("gemini", {}).get("api_key")
-        except Exception as e:
-            print(f"Warning: Could not read secrets from secrets.toml: {e}")
-
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
-        print("\n❌ Error: No Gemini API key detected! Please add your key to `.streamlit/secrets.toml` or set GEMINI_API_KEY in your environment.")
+        print("\n❌ Error: No Gemini API key detected! Please set GEMINI_API_KEY in your environment or add it to a .env file.")
         return
 
     # Set environment variable for tools/SDKs like Antigravity

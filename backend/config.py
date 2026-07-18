@@ -40,25 +40,6 @@ except ImportError:
 
 settings = Settings()
 
-# Fallback: Parse Streamlit secrets.toml if GEMINI_API_KEY/GOOGLE_API_KEY are not loaded from environment or .env
-if not settings.gemini_api_key and not settings.google_api_key:
-    secrets_paths = [
-        os.path.join(root_dir, ".streamlit", "secrets.toml"),
-        os.path.join(backend_dir, ".streamlit", "secrets.toml"),
-    ]
-    for secrets_path in secrets_paths:
-        if os.path.exists(secrets_path):
-            try:
-                import tomllib
-                with open(secrets_path, "rb") as f:
-                    secrets = tomllib.load(f)
-                api_key = secrets.get("gemini_credentials", {}).get("API_KEY") or secrets.get("gemini", {}).get("api_key")
-                if api_key:
-                    settings.gemini_api_key = api_key
-                    break
-            except Exception as e:
-                print(f"Warning: Could not read secrets from {secrets_path}: {e}")
-
 # Post-processing: Expose credentials as environment variables for downstream SDK integrations
 exposed_key = settings.gemini_api_key or settings.google_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 if exposed_key:

@@ -1,45 +1,36 @@
 sequenceDiagram
     autonumber
-    participant U as User (browser)
-    participant S as Streamlit (app.py)
-    participant F as functions.py
-    participant C as articles.csv
+    participant U as User (React :5173)
+    participant A as FastAPI (:8000)
+    participant D as Firestore (:8080)
     participant Y as Yahoo Finance
-    participant E as embedchain + Chroma
-    participant O as OpenAI API
-
-    U->>S: Open app / rerun
-    S->>S: render index.html banner + sidebar (login disabled)
-    S->>S: session_state.logged_in=True, watchlist="Tesla"
+    participant O as Antigravity Orchestrator
+    participant G as Google Gemini
 
     rect rgb(235,245,255)
-    note over S,F: Tab 1 — Sentiment (runs every rerun)
-    S->>C: pd.read_csv()
-    C-->>S: articles dataframe
-    S->>F: aggregate_sentiment() / transform_sentiment()
-    F-->>S: ranked + wide sentiment tables
-    S-->>U: gradient heatmaps
-    end
-
-    rect rgb(235,255,240)
-    note over S,Y: Tab 2 — Price vs Sentiment
-    S->>F: get_stock_history('TSLA','30d','1d')
-    F->>Y: ticker.history()  (cached)
-    Y-->>F: price series
-    S->>F: transform_date_sentiment() + plot_chart()
-    F-->>U: overlaid price/sentiment chart
+    note over U,D: Login + Dashboard load
+    U->>A: POST /api/login {email, password}
+    A->>D: load users
+    D-->>A: profile + watchlist
+    A-->>U: session (stored in localStorage)
+    U->>A: GET /api/sentiment/heatmap?email
+    A->>D: query articles where company_name in watchlist
+    D-->>A: sentiment maps
+    A->>A: aggregate_sentiment() (median per topic)
+    A-->>U: heatmap rows
+    U->>A: GET /api/stock/history?ticker
+    A->>Y: price series (yahooquery)
+    A->>D: article sentiment by date
+    A-->>U: price + sentiment series + recent articles
     end
 
     rect rgb(255,245,235)
-    note over S,O: Tab 3 — Chatbot
-    S->>S: read OPENAI_API_KEY (secrets→env, else warn+stop)
-    S->>F: load_bot(urls)  (cached resource)
-    F->>E: embed 9 URLs into Chroma
-    U->>S: ask question
-    S->>E: bot.chat(prompt, citations=True)
-    E->>O: retrieve + generate (gpt-3.5-turbo)
-    O-->>E: answer
-    E-->>S: response + citations
-    S->>F: get_sources(citations)
-    S-->>U: answer + source link
+    note over U,G: AI Assistant chat (streaming)
+    U->>A: WS /ws/chat {prompt}
+    A->>O: agent.chat(prompt)
+    O->>O: delegate to ResearchAgent / SentimentAnalyst / MarketCorrelator
+    O->>G: reason + generate (tools: fetch_news, stock_history)
+    G-->>O: thoughts + tokens
+    O-->>A: async streams
+    A-->>U: {type: thought} … {type: token} … {type: done}
     end

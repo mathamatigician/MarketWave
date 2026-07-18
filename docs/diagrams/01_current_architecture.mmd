@@ -1,54 +1,52 @@
 flowchart TB
     user(("👤 User<br/>Browser"))
 
-    subgraph ST["Streamlit App (app.py)"]
-        header["index.html banner<br/>(components.html)"]
-        sidebar["Sidebar login form<br/>(disabled — demo)"]
-        state["session_state<br/>logged_in=True · watchlist='Tesla'"]
-
-        subgraph TABS["st.tabs"]
-            t1["Tab 1 — Sentiment Analysis"]
-            t2["Tab 2 — Price vs Sentiment"]
-            t3["Tab 3 — Chatbot"]
-        end
+    subgraph FE["React Frontend · Vite (:5173)"]
+        app["App.tsx<br/>view state machine"]
+        auth["AuthForms<br/>Sign In / Sign Up"]
+        dash["Dashboard"]
+        wl["Watchlist"]
+        hm["Heatmap · OverallSentiment"]
+        chart["ChartPanel · StockPriceSentimentTab"]
+        chat["AgentChat<br/>(WebSocket)"]
+        cfg["config.ts<br/>API_URL / WS_URL"]
     end
 
-    subgraph FN["functions.py (helpers)"]
-        agg["aggregate_sentiment()<br/>median per topic"]
-        trans["transform_sentiment()<br/>wide-by-date table"]
-        tds["transform_date_sentiment()<br/>histogram series"]
-        gsh["get_stock_history()<br/>@cache_data"]
-        plot["plot_chart()<br/>lightweight-charts"]
-        bot["load_bot()<br/>@cache_resource"]
-        src["get_sources()"]
+    subgraph BE["FastAPI Backend (:8000)"]
+        rest["REST routes<br/>/api/*"]
+        ws["WebSocket<br/>/ws/chat"]
+        orch["Antigravity Orchestrator<br/>+ 3 sub-agents"]
+        pipe["pipeline.py<br/>news ingestion"]
+        trig["triggers.py<br/>hourly watchdog"]
+        fn["functions.py<br/>sentiment / stock helpers"]
     end
 
-    csv[("articles.csv<br/>static snapshot")]
-    yaml[["openai.yaml<br/>llm config"]]
-    secrets[["st.secrets / env<br/>OPENAI_API_KEY"]]
+    fs[("Firestore Emulator (:8080)<br/>users · articles · alerts")]
+    localjson[("Local fallback<br/>users.json · db/alerts.json")]
 
-    yf["Yahoo Finance<br/>(yahooquery)"]
-    emb["embedchain App<br/>+ local Chroma vector store"]
-    openai["OpenAI API<br/>gpt-3.5-turbo"]
-    urls["9 hard-coded<br/>Tesla news URLs"]
+    gemini["Google Gemini<br/>(gemini-2.5-flash)"]
+    yahoo["Yahoo Finance<br/>(yahooquery)"]
+    gnews["Google News RSS<br/>+ article scraping"]
 
-    user <--> ST
-    header -.reads.-> idx[["index.html"]]
-    state --> TABS
+    user <--> FE
+    app --> auth & dash & chat
+    dash --> wl & hm & chart
+    FE -->|REST /api/*| rest
+    chat -->|WebSocket| ws
 
-    t1 --> csv
-    t1 --> agg & trans
-    t2 --> gsh --> yf
-    t2 --> tds --> plot
-    t3 --> secrets
-    t3 --> bot
-    bot --> yaml
-    bot --> emb
-    emb --> urls
-    emb --> openai
-    t3 --> src
+    rest --> fs
+    rest --> fn
+    fn --> yahoo
+    rest -. fallback .-> localjson
+
+    ws --> orch
+    orch --> gemini
+    orch -. tools .-> pipe & fn
+
+    pipe --> gnews & gemini --> fs
+    trig --> gnews & gemini --> fs
 
     classDef ext fill:#fde,stroke:#c39;
     classDef data fill:#eef,stroke:#669;
-    class yf,openai,urls ext;
-    class csv,yaml,secrets,idx data;
+    class gemini,yahoo,gnews ext;
+    class fs,localjson data;

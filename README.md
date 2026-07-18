@@ -1,8 +1,6 @@
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://globe-pulse.streamlit.app/)
-
 # GlobePulse AI: Financial News Monitoring and Sentiment Analysis
 
-GlobePulse is a Streamlit-based app for tracking business and market-moving news, analyzing article sentiment, and comparing sentiment trends with stock price activity.
+GlobePulse is a React + FastAPI app for tracking business and market-moving news, analyzing article sentiment, and comparing sentiment trends with stock price activity.
 
 ## Features
 - **Sentiment Analysis:** Visualize news sentiment over time and by topic.
@@ -17,27 +15,30 @@ GlobePulse is a Streamlit-based app for tracking business and market-moving news
    python3 -m venv .venv
    source .venv/bin/activate
    ```
-3. Install dependencies:
+3. Install backend and frontend dependencies:
    ```bash
-   pip install -r requirements.txt
+   make install
    ```
-4. Run the app:
+4. Run all services (Firestore emulator, FastAPI backend, React frontend):
    ```bash
-   streamlit run app.py
+   make start        # or ./start.sh
    ```
+   The frontend is served at `http://localhost:5173` and the FastAPI docs at `http://localhost:8000/docs`.
+
+   Run `make help` to see individual dev targets (`make dev-backend`, `make dev-frontend`, `make dev-emulator`).
 
 ## Notes
 - The current implementation uses a demo news dataset in `articles.csv`.
-- The chatbot uses `embedchain` with a small demo index built from sample article URLs.
-- `OPENAI_API_KEY` should be configured in Streamlit secrets or as an environment variable for chatbot functionality.
+- `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) should be set in a `.env` file or as an environment variable for the AI agents and chat assistant.
 - User data for authentication is stored locally in `users.json`, which will be automatically generated upon your first sign up.
 
 ## Tech Stack
-- Streamlit & Streamlit Option Menu
-- OpenAI
-- Embedchain
+- React (Vite) frontend
+- FastAPI backend
+- Google Cloud Firestore (local emulator)
+- Google Gemini
 - YahooQuery
-- Pandas, NumPy, Matplotlib
+- Pandas, NumPy
 
 ## Architecture
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full architecture, information-flow diagrams, and explanation.

@@ -4,8 +4,8 @@ __pycache__/
 .venv/
 venv/
 
-# Streamlit secrets
-.streamlit/secrets.toml
+# Local secrets
+secrets.toml
 
 # embedchain / Chroma local vector store
 db/
