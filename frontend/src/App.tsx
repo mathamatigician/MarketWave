@@ -183,11 +183,11 @@ export default function App() {
         <button 
           onClick={() => setIsAgentOpen(true)}
           className="fixed bottom-6 right-6 p-4 rounded-full bg-slate-900 dark:bg-white text-white dark:text-black shadow-[0_0_15px_#00FF94] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 transition-transform flex items-center justify-center z-40 group"
-          title="Open AI Agent Terminal"
+          title="Open GlobePulse AI Assistant"
         >
           <MessageSquare className="w-6 h-6 animate-bounce" />
           <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 font-black uppercase text-[10px] tracking-widest pl-0 group-hover:pl-2">
-            Agent Terminal
+            GlobePulse AI
           </span>
         </button>
       )}
@@ -199,7 +199,7 @@ export default function App() {
         <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center dark:bg-white/2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#00FF94] animate-pulse"></span>
-            <span className="text-xs font-black uppercase tracking-widest dark:text-white">AI Agent Terminal</span>
+            <span className="text-xs font-black uppercase tracking-widest dark:text-white">GLOBEPULSE AI</span>
           </div>
           <button 
             onClick={() => setIsAgentOpen(false)}
