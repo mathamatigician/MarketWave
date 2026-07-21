@@ -19,7 +19,6 @@ if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ or "K_SERVICE" in os.environ o
         db = None
 else:
     logger.info("Firestore Client initialization skipped (local environment mode).")
-
 def get_users_file_path() -> str:
     """Resolves the path to the local users.json file."""
     if os.path.exists('users.json'):

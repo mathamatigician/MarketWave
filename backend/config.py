@@ -17,6 +17,7 @@ try:
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = "localhost:8080"
+        admin_key: Optional[str] = None
         
         model_config = SettingsConfigDict(
             env_file=env_path,
@@ -32,6 +33,7 @@ except ImportError:
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = "localhost:8080"
+        admin_key: Optional[str] = None
         
         class Config:
             env_file = env_path

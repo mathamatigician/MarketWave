@@ -1,0 +1,14 @@
+// LOCAL DEVELOPMENT ONLY
+// These rules are intended exclusively for the Firestore emulator.
+// DO NOT DEPLOY TO PRODUCTION.
+// Production rules should enforce authentication and per-user access control.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TODO: Replace with authenticated, least-privilege Firestore rules before production deployment.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

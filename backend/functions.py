@@ -194,8 +194,13 @@ def transform_sentiment(df: pd.DataFrame):
     """
     aggregated_data = defaultdict(lambda: defaultdict(list))
 
+    import ast
     for index, row in df.iterrows():
-        for topic, sentiment in eval(row["sentiment"]).items():
+        try:
+            sentiment_map = ast.literal_eval(row["sentiment"])
+        except Exception:
+            sentiment_map = {}
+        for topic, sentiment in sentiment_map.items():
             aggregated_data[row["date"]][topic].append(sentiment)
 
     aggregated_result = {}
@@ -237,6 +242,29 @@ def custom_sort_key(topic):
     return (0, '') if topic == 'overall_sentiment' else (1, topic)
 
 
-def hash_password(password):
-    """Hashes a password using SHA-256."""
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+import secrets
+import hmac
+
+def hash_password(password: str, salt: str = None) -> str:
+    """Hashes a password using PBKDF2 with HMAC-SHA256."""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt.encode('utf-8'),
+        100000
+    )
+    return f"{salt}:{key.hex()}"
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verifies a password against a stored hash securely."""
+    if not stored_hash:
+        return False
+    if ":" not in stored_hash:
+        # Fallback for old unsalted hashes
+        legacy_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+        return hmac.compare_digest(legacy_hash, stored_hash)
+    salt, _ = stored_hash.split(":", 1)
+    expected_hash = hash_password(password, salt)
+    return hmac.compare_digest(expected_hash, stored_hash)

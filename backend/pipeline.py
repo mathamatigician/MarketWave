@@ -101,11 +101,27 @@ def resolve_and_scrape_article(google_link: str) -> tuple:
     }
     
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        from urllib.parse import urlparse
+        import ipaddress
+        import socket
+        
+        hostname = urlparse(url).hostname
+        if hostname:
+            try:
+                ip = socket.gethostbyname(hostname)
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                    print(f"SSRF Blocked: URL {url} resolves to internal IP {ip}")
+                    return url, ""
+            except Exception:
+                pass
+                
+        r = requests.get(url, headers=headers, timeout=10, stream=True, allow_redirects=False)
         if r.status_code != 200:
             return url, ""
             
-        soup = BeautifulSoup(r.text, 'html.parser')
+        content = r.raw.read(2 * 1024 * 1024)
+        soup = BeautifulSoup(content, 'html.parser')
         
         # Clean text: remove script, style, header, footer elements
         for script in soup(["script", "style", "nav", "footer", "header"]):
