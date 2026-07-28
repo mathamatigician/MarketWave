@@ -17,38 +17,28 @@ export function SectorHeatmap({
   selectedTicker = 'ALL', 
   onSelectTicker 
 }: SectorHeatmapProps) {
-  // Define our actual backend parsed topic categories
-  const topics = useMemo(() => [
-    "Layoffs",
-    "Revenue Growth",
-    "New Product",
-    "Management Change",
-    "Regulatory",
-    "Mergers & Acquisitions"
-  ], []);
-
-  // Compute average sentiment score for each topic across all watchlist rows
+  // /api/sentiment/heatmap returns one row per topic, already aggregated:
+  //   { "Sentiment Topic": "Product launches", "Sentiment Score": 0.7, "N": 4 }
+  // Topics with no scored articles come back with a null score and are dropped.
+  // "Overall sentiment" is the cross-topic aggregate rather than a topic of its
+  // own, so it is excluded from the per-topic breakdown.
   const topicDistributions = useMemo(() => {
-    if (!heatmapData || heatmapData.length === 0) {
-      return topics.map(t => ({ name: t, score: 0.0, count: 0 }));
-    }
+    if (!heatmapData || heatmapData.length === 0) return [];
 
-    return topics.map(topic => {
-      let sum = 0;
-      let count = 0;
-      heatmapData.forEach(row => {
-        if (row[topic] !== undefined && row[topic] !== null) {
-          sum += row[topic];
-          count++;
-        }
-      });
-      return {
-        name: topic,
-        score: count > 0 ? (sum / count) : 0.0,
-        count
-      };
-    }).sort((a, b) => b.score - a.score);
-  }, [heatmapData, topics]);
+    return heatmapData
+      .filter(row =>
+        row
+        && row['Sentiment Topic']
+        && row['Sentiment Topic'] !== 'Overall sentiment'
+        && typeof row['Sentiment Score'] === 'number'
+      )
+      .map(row => ({
+        name: row['Sentiment Topic'] as string,
+        score: row['Sentiment Score'] as number,
+        count: typeof row['N'] === 'number' ? row['N'] : 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [heatmapData]);
 
   return (
     <div className="flex flex-col h-full">
@@ -85,6 +75,15 @@ export function SectorHeatmap({
         <div className="p-8 text-center border border-dashed dark:border-white/10 border-slate-200 rounded-xl my-4">
           <p className="text-xs font-mono uppercase tracking-widest text-slate-400 dark:text-white/40">No Watchlist Items</p>
           <p className="text-xs text-slate-500 dark:text-white/30 mt-1.5">Add tickers to your watchlist to view topic sentiment distributions.</p>
+        </div>
+      ) : topicDistributions.length === 0 ? (
+        <div className="p-8 text-center border border-dashed dark:border-white/10 border-slate-200 rounded-xl my-4">
+          <p className="text-xs font-mono uppercase tracking-widest text-slate-400 dark:text-white/40">No Topic Sentiment Yet</p>
+          <p className="text-xs text-slate-500 dark:text-white/30 mt-1.5">
+            {selectedTicker === 'ALL'
+              ? 'Ingest news for your watchlist to build the topic breakdown.'
+              : `No scored articles for ${selectedTicker} yet.`}
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
