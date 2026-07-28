@@ -1,14 +1,24 @@
-// LOCAL DEVELOPMENT ONLY
-// These rules are intended exclusively for the Firestore emulator.
-// DO NOT DEPLOY TO PRODUCTION.
-// Production rules should enforce authentication and per-user access control.
+// GlobePulse Firestore Security Rules
+//
+// Access model: every Firestore read and write in this application happens
+// server-side. backend/database.py uses the google-cloud-firestore *server*
+// SDK, which authenticates with a service account / application default
+// credentials and therefore BYPASSES these rules entirely. The React frontend
+// never contacts Firestore directly -- it only calls the FastAPI backend over
+// HTTP, and the backend is what talks to Firestore.
+//
+// Given that, the least-privilege policy is to deny every direct client
+// connection. This closes public read/write access to `articles`, `users`, and
+// every other collection without affecting the backend.
+//
+// If a client-side SDK is ever introduced, add explicit per-collection rules
+// scoped to request.auth here -- do not relax this default to `if true`.
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // TODO: Replace with authenticated, least-privilege Firestore rules before production deployment.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
