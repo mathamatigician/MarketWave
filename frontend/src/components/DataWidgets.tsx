@@ -6,9 +6,17 @@ import { API_URL } from '../config';
 
 interface SectorHeatmapProps {
   heatmapData: any[];
+  watchlist?: string[];
+  selectedTicker?: string;
+  onSelectTicker?: (ticker: string) => void;
 }
 
-export function SectorHeatmap({ heatmapData }: SectorHeatmapProps) {
+export function SectorHeatmap({ 
+  heatmapData, 
+  watchlist = [], 
+  selectedTicker = 'ALL', 
+  onSelectTicker 
+}: SectorHeatmapProps) {
   // Define our actual backend parsed topic categories
   const topics = useMemo(() => [
     "Layoffs",
@@ -44,35 +52,69 @@ export function SectorHeatmap({ heatmapData }: SectorHeatmapProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-6">Topic Distribution</label>
-      
-      <div className="space-y-6">
-        {topicDistributions.map((topic) => {
-          const score = topic.score;
-          // Map -1.0 to 1.0 into 0% to 100% width
-          const barWidthPct = Math.round((score + 1) * 50);
-          const formattedScore = score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
-          
-          return (
-            <div key={topic.name} className="group cursor-default">
-              <div className="flex justify-between mb-2 items-baseline">
-                <span className="text-sm font-bold uppercase dark:text-white text-slate-900 group-hover:text-emerald-500 transition-colors">
-                  {topic.name}
-                </span>
-                <span className={`font-mono text-sm font-bold ${getSentimentColor(score)}`}>
-                  {formattedScore}
-                </span>
-              </div>
-              <div className="w-full dark:bg-white/10 bg-slate-200 h-1">
-                <div 
-                  className={`h-full ${getSentimentColor(score, 'bg')}`}
-                  style={{ width: `${barWidthPct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block">
+          Topic Distribution
+        </label>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase dark:text-white/40 text-slate-500">Filter:</span>
+          <select
+            disabled={watchlist.length === 0}
+            value={selectedTicker}
+            onChange={(e) => onSelectTicker?.(e.target.value)}
+            className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg border dark:border-white/10 border-slate-200 dark:bg-[#121214] bg-white dark:text-white text-slate-900 focus:outline-none focus:border-emerald-500 cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {watchlist.length === 0 ? (
+              <option value="ALL">No Watchlist Items</option>
+            ) : (
+              <>
+                <option value="ALL">All Watchlist Items ({watchlist.length})</option>
+                {watchlist.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
+        </div>
       </div>
+      
+      {watchlist.length === 0 ? (
+        <div className="p-8 text-center border border-dashed dark:border-white/10 border-slate-200 rounded-xl my-4">
+          <p className="text-xs font-mono uppercase tracking-widest text-slate-400 dark:text-white/40">No Watchlist Items</p>
+          <p className="text-xs text-slate-500 dark:text-white/30 mt-1.5">Add tickers to your watchlist to view topic sentiment distributions.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {topicDistributions.map((topic) => {
+            const score = topic.score;
+            // Map -1.0 to 1.0 into 0% to 100% width
+            const barWidthPct = Math.round((score + 1) * 50);
+            const formattedScore = score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+            
+            return (
+              <div key={topic.name} className="group cursor-default">
+                <div className="flex justify-between mb-2 items-baseline">
+                  <span className="text-sm font-bold uppercase dark:text-white text-slate-900 group-hover:text-emerald-500 transition-colors">
+                    {topic.name}
+                  </span>
+                  <span className={`font-mono text-sm font-bold ${getSentimentColor(score)}`}>
+                    {formattedScore}
+                  </span>
+                </div>
+                <div className="w-full dark:bg-white/10 bg-slate-200 h-1">
+                  <div 
+                    className={`h-full ${getSentimentColor(score, 'bg')}`}
+                    style={{ width: `${barWidthPct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-12">
         <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-4">Trending Signal</label>

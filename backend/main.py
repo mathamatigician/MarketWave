@@ -146,7 +146,7 @@ def update_watchlist(req: WatchlistRequest):
     return {"message": "Watchlist updated successfully", "watchlist": req.tickers}
 
 @app.get("/api/sentiment/heatmap")
-def get_heatmap(email: str = Query(...)):
+def get_heatmap(email: str = Query(...), ticker: Optional[str] = Query(None)):
     users = database.load_users()
     email_key = email.lower()
     if email_key not in users:
@@ -155,6 +155,13 @@ def get_heatmap(email: str = Query(...)):
     watchlist_str = users[email_key].get("watchlist", "")
     watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
     
+    # Filter by specific ticker if provided and not 'ALL'.
+    # An unmatched ticker leaves the watchlist empty, which keeps the response
+    # scoped to the user's own watchlist (falls through to the `not allowed` guard).
+    if ticker and ticker.strip().upper() != "ALL":
+        target = ticker.strip().upper()
+        watchlist = [t for t in watchlist if t.upper() == target]
+
     # Compile allowed companies & tickers
     allowed = set()
     for item in watchlist:
