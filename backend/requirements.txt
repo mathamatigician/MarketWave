@@ -13,3 +13,4 @@ websockets
 google-cloud-firestore
 pydantic-settings
 
+razorpay

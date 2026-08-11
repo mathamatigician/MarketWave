@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database
 import functions
 import pipeline
+import subscription
 from config import settings
 from google.antigravity import Agent, LocalAgentConfig
 from backend.agents.orchestrator import orchestrator_config
@@ -74,6 +75,17 @@ class WatchlistRequest(BaseModel):
     email: str
     tickers: List[str]
 
+class CreateOrderRequest(BaseModel):
+    email: str
+    plan_id: str
+
+class VerifyPaymentRequest(BaseModel):
+    email: str
+    plan_id: str
+    razorpay_order_id: Optional[str] = ""
+    razorpay_payment_id: Optional[str] = ""
+    razorpay_signature: Optional[str] = ""
+
 # --- REST Routes ---
 
 @app.post("/api/signup")
@@ -91,7 +103,13 @@ def signup(req: SignupRequest):
         "email": req.email,
         "phone": req.phone,
         "password_hash": password_hash,
-        "watchlist": "Tesla,Apple,Google"  # Default watchlist
+        "watchlist": "Tesla,Apple,Google",  # Default watchlist
+        "subscription": {
+            "plan_id": "free",
+            "plan_name": "Starter",
+            "status": "active",
+            "badge": "FREE"
+        }
     }
     database.save_users(users)
     return {"message": "Signup successful"}
@@ -112,12 +130,19 @@ def login(req: LoginRequest):
     user_info = users[email_key]
     watchlist_str = user_info.get("watchlist", "")
     watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
+    sub_info = user_info.get("subscription", {
+        "plan_id": "free",
+        "plan_name": "Starter",
+        "status": "active",
+        "badge": "FREE"
+    })
     
     return {
         "email": req.email,
         "first_name": user_info.get("first_name"),
         "last_name": user_info.get("last_name"),
-        "watchlist": watchlist
+        "watchlist": watchlist,
+        "subscription": sub_info
     }
 
 @app.get("/api/watchlist")
@@ -144,6 +169,106 @@ def update_watchlist(req: WatchlistRequest):
     users[email_key]["watchlist"] = ",".join(req.tickers)
     database.save_users(users)
     return {"message": "Watchlist updated successfully", "watchlist": req.tickers}
+
+# --- Subscription & Payment Gateway Routes ---
+
+@app.get("/api/subscription/plans")
+def get_plans():
+    return list(subscription.SUBSCRIPTION_PLANS.values())
+
+@app.get("/api/subscription/status")
+def get_subscription_status(email: str = Query(...)):
+    users = database.load_users()
+    email_key = email.lower()
+    if email_key not in users:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_info = users[email_key]
+    sub = user_info.get("subscription", {
+        "plan_id": "free",
+        "plan_name": "Starter",
+        "status": "active",
+        "badge": "FREE"
+    })
+    return sub
+
+@app.post("/api/subscription/create-order")
+def create_order(req: CreateOrderRequest):
+    try:
+        order_details = subscription.create_subscription_order(req.plan_id, req.email)
+        return order_details
+    except Exception as e:
+        logger.error(f"Error creating subscription order: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/subscription/verify-payment")
+def verify_payment(req: VerifyPaymentRequest):
+    users = database.load_users()
+    email_key = req.email.lower()
+    if email_key not in users:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    plan = subscription.SUBSCRIPTION_PLANS.get(req.plan_id)
+    if not plan:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan ID")
+        
+    # Free tier update (Starter)
+    if req.plan_id == "free":
+        sub_info = {
+            "plan_id": "free",
+            "plan_name": plan["name"],
+            "status": "active",
+            "badge": plan["badge"],
+            "payment_id": "free_tier"
+        }
+        users[email_key]["subscription"] = sub_info
+        database.save_users(users)
+        return {"status": "success", "message": "Subscribed to Starter plan", "subscription": sub_info}
+        
+    # Verify payment signature for paid plans (Pro / Enterprise)
+    if not req.razorpay_order_id or not req.razorpay_payment_id or not req.razorpay_signature:
+        raise HTTPException(status_code=400, detail="Missing payment verification signature parameters")
+        
+    is_valid = subscription.verify_payment_signature(
+        req.razorpay_order_id,
+        req.razorpay_payment_id,
+        req.razorpay_signature
+    )
+
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Razorpay payment signature verification failed")
+
+    # Grant the plan the order was actually created (and paid) for -- never the
+    # client-supplied plan_id -- so a genuinely valid signature for a cheaper
+    # plan's order can't be replayed with a different plan_id to claim a more
+    # expensive plan than what was paid.
+    verified_plan_id = subscription.resolve_verified_plan_id(req.razorpay_order_id, req.email)
+    if not verified_plan_id:
+        raise HTTPException(status_code=400, detail="No matching order found for this payment")
+    if verified_plan_id != req.plan_id:
+        logger.warning(
+            f"Plan mismatch for {req.email}: requested '{req.plan_id}' but order "
+            f"{req.razorpay_order_id} was created for '{verified_plan_id}'"
+        )
+        raise HTTPException(status_code=400, detail="Requested plan does not match the paid order")
+
+    plan = subscription.SUBSCRIPTION_PLANS[verified_plan_id]
+
+    import datetime
+    sub_info = {
+        "plan_id": verified_plan_id,
+        "plan_name": plan["name"],
+        "status": "active",
+        "badge": plan["badge"],
+        "order_id": req.razorpay_order_id,
+        "payment_id": req.razorpay_payment_id,
+        "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+    users[email_key]["subscription"] = sub_info
+    database.save_users(users)
+    logger.info(f"Successfully upgraded subscription for {req.email} to {plan['name']}")
+    return {"status": "success", "message": f"Successfully upgraded to {plan['name']}!", "subscription": sub_info}
+
 
 @app.get("/api/sentiment/heatmap")
 def get_heatmap(email: str = Query(...), ticker: Optional[str] = Query(None)):

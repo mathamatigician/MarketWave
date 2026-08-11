@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from typing import Optional
 from google.cloud import firestore
 
 # Setup Logger
@@ -79,6 +80,62 @@ def save_users(users: dict):
     except Exception as e:
         logger.error(f"Error saving users to local file: {e}")
 
+def get_orders_file_path() -> str:
+    """Resolves the path to the local orders.json file."""
+    if os.path.exists('orders.json'):
+        return 'orders.json'
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, 'orders.json')
+
+def save_order(order_id: str, data: dict) -> None:
+    """Persists a subscription order (order_id -> plan_id/email) at creation time.
+
+    This is the source of truth for what a payment actually paid for, so that
+    payment verification can bind the granted plan to the stored order instead
+    of trusting client-supplied request fields.
+    """
+    if db is not None:
+        try:
+            db.collection("orders").document(order_id).set(data)
+            logger.info(f"Saved order {order_id} to Firestore.")
+            return
+        except Exception as e:
+            logger.error(f"Error saving order {order_id} to Firestore: {e}")
+
+    # Fallback to local orders.json
+    try:
+        filepath = get_orders_file_path()
+        orders = {}
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as f:
+                orders = json.load(f)
+        orders[order_id] = data
+        with open(filepath, 'w') as f:
+            json.dump(orders, f, indent=4)
+        logger.info(f"Saved order {order_id} to local file: {filepath}")
+    except Exception as e:
+        logger.error(f"Error saving order {order_id} to local file: {e}")
+
+def get_order(order_id: str) -> Optional[dict]:
+    """Fetches a previously created order by ID, Firestore first, then local file."""
+    if db is not None:
+        try:
+            doc = db.collection("orders").document(order_id).get()
+            if doc.exists:
+                return doc.to_dict()
+        except Exception as e:
+            logger.error(f"Error fetching order {order_id} from Firestore: {e}")
+
+    filepath = get_orders_file_path()
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r') as f:
+                orders = json.load(f)
+            return orders.get(order_id)
+        except Exception as e:
+            logger.error(f"Error reading local orders file: {e}")
+    return None
+
 def load_all_watchlist_tickers() -> list:
     """Compiles all unique watchlist tickers from users, falling back to local users.json."""
     default_tickers = ["Tesla", "Apple", "Google", "Microsoft", "Nvidia", "Amazon"]
@@ -129,7 +186,13 @@ def seed_demo_users():
                 "email": "demo1@globepulse.com",
                 "phone": "+1 555-0100",
                 "password_hash": pass_hash,
-                "watchlist": "Tesla,Apple,Google"
+                "watchlist": "Tesla,Apple,Google",
+                "subscription": {
+                    "plan_id": "pro",
+                    "plan_name": "Pro Trader",
+                    "status": "active",
+                    "badge": "PRO"
+                }
             },
             "demo2@globepulse.com": {
                 "first_name": "Jane",
@@ -137,7 +200,13 @@ def seed_demo_users():
                 "email": "demo2@globepulse.com",
                 "phone": "+1 555-0200",
                 "password_hash": pass_hash,
-                "watchlist": "Microsoft,Nvidia,Amazon"
+                "watchlist": "Microsoft,Nvidia,Amazon",
+                "subscription": {
+                    "plan_id": "free",
+                    "plan_name": "Starter",
+                    "status": "active",
+                    "badge": "FREE"
+                }
             }
         }
         
@@ -152,6 +221,13 @@ def seed_demo_users():
                         # Make sure there is a default watchlist if missing
                         if "watchlist" not in udata:
                             udata["watchlist"] = "Tesla,Apple,Google"
+                        if "subscription" not in udata:
+                            udata["subscription"] = {
+                                "plan_id": "free",
+                                "plan_name": "Starter",
+                                "status": "active",
+                                "badge": "FREE"
+                            }
                         demo_users[email] = udata
             except Exception as e:
                 logger.error(f"Error reading users.json for seeding: {e}")

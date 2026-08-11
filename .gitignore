@@ -19,6 +19,7 @@ docs/diagrams/puppeteer.json
 
 # Local user database
 users.json
+orders.json
 
 # Local logs & debug files
 *.log

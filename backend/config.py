@@ -18,7 +18,9 @@ try:
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = "localhost:8080"
         admin_key: Optional[str] = None
-        
+        razorpay_key_id: Optional[str] = None
+        razorpay_key_secret: Optional[str] = None
+
         model_config = SettingsConfigDict(
             env_file=env_path,
             env_file_encoding="utf-8",
@@ -34,7 +36,9 @@ except ImportError:
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = "localhost:8080"
         admin_key: Optional[str] = None
-        
+        razorpay_key_id: Optional[str] = None
+        razorpay_key_secret: Optional[str] = None
+
         class Config:
             env_file = env_path
             env_file_encoding = "utf-8"
