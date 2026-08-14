@@ -54,7 +54,7 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
   return (
     <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-12">
       <div className="mb-8 w-full text-center">
-        <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Welcome back to GlobePulse</h2>
+        <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Welcome back to GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
         <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Initialize secure session</p>
       </div>
       
@@ -178,7 +178,7 @@ export function SignUp({ onToggleMode, onSignupSuccess }: SignUpProps) {
     <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-8">
       <div className="mb-6 w-full text-center">
         <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Create Account</h2>
-        <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Join GlobePulse Sentiment Terminal</p>
+        <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Join GlobePulseAI Sentiment Terminal</p>
       </div>
       
       {errorMsg && (

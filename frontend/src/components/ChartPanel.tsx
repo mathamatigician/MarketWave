@@ -56,7 +56,20 @@ export const ChartPanel: React.FC<ChartPanelProps> = ({ ticker }) => {
         });
 
         const sortedData = Array.from(dateMap.values()).sort((a, b) => a.time.localeCompare(b.time));
-        setData(sortedData);
+        
+        // Carry forward price for non-trading dates with sentiment
+        let lastPrice: number | null = null;
+        const filledData = sortedData.map((item: any) => {
+          if (item.price !== null && item.price !== undefined) {
+            lastPrice = item.price;
+            return item;
+          } else if (lastPrice !== null) {
+            return { ...item, price: lastPrice };
+          }
+          return item;
+        });
+
+        setData(filledData);
       }
     } catch (e) {
       console.error("Error fetching charting data", e);
@@ -166,6 +179,7 @@ export const ChartPanel: React.FC<ChartPanelProps> = ({ ticker }) => {
                 strokeWidth={2}
                 fillOpacity={1} 
                 fill="url(#colorPrice)" 
+                connectNulls={true}
               />
               <Bar 
                 yAxisId="right" 

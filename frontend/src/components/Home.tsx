@@ -6,7 +6,7 @@ export function Home({ onEnter }: { onEnter: () => void }) {
       <div className="mb-8">
         <Activity className="w-24 h-24 md:w-32 md:h-32 text-emerald-500 dark:text-[#00FF94] mx-auto mb-6" />
         <h1 className="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-4 dark:text-white text-slate-950">
-          GlobePulse<span className="text-emerald-500 dark:text-[#00FF94]">.ai</span>
+          GlobePulse<span className="text-emerald-500 dark:text-[#00FF94]">AI</span>
         </h1>
         <p className="text-sm md:text-base uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 max-w-2xl mx-auto leading-relaxed">
           The next generation of algorithmic sentiment analysis. 

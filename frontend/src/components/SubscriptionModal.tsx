@@ -135,7 +135,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        name: 'GlobePulse AI',
+        name: 'GlobePulseAI',
         description: `${orderData.plan_name} Subscription`,
         image: 'https://i.postimg.cc/hvqBYt93/newspulse.gif',
         order_id: orderData.order_id,

@@ -86,8 +86,20 @@ export function StockTrendDetails({
     });
 
     // Convert back to sorted array
-    return Object.values(dataMap).sort((a, b) => {
+    const sorted = Object.values(dataMap).sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+    // Forward fill price for non-trading dates (weekends/holidays) that have sentiment
+    let lastKnownClose: number | null = null;
+    return sorted.map(item => {
+      if (item.close !== null && item.close !== undefined) {
+        lastKnownClose = item.close;
+        return item;
+      } else if (lastKnownClose !== null) {
+        return { ...item, close: lastKnownClose };
+      }
+      return item;
     });
   }, [priceSeries, sentimentSeries]);
 
@@ -223,6 +235,7 @@ export function StockTrendDetails({
                         fillOpacity={0.05} 
                         fill="#4facfe" 
                         name="Price"
+                        connectNulls={true}
                       />
                       <Bar 
                         yAxisId="right"

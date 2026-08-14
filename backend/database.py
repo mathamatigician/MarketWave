@@ -436,3 +436,166 @@ def seed_demo_articles():
         logger.info("Successfully seeded mock articles in Firestore.")
     except Exception as e:
         logger.error(f"Error seeding mock articles: {e}")
+
+def get_feedback_file_path() -> str:
+    """Resolves the path to the local feedback.json file."""
+    if os.path.exists('feedback.json'):
+        return 'feedback.json'
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, 'feedback.json')
+
+def load_feedback() -> list:
+    """Loads all feedback entries from Firestore if available, otherwise from feedback.json."""
+    feedbacks = []
+    if db is not None:
+        try:
+            docs = db.collection("feedback").stream()
+            for doc in docs:
+                feedbacks.append(doc.to_dict())
+            if feedbacks:
+                logger.info("Loaded feedback entries from Firestore.")
+                feedbacks = sorted(feedbacks, key=lambda x: x.get('created_at', ''), reverse=True)
+                return feedbacks
+        except Exception as e:
+            logger.error(f"Error loading feedback from Firestore: {e}")
+
+    filepath = get_feedback_file_path()
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r') as f:
+                feedbacks = json.load(f)
+            logger.info(f"Loaded feedback from local file: {filepath}")
+        except Exception as e:
+            logger.error(f"Error loading local feedback file: {e}")
+            feedbacks = []
+
+    feedbacks = sorted(feedbacks, key=lambda x: x.get('created_at', ''), reverse=True)
+    return feedbacks
+
+def save_feedback(feedback_item: dict) -> None:
+    """Persists a new feedback entry to Firestore and local feedback.json."""
+    if db is not None:
+        try:
+            doc_id = feedback_item.get("id")
+            if doc_id:
+                db.collection("feedback").document(doc_id).set(feedback_item)
+                logger.info(f"Saved feedback {doc_id} to Firestore.")
+        except Exception as e:
+            logger.error(f"Error saving feedback to Firestore: {e}")
+
+    try:
+        filepath = get_feedback_file_path()
+        dir_name = os.path.dirname(filepath)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+            
+        current_list = []
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r') as f:
+                    current_list = json.load(f)
+            except Exception:
+                current_list = []
+
+        current_list.insert(0, feedback_item)
+        with open(filepath, 'w') as f:
+            json.dump(current_list, f, indent=4)
+        logger.info(f"Saved feedback to local file: {filepath}")
+    except Exception as e:
+        logger.error(f"Error saving feedback to local file: {e}")
+
+def seed_demo_feedback(force_reset: bool = False):
+    """Seeds default sample feedback entries into local feedback.json and Firestore if empty or forced."""
+    sample_feedbacks = [
+        {
+            "id": "fb_demo_1",
+            "rating": "Excellent",
+            "comment": "The real-time sentiment watchdog is game-changing! Caught the TSLA sentiment shift right before the Q3 earnings call.",
+            "user_name": "Marcus Vance",
+            "user_email": "marcus.vance@vanguardcapital.io",
+            "created_at": "2026-08-13T14:20:00Z"
+        },
+        {
+            "id": "fb_demo_2",
+            "rating": "Excellent",
+            "comment": "Extremely impressive AI orchestration. The sub-agent thought stream gives complete transparency into how sentiment scores are calculated.",
+            "user_name": "Elena Rostova",
+            "user_email": "elena.rostova@quantumtrader.co",
+            "created_at": "2026-08-13T10:45:00Z"
+        },
+        {
+            "id": "fb_demo_3",
+            "rating": "Good",
+            "comment": "Love the stock price vs sentiment overlay charts. Would love to see support for crypto tickers and European index options in future updates.",
+            "user_name": "David K. Chen",
+            "user_email": "dchen@bayarea-ventures.com",
+            "created_at": "2026-08-12T19:30:00Z"
+        },
+        {
+            "id": "fb_demo_4",
+            "rating": "Excellent",
+            "comment": "Seamless integration with Razorpay UPI payments for Pro Trader subscription. Clean UI design and lightning-fast websocket chat response.",
+            "user_name": "Priya Sharma",
+            "user_email": "priya.sharma@fintechpulse.in",
+            "created_at": "2026-08-12T15:10:00Z"
+        },
+        {
+            "id": "fb_demo_5",
+            "rating": "Need Improvement",
+            "comment": "The dark mode aesthetic is top-notch, but initial watchlist aggregation latency can occasionally spike during high news volume hours.",
+            "user_name": "Liam O'Connor",
+            "user_email": "liam.oconnor@dublin-hedge.ie",
+            "created_at": "2026-08-11T22:15:00Z"
+        },
+        {
+            "id": "fb_demo_6",
+            "rating": "Excellent",
+            "comment": "The 18-topic granular sentiment breakdown (layoffs, board changes, disputes, ESG) provides insights that raw news summaries completely miss.",
+            "user_name": "Sophia Al-Mansoor",
+            "user_email": "sophia.mansoor@gulf-invest.ae",
+            "created_at": "2026-08-11T16:05:00Z"
+        },
+        {
+            "id": "fb_demo_7",
+            "rating": "Good",
+            "comment": "Great financial AI copilot. Answers detailed questions on market trends effortlessly. Highly recommended for daily market monitoring.",
+            "user_name": "Vikram Malhotra",
+            "user_email": "vikram.malhotra@alphalabs.co.in",
+            "created_at": "2026-08-10T12:50:00Z"
+        },
+        {
+            "id": "fb_demo_8",
+            "rating": "Need Improvement",
+            "comment": "Solid platform overall. Suggest adding export functionality for sentiment history as CSV so we can pipe data into custom models.",
+            "user_name": "Hannah Becker",
+            "user_email": "hannah.becker@berlin-tech.de",
+            "created_at": "2026-08-09T08:40:00Z"
+        }
+    ]
+
+    filepath = get_feedback_file_path()
+    if force_reset or not os.path.exists(filepath):
+        try:
+            dir_name = os.path.dirname(filepath)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+            with open(filepath, 'w') as f:
+                json.dump(sample_feedbacks, f, indent=4)
+            logger.info("Successfully seeded realistic demo feedbacks in local feedback.json.")
+        except Exception as e:
+            logger.error(f"Error seeding demo feedbacks locally: {e}")
+
+    if db is not None:
+        try:
+            coll = db.collection("feedback")
+            existing = list(coll.limit(1).stream())
+            if force_reset or not existing:
+                batch = db.batch()
+                for fb in sample_feedbacks:
+                    doc_ref = coll.document(fb["id"])
+                    batch.set(doc_ref, fb)
+                batch.commit()
+                logger.info("Successfully seeded realistic demo feedbacks in Firestore.")
+        except Exception as e:
+            logger.error(f"Error seeding demo feedbacks in Firestore: {e}")
+

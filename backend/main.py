@@ -28,6 +28,7 @@ app = FastAPI(title="GlobePulse API Backend")
 @app.on_event("startup")
 def startup_event():
     database.seed_demo_users()
+    database.seed_demo_feedback()
 
 # Setup CORS to allow React Frontend
 app.add_middleware(
@@ -464,6 +465,42 @@ def get_alerts():
             logger.error(f"Error loading local alerts: {e}")
             
     return alerts
+
+
+# --- Feedback Routes ---
+
+VALID_FEEDBACK_RATINGS = {"Need Improvement", "Good", "Excellent"}
+
+class FeedbackRequest(BaseModel):
+    rating: str
+    comment: str
+    user_name: Optional[str] = "Anonymous User"
+    user_email: Optional[str] = "anonymous@globepulseai.com"
+
+@app.get("/api/feedback")
+def get_feedback():
+    return database.load_feedback()
+
+@app.post("/api/feedback")
+def submit_feedback(req: FeedbackRequest):
+    if req.rating not in VALID_FEEDBACK_RATINGS:
+        raise HTTPException(status_code=400, detail="Invalid rating value")
+    comment = req.comment.strip()
+    if not comment:
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+
+    import uuid
+    import datetime
+    feedback_item = {
+        "id": f"fb_{uuid.uuid4().hex[:12]}",
+        "rating": req.rating,
+        "comment": comment,
+        "user_name": (req.user_name or "").strip() or "Anonymous User",
+        "user_email": (req.user_email or "").strip() or "anonymous@globepulseai.com",
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+    database.save_feedback(feedback_item)
+    return {"message": "Feedback submitted successfully", "feedback": feedback_item}
 
 
 # --- WebSocket Chat Endpoint (Antigravity Agent) ---
