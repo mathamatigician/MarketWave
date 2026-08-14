@@ -16,7 +16,7 @@ try:
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
-        firestore_emulator_host: Optional[str] = "localhost:8080"
+        firestore_emulator_host: Optional[str] = None
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
@@ -34,7 +34,7 @@ except ImportError:
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
-        firestore_emulator_host: Optional[str] = "localhost:8080"
+        firestore_emulator_host: Optional[str] = None
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None

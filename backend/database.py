@@ -9,17 +9,42 @@ logger = logging.getLogger("Database")
 
 from config import settings
 
-# Setup Firestore Client if environment is present
+# Firestore mode is decided purely by whether FIRESTORE_EMULATOR_HOST is set in
+# the process environment (config.py sets it from settings.firestore_emulator_host
+# unless GOOGLE_APPLICATION_CREDENTIALS/K_SERVICE are present). Emulator mode keeps
+# today's lenient local-file fallback; cloud mode hard-fails instead of risking
+# silent data divergence between a developer's machine and the real database.
+FIRESTORE_MODE = "emulator" if "FIRESTORE_EMULATOR_HOST" in os.environ else "cloud"
+
 db = None
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ or "K_SERVICE" in os.environ or "USE_FIRESTORE" in os.environ or "FIRESTORE_EMULATOR_HOST" in os.environ:
+if settings.firestore_project_id:
     try:
         db = firestore.Client(project=settings.firestore_project_id)
-        logger.info("Firestore Client initialized successfully.")
+        logger.info(f"Firestore Client initialized successfully ({FIRESTORE_MODE} mode).")
     except Exception as e:
         logger.error(f"Failed to initialize Firestore Client: {e}")
+        if FIRESTORE_MODE == "cloud":
+            raise RuntimeError(
+                f"Firestore client failed to initialize in cloud mode: {e}"
+            ) from e
         db = None
 else:
-    logger.info("Firestore Client initialization skipped (local environment mode).")
+    logger.info("Firestore Client initialization skipped (no FIRESTORE_PROJECT_ID configured).")
+
+
+def _handle_firestore_failure(action: str, exc: Exception) -> None:
+    """Handles a Firestore operation failure.
+
+    In emulator mode, logs and lets the caller fall back to its local JSON
+    file, matching today's lenient offline-friendly behavior. In cloud mode,
+    re-raises so callers cannot silently fall back to a local file and let
+    data quietly diverge from the real, shared database.
+    """
+    logger.error(f"Error {action}: {exc}")
+    if FIRESTORE_MODE == "cloud":
+        raise RuntimeError(f"Firestore operation failed in cloud mode while {action}") from exc
+
+
 def get_users_file_path() -> str:
     """Resolves the path to the local users.json file."""
     if os.path.exists('users.json'):
@@ -40,7 +65,7 @@ def load_users() -> dict:
             logger.info("Loaded users from Firestore.")
             return users
         except Exception as e:
-            logger.error(f"Error loading users from Firestore: {e}")
+            _handle_firestore_failure("loading users from Firestore", e)
             
     # 2. Fallback to local users.json
     filepath = get_users_file_path()
@@ -66,7 +91,7 @@ def save_users(users: dict):
             batch.commit()
             logger.info("Saved users to Firestore successfully.")
         except Exception as e:
-            logger.error(f"Error saving users to Firestore: {e}")
+            _handle_firestore_failure("saving users to Firestore", e)
             
     # 2. Always write to local users.json
     try:
@@ -100,7 +125,7 @@ def save_order(order_id: str, data: dict) -> None:
             logger.info(f"Saved order {order_id} to Firestore.")
             return
         except Exception as e:
-            logger.error(f"Error saving order {order_id} to Firestore: {e}")
+            _handle_firestore_failure(f"saving order {order_id} to Firestore", e)
 
     # Fallback to local orders.json
     try:
@@ -124,7 +149,7 @@ def get_order(order_id: str) -> Optional[dict]:
             if doc.exists:
                 return doc.to_dict()
         except Exception as e:
-            logger.error(f"Error fetching order {order_id} from Firestore: {e}")
+            _handle_firestore_failure(f"fetching order {order_id} from Firestore", e)
 
     filepath = get_orders_file_path()
     if os.path.exists(filepath):
@@ -457,7 +482,7 @@ def load_feedback() -> list:
                 feedbacks = sorted(feedbacks, key=lambda x: x.get('created_at', ''), reverse=True)
                 return feedbacks
         except Exception as e:
-            logger.error(f"Error loading feedback from Firestore: {e}")
+            _handle_firestore_failure("loading feedback from Firestore", e)
 
     filepath = get_feedback_file_path()
     if os.path.exists(filepath):
@@ -481,7 +506,7 @@ def save_feedback(feedback_item: dict) -> None:
                 db.collection("feedback").document(doc_id).set(feedback_item)
                 logger.info(f"Saved feedback {doc_id} to Firestore.")
         except Exception as e:
-            logger.error(f"Error saving feedback to Firestore: {e}")
+            _handle_firestore_failure("saving feedback to Firestore", e)
 
     try:
         filepath = get_feedback_file_path()
