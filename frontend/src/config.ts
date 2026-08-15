@@ -7,3 +7,4 @@ const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 // behavior, unchanged.
 export const API_URL = import.meta.env.VITE_API_URL || `${protocol}//${hostname}:8000`;
 export const WS_URL = import.meta.env.VITE_WS_URL || `${wsProtocol}//${hostname}:8000`;
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
