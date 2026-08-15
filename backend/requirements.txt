@@ -7,7 +7,7 @@ numpy
 requests
 beautifulsoup4
 googlenewsdecoder
-google-generativeai
+google-genai
 yahooquery
 websockets
 google-cloud-firestore

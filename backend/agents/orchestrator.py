@@ -12,7 +12,11 @@ from backend.agents.tools import fetch_news_tool, get_stock_history_tool
 from config import settings
 
 from config import settings
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+# google.genai (not the legacy, frozen google.generativeai package) —
+# google-antigravity already depends on google-genai, and google-generativeai's
+# pinned google-ai-generativelanguage==0.6.15 caps protobuf<6.0, which conflicts
+# with google-antigravity's protobuf>=7.35.0 floor. Same enum members exist here.
+from google.genai.types import HarmCategory, HarmBlockThreshold
 
 safety_settings = {
     HarmCategory.HARM_CATEGORY_HATE_SPEECH:        HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,

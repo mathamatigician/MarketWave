@@ -333,27 +333,35 @@ implementation plan turns these into concrete, testable tasks.
      --role="roles/datastore.user"
    # + roles/secretmanager.secretAccessor on each of the 4 secrets individually
    ```
-   > ⚠️ **Pre-flight blocker, discovered 2026-08-15, not yet fixed:**
-   > `backend/requirements.txt` pins no version for `google-antigravity` or
-   > `google-generativeai`. A fresh install today resolves
-   > `google-antigravity==0.1.12` (needs `protobuf>=7.35.0` at runtime — its
-   > generated code is gencode 7.35.0) against
-   > `google-ai-generativelanguage==0.6.15` (a transitive dep of
-   > `google-generativeai`, hard-capped at `protobuf<6.0.0dev`) and
-   > `grpcio-status` (capped at `protobuf<6.0dev`) — an unresolvable range
-   > conflict. `pip` silently installs `protobuf==5.29.6` (satisfying the
-   > caps, violating antigravity's floor), so the container builds cleanly
-   > but crashes on start with
-   > `google.protobuf.runtime_version.VersionError: ... gencode 7.35.0
-   > runtime 5.29.6`, before binding to `$PORT`. Confirmed pre-existing (not
-   > caused by this branch — `backend/requirements.txt`'s lack of pins
-   > predates Phase 2) and confirmed NOT fixable by simply pinning
-   > `protobuf` up (breaks `google-ai-generativelanguage`/`grpcio-status`)
-   > or down (breaks `google-antigravity`). **Do not run step 5 until this
-   > is resolved** — likely needs a newer `google-generativeai` release
-   > that drops the old protobuf cap, or dropping/replacing whichever of
-   > the two packages is less load-bearing. Track as separate follow-up
-   > work, not part of this plan.
+   > ✅ **Pre-flight blocker, discovered 2026-08-15, resolved 2026-08-15:**
+   > `backend/requirements.txt` pinned no version for `google-antigravity` or
+   > `google-generativeai`, and a fresh install resolved an unsatisfiable
+   > `protobuf` range conflict between them (`google-antigravity` needs
+   > `protobuf>=7.35.0`; `google-generativeai`'s pinned
+   > `google-ai-generativelanguage==0.6.15` caps `protobuf<6.0.0dev`) — the
+   > container built but crashed on start before binding `$PORT`.
+   > Investigated: `google-generativeai` is frozen at `0.8.6` (its final
+   > release hard-pins `google-ai-generativelanguage==0.6.15`, so no newer
+   > release exists to resolve the cap), and it's Google's own deprecated
+   > predecessor to `google-genai` — the current SDK, which
+   > `google-antigravity` already depends on. Only two call sites used the
+   > legacy package: `backend/agents/orchestrator.py` (a trivial
+   > `HarmCategory`/`HarmBlockThreshold` enum import, byte-identical members
+   > in `google.genai.types`) and `backend/pipeline.py`'s
+   > `analyze_sentiment_gemini()` (a real Gemini call, migrated from
+   > `genai.GenerativeModel(...).generate_content(...)` to
+   > `genai.Client(api_key=...).models.generate_content(...)`, same
+   > `response_mime_type`/`response_schema`/`response.text` shape — callers
+   > in `pipeline.py` and `agents/triggers.py` needed no changes). Fixed by
+   > migrating both call sites to `google.genai` and dropping
+   > `google-generativeai` from `backend/requirements.txt` (added
+   > `google-genai` explicitly rather than relying on it staying a
+   > transitive dependency of `google-antigravity`). Verified: fresh install
+   > resolves `protobuf==7.35.1` cleanly (no conflict warnings), a real
+   > `docker build` + `docker run` of `backend/Dockerfile` now reaches
+   > `Application startup complete` and serves `HTTP 200` on `/docs`
+   > (previously crashed before binding `$PORT`), and both existing test
+   > suites (`test_config.py`, `test_firestore_mode.py`) still pass 8/8.
 5. Deploy the backend from source (Cloud Build handles the container build —
    no local Docker needed). `--source=backend` makes `backend/` the build
    context, so it finds `backend/Dockerfile` as that context's `Dockerfile`:

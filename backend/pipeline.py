@@ -140,15 +140,20 @@ def resolve_and_scrape_article(google_link: str) -> tuple:
 
 def analyze_sentiment_gemini(text: str, company: str) -> Optional[dict]:
     """Analyzes article sentiment using Google Gemini 1.5 Flash."""
-    import google.generativeai as genai
-    
+    # google.genai is the current, actively maintained SDK (successor to the
+    # legacy google.generativeai, which is frozen at 0.8.6 and whose pinned
+    # google-ai-generativelanguage==0.6.15 caps protobuf<6.0 — incompatible
+    # with google-antigravity's protobuf>=7.35.0 floor). google-antigravity
+    # already depends on google-genai, so this adds no new transitive weight.
+    from google import genai
+    from google.genai import types as genai_types
+
     if not GEMINI_API_KEY:
         return None
-        
+
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel(settings.agent_model)
-        
+        client = genai.Client(api_key=GEMINI_API_KEY)
+
         prompt = f"""
         Analyze the news about {company} and return sentiment values for the provided topics.
         The sentiment should be defined based on whether it's good for the company and its shareholders (positive) or bad (negative).
@@ -158,15 +163,16 @@ def analyze_sentiment_gemini(text: str, company: str) -> Optional[dict]:
         Article text:
         {text[:4000]}
         """
-        
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
+
+        response = client.models.generate_content(
+            model=settings.agent_model,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=TopicSentimentSchema
             )
         )
-        
+
         # Parse JSON
         result = json.loads(response.text)
         return result
