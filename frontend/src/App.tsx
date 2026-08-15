@@ -91,7 +91,7 @@ export default function App() {
       case 'signin':
         return <SignIn onToggleMode={() => setView('signup')} onLoginSuccess={handleLoginSuccess} />;
       case 'signup':
-        return <SignUp onToggleMode={() => setView('signin')} onSignupSuccess={() => setView('signin')} />;
+        return <SignUp onToggleMode={() => setView('signin')} onSignupSuccess={() => setView('signin')} onLoginSuccess={handleLoginSuccess} />;
       case 'about':
         return <About />;
       case 'contact':

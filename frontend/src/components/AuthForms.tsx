@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, Phone, AlertTriangle } from 'lucide-react';
 import { API_URL } from '../config';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 interface UserInfo {
   email: string;
   first_name: string;
   last_name: string;
   watchlist: string[];
+  picture?: string;
 }
 
 interface SignInProps {
@@ -57,13 +59,20 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
         <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Welcome back to GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
         <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Initialize secure session</p>
       </div>
-      
+
       {errorMsg && (
         <div className="w-full flex items-center gap-3 p-4 mb-6 text-sm bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-left">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
+
+      <GoogleSignInButton onLoginSuccess={onLoginSuccess} />
+      <div className="flex items-center gap-3 my-4 w-full">
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+        <span className="text-[11px] uppercase tracking-widest text-slate-400">or continue with email</span>
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+      </div>
 
       <form className="w-full space-y-4 text-left" onSubmit={handleSubmit}>
         <div className="space-y-1.5">
@@ -123,9 +132,10 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
 interface SignUpProps {
   onToggleMode: () => void;
   onSignupSuccess: () => void;
+  onLoginSuccess: (user: UserInfo) => void;
 }
 
-export function SignUp({ onToggleMode, onSignupSuccess }: SignUpProps) {
+export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUpProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -180,13 +190,20 @@ export function SignUp({ onToggleMode, onSignupSuccess }: SignUpProps) {
         <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Create Account</h2>
         <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Join GlobePulseAI Sentiment Terminal</p>
       </div>
-      
+
       {errorMsg && (
         <div className="w-full flex items-center gap-3 p-4 mb-6 text-sm bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-left">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
+
+      <GoogleSignInButton onLoginSuccess={onLoginSuccess} />
+      <div className="flex items-center gap-3 my-4 w-full">
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+        <span className="text-[11px] uppercase tracking-widest text-slate-400">or continue with email</span>
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+      </div>
 
       <form className="w-full space-y-4 text-left" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
