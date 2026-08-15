@@ -21,6 +21,7 @@ try:
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
+        google_client_id: str = ""
 
         model_config = SettingsConfigDict(
             env_file=env_path,
@@ -40,6 +41,7 @@ except ImportError:
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
+        google_client_id: str = ""
 
         class Config:
             env_file = env_path

@@ -8,6 +8,7 @@ requests
 beautifulsoup4
 googlenewsdecoder
 google-genai
+google-auth
 yahooquery
 websockets
 google-cloud-firestore
