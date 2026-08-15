@@ -17,6 +17,7 @@ import pipeline
 import subscription
 import config
 from config import settings
+import google_auth as google_auth_module
 from google.antigravity import Agent, LocalAgentConfig
 from backend.agents.orchestrator import orchestrator_config
 
@@ -58,6 +59,9 @@ COMPANY_TICKER_MAP = {
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # the ID token JWT from Google's Sign In button
 
 class SignupRequest(BaseModel):
     first_name: str
@@ -138,6 +142,25 @@ def login(req: LoginRequest):
         "last_name": user_info.get("last_name"),
         "watchlist": watchlist,
         "subscription": sub_info
+    }
+
+@app.post("/api/auth/google")
+def google_auth(req: GoogleAuthRequest):
+    try:
+        user_info = google_auth_module.verify_and_get_user(req.credential)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    watchlist_str = user_info.get("watchlist", "")
+    watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
+
+    return {
+        "email": user_info.get("email"),
+        "first_name": user_info.get("first_name"),
+        "last_name": user_info.get("last_name"),
+        "watchlist": watchlist,
+        "subscription": user_info.get("subscription"),
+        "picture": user_info.get("picture", ""),
     }
 
 @app.get("/api/watchlist")
