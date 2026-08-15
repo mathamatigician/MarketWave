@@ -54,5 +54,14 @@ export function GoogleSignInButton({ onLoginSuccess }: GoogleSignInButtonProps) 
 
   if (!GOOGLE_CLIENT_ID) return null;
 
-  return <div ref={buttonRef} />;
+  return (
+    <>
+      <div ref={buttonRef} />
+      <div className="flex items-center gap-3 my-4 w-full">
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+        <span className="text-[11px] uppercase tracking-widest text-slate-400">or continue with email</span>
+        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
+      </div>
+    </>
+  );
 }

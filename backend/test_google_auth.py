@@ -12,6 +12,7 @@ class TestVerifyAndGetUser(unittest.TestCase):
     def _fake_idinfo(self, **overrides):
         idinfo = {
             "email": "newuser@example.com",
+            "email_verified": True,
             "given_name": "New",
             "family_name": "User",
             "picture": "https://example.com/photo.jpg",
@@ -105,12 +106,48 @@ class TestVerifyAndGetUser(unittest.TestCase):
         )
         self.assertEqual(result["picture"], "https://example.com/new-photo.jpg")
 
+    @patch("google_auth.database.save_users")
+    @patch("google_auth.database.load_users")
+    @patch("google_auth.id_token.verify_oauth2_token")
+    def test_does_not_rewrite_when_no_picture_to_backfill(
+        self, mock_verify, mock_load_users, mock_save_users
+    ):
+        mock_verify.return_value = self._fake_idinfo(
+            email="existing@example.com", picture=""
+        )
+        mock_load_users.return_value = {
+            "existing@example.com": {
+                "first_name": "Original",
+                "last_name": "Name",
+                "email": "existing@example.com",
+                "phone": "",
+                "picture": "",
+                "password_hash": "some-hash",
+                "watchlist": "Tesla",
+                "subscription": {"plan_id": "pro"},
+            }
+        }
+
+        google_auth.verify_and_get_user("fake-credential")
+
+        mock_save_users.assert_not_called()
+
     @patch("google_auth.id_token.verify_oauth2_token")
     def test_invalid_token_raises_value_error(self, mock_verify):
         mock_verify.side_effect = ValueError("Token used too late")
 
         with self.assertRaises(ValueError):
             google_auth.verify_and_get_user("fake-credential")
+
+    @patch("google_auth.database.load_users")
+    @patch("google_auth.id_token.verify_oauth2_token")
+    def test_unverified_email_raises_value_error(self, mock_verify, mock_load_users):
+        mock_verify.return_value = self._fake_idinfo(email_verified=False)
+
+        with self.assertRaises(ValueError):
+            google_auth.verify_and_get_user("fake-credential")
+
+        mock_load_users.assert_not_called()
 
 
 if __name__ == "__main__":

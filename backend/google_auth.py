@@ -15,6 +15,9 @@ def verify_and_get_user(credential: str) -> dict:
         credential, google_requests.Request(), settings.google_client_id
     )
 
+    if not idinfo.get("email_verified"):
+        raise ValueError("Google email not verified")
+
     email_key = idinfo["email"].lower()
     users = database.load_users()
 
@@ -35,7 +38,7 @@ def verify_and_get_user(credential: str) -> dict:
             },
         }
         database.save_users(users)
-    elif not users[email_key].get("picture"):
+    elif idinfo.get("picture") and not users[email_key].get("picture"):
         users[email_key]["picture"] = idinfo.get("picture", "")
         database.save_users(users)
 

@@ -68,11 +68,6 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
       )}
 
       <GoogleSignInButton onLoginSuccess={onLoginSuccess} />
-      <div className="flex items-center gap-3 my-4 w-full">
-        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
-        <span className="text-[11px] uppercase tracking-widest text-slate-400">or continue with email</span>
-        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
-      </div>
 
       <form className="w-full space-y-4 text-left" onSubmit={handleSubmit}>
         <div className="space-y-1.5">
@@ -199,11 +194,6 @@ export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUp
       )}
 
       <GoogleSignInButton onLoginSuccess={onLoginSuccess} />
-      <div className="flex items-center gap-3 my-4 w-full">
-        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
-        <span className="text-[11px] uppercase tracking-widest text-slate-400">or continue with email</span>
-        <div className="flex-1 h-px bg-slate-300 dark:bg-slate-700" />
-      </div>
 
       <form className="w-full space-y-4 text-left" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
