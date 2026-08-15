@@ -362,9 +362,12 @@ implementation plan turns these into concrete, testable tasks.
    > `Application startup complete` and serves `HTTP 200` on `/docs`
    > (previously crashed before binding `$PORT`), and both existing test
    > suites (`test_config.py`, `test_firestore_mode.py`) still pass 8/8.
-5. Deploy the backend from source (Cloud Build handles the container build —
-   no local Docker needed). `--source=backend` makes `backend/` the build
-   context, so it finds `backend/Dockerfile` as that context's `Dockerfile`:
+5. ✅ **Live as of 2026-08-15** at
+   `https://globepulse-backend-946730643709.asia-south1.run.app` (`/docs`
+   returns HTTP 200). Deploy the backend from source (Cloud Build handles
+   the container build — no local Docker needed). `--source=backend` makes
+   `backend/` the build context, so it finds `backend/Dockerfile` as that
+   context's `Dockerfile`:
    ```
    gcloud run deploy globepulse-backend \
      --source=backend \
@@ -372,36 +375,76 @@ implementation plan turns these into concrete, testable tasks.
      --project=globepulse-ai \
      --service-account=globepulse-backend@globepulse-ai.iam.gserviceaccount.com \
      --set-env-vars="^##^FIRESTORE_PROJECT_ID=globepulse-ai##ALLOWED_ORIGINS=https://globepulseai.com,https://www.globepulseai.com" \
-     --set-secrets=GEMINI_API_KEY=gemini-api-key:latest,ADMIN_KEY=admin-key:latest,RAZORPAY_KEY_ID=razorpay-key-id:latest,RAZORPAY_KEY_SECRET=razorpay-key-secret:latest \
      --allow-unauthenticated
    ```
+   > **Two gotchas hit on the real deploy:** (1) run this from a checkout at
+   > or after commit `24d03d9` (both Phase 2's Dockerfiles and the Step-0
+   > protobuf fix) — deploying from a stale checkout silently falls back to
+   > Buildpacks (no `backend/Dockerfile` found) and reintroduces the exact
+   > protobuf crash Step 0 fixed, with no error about *why* Buildpacks got
+   > used. (2) if a first attempt used Buildpacks (as above) and you retry
+   > with the correct Dockerfile-based checkout against the *same* service
+   > name, add `--clear-base-image` — Cloud Run remembers the Buildpacks
+   > base-image tracking and refuses a Dockerfile build otherwise.
+   >
+   > `--set-secrets=GEMINI_API_KEY=gemini-api-key:latest,...` is
+   > intentionally omitted above: it was originally in this command, but
+   > `:latest` fails to resolve if the secret has zero versions — and the
+   > secrets in step 3 are created empty on purpose (the user adds values,
+   > not the agent). Deployed without it first to prove the container starts
+   > (it does — Firestore init succeeds via the attached service account's
+   > ADC, unlike a local Docker test with no ADC available). Once real
+   > secret values exist, bind them without a full redeploy:
+   > ```
+   > gcloud run services update globepulse-backend \
+   >   --region=asia-south1 --project=globepulse-ai \
+   >   --update-secrets=GEMINI_API_KEY=gemini-api-key:latest,ADMIN_KEY=admin-key:latest,RAZORPAY_KEY_ID=razorpay-key-id:latest,RAZORPAY_KEY_SECRET=razorpay-key-secret:latest
+   > ```
    Note: no `FIRESTORE_EMULATOR_HOST` is set, which (per the Phase 1 design)
    puts the deployed backend in cloud mode automatically.
-6. Deploy the frontend, pointing its build-time API URL at the mapped
-   backend domain. `--port=8080` is explicit here since nginx (unlike
-   uvicorn in the backend) doesn't read Cloud Run's `$PORT` env var itself —
-   it's hardcoded to listen on 8080 in `nginx.conf`, which happens to match
-   Cloud Run's default, but making it explicit avoids relying on that
-   default silently matching:
+6. ✅ **Live as of 2026-08-15** at
+   `https://globepulse-frontend-946730643709.asia-south1.run.app` (HTTP 200,
+   bundle confirmed to contain `api.globepulseai.com`). ~~Deploy the
+   frontend via `--source=frontend --set-build-env-vars=...`~~ —
+   **confirmed broken 2026-08-15: `--set-build-env-vars` is NOT forwarded as
+   Docker `--build-arg` for a Dockerfile-based `--source` deploy.** The
+   deploy succeeds and looks fine, but the bundle silently ships with the
+   `window.location.hostname` fallback instead of the real API URL — a
+   broken production frontend with no error anywhere. Verified by grepping
+   the deployed JS bundle for `api.globepulseai.com`: zero matches after a
+   `--set-build-env-vars` deploy, present after the fallback below. **Use
+   the local-build-and-push fallback directly, every time, for this repo:**
    ```
+   gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+   docker build \
+     --platform linux/amd64 \
+     --provenance=false \
+     --build-arg VITE_API_URL=https://api.globepulseai.com \
+     --build-arg VITE_WS_URL=wss://api.globepulseai.com \
+     -t asia-south1-docker.pkg.dev/globepulse-ai/cloud-run-source-deploy/globepulse-frontend:manual-fix \
+     --push \
+     frontend
+
    gcloud run deploy globepulse-frontend \
-     --source=frontend \
+     --image=asia-south1-docker.pkg.dev/globepulse-ai/cloud-run-source-deploy/globepulse-frontend:manual-fix \
      --region=asia-south1 \
      --project=globepulse-ai \
      --port=8080 \
-     --set-build-env-vars=VITE_API_URL=https://api.globepulseai.com,VITE_WS_URL=wss://api.globepulseai.com \
      --allow-unauthenticated
    ```
-   Note: `gcloud run deploy --source` build env vars are documented primarily
-   for buildpacks builds; confirm during the actual deploy that they're
-   forwarded as Docker `--build-arg` for this Dockerfile-based build (check
-   the Cloud Build log for `VITE_API_URL` reaching the build step). If they
-   aren't forwarded, the frontend will build successfully but silently fall
-   back to `window.location.hostname:8000` in the bundle — a broken
-   production frontend that looks like a successful deploy. Fallback if
-   needed: build locally with `docker build --build-arg VITE_API_URL=... -f
-   frontend/Dockerfile frontend`, push to Artifact Registry, and deploy with
-   `--image` instead of `--source`.
+   Two Apple-Silicon-specific gotchas this hit, both handled by the flags
+   above: (1) `--platform linux/amd64` is required — Cloud Run rejects
+   images built for the host's native arm64; (2) `--provenance=false` is
+   required — without it, modern Docker Buildx attaches an attestation
+   manifest that turns the pushed image into an OCI image *index*, which
+   Cloud Run also rejects (`must support amd64/linux`) even when the index
+   does contain a valid amd64 entry. `cloud-run-source-deploy` is the
+   Artifact Registry repo `gcloud run deploy --source` auto-creates on
+   first use — reuse it rather than making a new one. After deploying,
+   always verify by fetching the deployed `/assets/index-*.js` and grepping
+   for the real domain — a clean `gcloud run deploy` exit code proves
+   nothing about whether the build args landed.
 7. Verify domain ownership with Google (required before domain mapping will
    succeed) via Search Console or `gcloud domains verify globepulseai.com`.
 8. Create the domain mappings:
