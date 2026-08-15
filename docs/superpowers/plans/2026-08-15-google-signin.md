@@ -447,10 +447,38 @@ Insert the new route immediately after that closing `}` (and before the next rou
 @app.post("/api/auth/google")
 def google_auth(req: GoogleAuthRequest):
     try:
-        return google_auth_module.verify_and_get_user(req.credential)
+        user_info = google_auth_module.verify_and_get_user(req.credential)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    watchlist_str = user_info.get("watchlist", "")
+    watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
+
+    return {
+        "email": user_info.get("email"),
+        "first_name": user_info.get("first_name"),
+        "last_name": user_info.get("last_name"),
+        "watchlist": watchlist,
+        "subscription": user_info.get("subscription"),
+        "picture": user_info.get("picture", ""),
+    }
 ```
+
+> **Ruling (recorded during Task 1's review, before this task was dispatched):**
+> `google_auth.verify_and_get_user()` deliberately returns the *raw* stored
+> record (minus `password_hash`) — `watchlist` as the comma-joined string
+> Firestore actually stores, plus a `phone` key. `/api/login` (the function
+> right above this route) parses `watchlist` into a list before returning
+> it and never includes `phone`. The design spec's original sketch for this
+> route was a bare `return google_auth_module.verify_and_get_user(...)`
+> passthrough — Task 1's reviewer caught that shipping that literally would
+> hand the frontend `watchlist` as a raw string instead of an array (a
+> silent bug: `.map()` over a string iterates its characters). The route
+> above fixes this by reshaping the dict into `/api/login`'s exact shape
+> plus the new optional `picture` field, which the frontend's `UserInfo`
+> type already expects as optional. Do **not** implement the bare
+> passthrough shown in the design spec — the code block above is correct,
+> the design spec is stale on this one detail.
 
 - [ ] **Step 4: Verify syntax**
 

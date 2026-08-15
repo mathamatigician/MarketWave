@@ -180,24 +180,42 @@ class GoogleAuthRequest(BaseModel):
     credential: str  # the ID token JWT from Google's Sign In button
 ```
 
-Add a new route next to `/api/signup`/`/api/login` — deliberately thin,
-all logic lives in `google_auth.py` (see above) so it stays testable:
+Add a new route next to `/api/signup`/`/api/login`. Verification stays
+thin (delegated to `google_auth.py`, see above), but the response is
+reshaped to actually match `/api/login`'s shape — `verify_and_get_user()`
+returns the *raw* stored record (comma-joined `watchlist` string, plus a
+`phone` key), while `/api/login` parses `watchlist` into a list and never
+returns `phone`. A bare passthrough would hand the frontend `watchlist` as
+a string instead of an array — caught during implementation (Task 1's
+review) before it shipped:
 
 ```python
 @app.post("/api/auth/google")
 def google_auth(req: GoogleAuthRequest):
     try:
-        return google_auth_module.verify_and_get_user(req.credential)
+        user_info = google_auth_module.verify_and_get_user(req.credential)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    watchlist_str = user_info.get("watchlist", "")
+    watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
+
+    return {
+        "email": user_info.get("email"),
+        "first_name": user_info.get("first_name"),
+        "last_name": user_info.get("last_name"),
+        "watchlist": watchlist,
+        "subscription": user_info.get("subscription"),
+        "picture": user_info.get("picture", ""),
+    }
 ```
 
-This mirrors `/api/login`'s existing response shape (dict-minus-
-`password_hash`), matching the pattern already used there (`main.py:120-140`
-region) so the frontend's `onLoginSuccess` needs no changes. Firestore
-read/write goes through the existing `database.load_users`/`save_users` —
-no new error-handling pattern needed; Phase 1's hard-fail-in-cloud-mode
-behavior already applies.
+This matches `/api/login`'s existing response shape (`main.py:120-140`
+region) plus the new optional `picture` field, so the frontend's
+`onLoginSuccess` needs no changes beyond the `picture?: string` addition
+already planned. Firestore read/write goes through the existing
+`database.load_users`/`save_users` — no new error-handling pattern needed;
+Phase 1's hard-fail-in-cloud-mode behavior already applies.
 
 ### 5. `frontend/index.html` — Google Identity Services script
 
