@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MessageSquarePlus, ThumbsUp, AlertCircle, CheckCircle2, Send, User, Mail, 
-  Sparkles, RefreshCw, Star, Search, Filter, TrendingUp, ShieldCheck, Building2 
+  Sparkles, RefreshCw, Star, Search, Filter, TrendingUp, ShieldCheck, Building2
 } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface FeedbackItem {
   id: string;
@@ -38,7 +39,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
   const fetchFeedbacks = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/feedback');
+      const res = await fetch(`${API_URL}/api/feedback`);
       if (res.ok) {
         const data = await res.json();
         setFeedbacks(data);
@@ -77,7 +78,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
     setSuccessMsg('');
 
     try {
-      const res = await fetch('http://localhost:8000/api/feedback', {
+      const res = await fetch(`${API_URL}/api/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

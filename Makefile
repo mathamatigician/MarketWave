@@ -46,8 +46,6 @@ help:
 
 # Installation Target
 install:
-	@echo "Installing root dependencies using $(PIP)..."
-	$(PIP) install -r requirements.txt
 	@echo "Installing backend dependencies using $(PIP)..."
 	$(PIP) install -r backend/requirements.txt
 	@echo "Installing frontend packages..."
@@ -56,7 +54,7 @@ install:
 # Local Dev Target: FastAPI Backend
 dev-backend:
 	@echo "Starting FastAPI backend server using $(UVICORN)..."
-	cd backend && $(UVICORN) main:app --host 0.0.0.0 --port 8000 --reload
+	$(UVICORN) backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Local Dev Target: React Frontend
 dev-frontend:

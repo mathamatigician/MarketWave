@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Zap, Shield, Crown, X, Loader2, Sparkles } from 'lucide-react';
+import { API_URL } from '../config';
 
 interface Plan {
   id: string;
@@ -50,7 +51,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setLoading(true);
       setErrorMsg(null);
       setSuccessMsg(null);
-      fetch('http://127.0.0.1:8000/api/subscription/plans')
+      fetch(`${API_URL}/api/subscription/plans`)
         .then((res) => res.json())
         .then((data) => {
           setPlans(data);
@@ -87,7 +88,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     try {
       // 1. Starter (Free) plan update
       if (plan.id === 'free') {
-        const res = await fetch('http://127.0.0.1:8000/api/subscription/verify-payment', {
+        const res = await fetch(`${API_URL}/api/subscription/verify-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -116,7 +117,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       }
 
       // 3. Create order on backend
-      const orderRes = await fetch('http://127.0.0.1:8000/api/subscription/create-order', {
+      const orderRes = await fetch(`${API_URL}/api/subscription/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -142,7 +143,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         handler: async function (response: any) {
           try {
             setActiveProcessingPlan(plan.id);
-            const verifyRes = await fetch('http://127.0.0.1:8000/api/subscription/verify-payment', {
+            const verifyRes = await fetch(`${API_URL}/api/subscription/verify-payment`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

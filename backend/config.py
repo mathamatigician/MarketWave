@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import List, Optional
 
 # Dynamically resolve root directory and configuration paths
 backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +17,7 @@ try:
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = None
+        allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
@@ -28,13 +29,14 @@ try:
         )
 except ImportError:
     from pydantic import BaseSettings
-    
+
     class Settings(BaseSettings):
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = None
+        allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
@@ -55,3 +57,12 @@ if exposed_key:
 # Configure local Firestore emulator if active and not in cloud production
 if settings.firestore_emulator_host and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ and "K_SERVICE" not in os.environ:
     os.environ["FIRESTORE_EMULATOR_HOST"] = settings.firestore_emulator_host
+
+
+def get_allowed_origins() -> List[str]:
+    """Parses the comma-separated ALLOWED_ORIGINS setting into a clean list.
+
+    Kept here rather than inline in main.py so it's unit-testable without
+    importing main.py's heavier dependencies.
+    """
+    return [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]

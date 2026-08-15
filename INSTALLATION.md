@@ -146,9 +146,8 @@ Your prompt should now start with `(.venv)`. Now install everything (backend + f
 make install
 ```
 
-> **No `make`?** (common on Windows) run the three underlying commands instead:
+> **No `make`?** (common on Windows) run the underlying commands instead:
 > ```bash
-> pip install -r requirements.txt
 > pip install -r backend/requirements.txt
 > npm install --prefix frontend
 > ```
@@ -256,6 +255,6 @@ winget install Git.Git Python.Python.3.12 OpenJS.NodeJS.LTS EclipseAdoptium.Temu
 git clone https://github.com/pravintakpire/GlobePulse.git; cd GlobePulse
 copy .env.example .env          # then edit .env and add your GEMINI_API_KEY
 python -m venv .venv; .venv\Scripts\Activate.ps1
-pip install -r requirements.txt; pip install -r backend/requirements.txt; npm install --prefix frontend
+pip install -r backend/requirements.txt; npm install --prefix frontend
 # then run the 3 services in 3 terminals (see Part 5)
 ```
