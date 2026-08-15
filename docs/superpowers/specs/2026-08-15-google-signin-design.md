@@ -106,36 +106,32 @@ pattern, a direct import gets a direct dependency):
 google-auth
 ```
 
-### 3. `backend/main.py` — new imports + new endpoint
+### 3. `backend/google_auth.py` (new) — verification + user lookup logic
 
-Add to the imports section (after the existing `from google.antigravity...`
-imports, `main.py:18-19`):
+Kept in its own module rather than inline in `main.py`, same reason
+`config.py`'s `get_allowed_origins()` isn't inline in `main.py`: importing
+`main.py` directly hangs in this environment (its top-level
+`google.antigravity`/orchestrator imports attempt network/credential
+resolution), so anything that needs a unit test has to live somewhere
+importable without dragging `main.py` in.
 
 ```python
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-```
 
-Add a new Pydantic request model next to the existing ones
-(`main.py`'s `# --- Pydantic Request Models ---` section, after
-`SignupRequest`):
+import database
+from config import settings
 
-```python
-class GoogleAuthRequest(BaseModel):
-    credential: str  # the ID token JWT from Google's Sign In button
-```
 
-Add a new route next to `/api/signup`/`/api/login`:
-
-```python
-@app.post("/api/auth/google")
-def google_auth(req: GoogleAuthRequest):
-    try:
-        idinfo = id_token.verify_oauth2_token(
-            req.credential, google_requests.Request(), settings.google_client_id
-        )
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
+def verify_and_get_user(credential: str) -> dict:
+    """Verifies a Google ID token and returns the corresponding user record,
+    creating one on first sign-in or auto-linking by email if one already
+    exists. Raises ValueError if the token is invalid — the caller (main.py)
+    turns that into a 401.
+    """
+    idinfo = id_token.verify_oauth2_token(
+        credential, google_requests.Request(), settings.google_client_id
+    )
 
     email_key = idinfo["email"].lower()
     users = database.load_users()
@@ -161,8 +157,39 @@ def google_auth(req: GoogleAuthRequest):
         users[email_key]["picture"] = idinfo.get("picture", "")
         database.save_users(users)
 
-    user = users[email_key]
-    return {k: v for k, v in user.items() if k != "password_hash"}
+    user = dict(users[email_key])
+    user.pop("password_hash", None)
+    return user
+```
+
+### 4. `backend/main.py` — new imports + thin route
+
+Add to the imports section (after the existing `from google.antigravity...`
+imports, `main.py:18-19`):
+
+```python
+import google_auth as google_auth_module
+```
+
+Add a new Pydantic request model next to the existing ones
+(`main.py`'s `# --- Pydantic Request Models ---` section, after
+`SignupRequest`):
+
+```python
+class GoogleAuthRequest(BaseModel):
+    credential: str  # the ID token JWT from Google's Sign In button
+```
+
+Add a new route next to `/api/signup`/`/api/login` — deliberately thin,
+all logic lives in `google_auth.py` (see above) so it stays testable:
+
+```python
+@app.post("/api/auth/google")
+def google_auth(req: GoogleAuthRequest):
+    try:
+        return google_auth_module.verify_and_get_user(req.credential)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 ```
 
 This mirrors `/api/login`'s existing response shape (dict-minus-
@@ -172,7 +199,7 @@ read/write goes through the existing `database.load_users`/`save_users` —
 no new error-handling pattern needed; Phase 1's hard-fail-in-cloud-mode
 behavior already applies.
 
-### 4. `frontend/index.html` — Google Identity Services script
+### 5. `frontend/index.html` — Google Identity Services script
 
 Add before the closing `</head>`:
 
@@ -180,7 +207,7 @@ Add before the closing `</head>`:
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 ```
 
-### 5. `frontend/src/config.ts` — new public config value
+### 6. `frontend/src/config.ts` — new public config value
 
 Add alongside `API_URL`/`WS_URL`:
 
@@ -188,7 +215,7 @@ Add alongside `API_URL`/`WS_URL`:
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 ```
 
-### 6. `frontend/Dockerfile` — new build arg
+### 7. `frontend/Dockerfile` — new build arg
 
 Add alongside the existing `VITE_API_URL`/`VITE_WS_URL` args:
 
@@ -197,7 +224,7 @@ ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 ```
 
-### 7. `frontend/src/components/GoogleSignInButton.tsx` (new)
+### 8. `frontend/src/components/GoogleSignInButton.tsx` (new)
 
 ```tsx
 import { useEffect, useRef } from 'react';
@@ -265,7 +292,7 @@ client is provisioned, or in an environment that hasn't set the build arg)
 keeps local dev and any partial deploy safe — the email/password form is
 unaffected either way.
 
-### 8. `frontend/src/components/AuthForms.tsx` — wire the button in
+### 9. `frontend/src/components/AuthForms.tsx` — wire the button in
 
 In both `SignIn` and `SignUp`, render `<GoogleSignInButton onLoginSuccess={onLoginSuccess} />`
 (for `SignUp`, this needs `onLoginSuccess` threaded through the same way
@@ -282,7 +309,7 @@ Also add the optional `picture` field to the `UserInfo` interface
 (`AuthForms.tsx:5-9`) so it round-trips through `onLoginSuccess` without
 TypeScript complaints.
 
-### 9. `frontend/src/App.tsx` — thread `handleLoginSuccess` into `SignUp`
+### 10. `frontend/src/App.tsx` — thread `handleLoginSuccess` into `SignUp`
 
 `App.tsx` already defines `handleLoginSuccess` and passes it to `SignIn`
 (`App.tsx:88,92`). `SignUp`'s render call (`App.tsx:94`) currently only
@@ -306,14 +333,19 @@ return <SignUp onToggleMode={() => setView('signin')} onSignupSuccess={() => set
 
 ## Testing
 
-- New `backend/test_google_auth.py` (same style as `test_config.py`):
-  mock `google.oauth2.id_token.verify_oauth2_token` to return a fake
-  payload dict, then verify:
+- New `backend/test_google_auth.py` (same style as `test_config.py`,
+  targeting `google_auth.py` directly — never imports `main.py`): mock
+  `google.oauth2.id_token.verify_oauth2_token` to return a fake payload
+  dict, then verify:
   - a new user is created with the correct defaults when the email isn't
     in `users` yet
   - an existing user (by email) logs in and is NOT overwritten, except
     `picture` gets backfilled if it was empty
-  - an invalid token (mocked to raise `ValueError`) returns 401
+  - an invalid token (mocked to raise `ValueError`) propagates that
+    `ValueError` out of `verify_and_get_user` — `main.py`'s thin route is
+    what turns it into a 401, but that route itself isn't unit-testable
+    for the same import-hang reason (verified by reading the code, not by
+    an automated test)
 - The real Google flow (actual button click, actual Google account) can
   only be verified by hand in a browser after deploy — not automatable in
   this environment. Call this out explicitly as a manual post-deploy step.
