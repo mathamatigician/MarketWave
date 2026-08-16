@@ -43,7 +43,7 @@ export function Contact() {
   return (
     <div className="max-w-4xl mx-auto w-full animate-in fade-in duration-500 py-8 sm:py-12">
       <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-4 sm:mb-6">Communications</label>
-      <h2 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter mb-8 sm:mb-12">Contact Command</h2>
+      <h2 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter mb-8 sm:mb-12">Contact</h2>
       
       <div className="dark:bg-white/5 bg-slate-50 border dark:border-white/10 border-slate-200 p-5 sm:p-8 rounded-xl grid md:grid-cols-2 gap-8 sm:gap-12">
         <div className="space-y-6 sm:space-y-8">
@@ -82,7 +82,7 @@ export function Contact() {
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-widest dark:text-white/40 text-slate-500 mb-1 font-bold">Direct Dispatch</div>
-              <div className="font-mono text-xs sm:text-sm">intel@globepulseai.com</div>
+              <div className="font-mono text-xs sm:text-sm">support@globepulseai.com</div>
             </div>
           </div>
 
