@@ -26,7 +26,8 @@ flowchart TB
 
     gemini["Google Gemini<br/>(gemini-2.5-flash)"]
     yahoo["Yahoo Finance<br/>(yahooquery)"]
-    gnews["Google News RSS<br/>+ article scraping"]
+    finnhub["Finnhub /company-news<br/>(primary news source)"]
+    gnews["Google News RSS<br/>+ article scraping<br/>(local-dev fallback only —<br/>blocked on Cloud Run)"]
 
     user <--> FE
     app --> auth & dash & chat
@@ -43,10 +44,10 @@ flowchart TB
     orch --> gemini
     orch -. tools .-> pipe & fn
 
-    pipe --> gnews & gemini --> fs
-    trig --> gnews & gemini --> fs
+    pipe --> finnhub & gnews & gemini --> fs
+    trig --> finnhub & gnews & gemini --> fs
 
     classDef ext fill:#fde,stroke:#c39;
     classDef data fill:#eef,stroke:#669;
-    class gemini,yahoo,gnews ext;
+    class gemini,yahoo,finnhub,gnews ext;
     class fs,localjson data;

@@ -41,7 +41,7 @@ flowchart TB
         ws["WebSocket<br/>/ws/chat"]
         orch["Antigravity Orchestrator<br/>+ 3 sub-agents"]
         pipe["pipeline.py<br/>news ingestion"]
-        trig["triggers.py<br/>hourly watchdog"]
+        trig["agents/triggers.py<br/>hourly watchdog"]
         fn["functions.py<br/>sentiment / stock helpers"]
     end
 
@@ -50,7 +50,8 @@ flowchart TB
 
     gemini["Google Gemini<br/>(gemini-2.5-flash)"]
     yahoo["Yahoo Finance<br/>(yahooquery)"]
-    gnews["Google News RSS<br/>+ article scraping"]
+    finnhub["Finnhub /company-news<br/>(primary news source)"]
+    gnews["Google News RSS<br/>+ article scraping<br/>(local-dev fallback only —<br/>blocked on Cloud Run)"]
 
     user <--> FE
     app --> auth & dash & chat
@@ -67,12 +68,12 @@ flowchart TB
     orch --> gemini
     orch -. tools .-> pipe & fn
 
-    pipe --> gnews & gemini --> fs
-    trig --> gnews & gemini --> fs
+    pipe --> finnhub & gnews & gemini --> fs
+    trig --> finnhub & gnews & gemini --> fs
 
     classDef ext fill:#fde,stroke:#c39;
     classDef data fill:#eef,stroke:#669;
-    class gemini,yahoo,gnews ext;
+    class gemini,yahoo,finnhub,gnews ext;
     class fs,localjson data;
 ```
 
@@ -101,7 +102,7 @@ FastAPI app (`main.py`) with CORS open to the Vite origin.
 | `config.py` | `pydantic-settings` config; loads `.env`, exposes `GEMINI_API_KEY`/`GOOGLE_API_KEY`, wires the Firestore emulator host |
 | `database.py` | Firestore client + `users` / `articles` / `alerts` access; local `users.json` fallback; demo user + mock article seeding |
 | `functions.py` | Pure helpers: sentiment aggregation/transform, `get_stock_history()` (yahooquery), `analyze_sentiment_gemini()`, password hashing |
-| `pipeline.py` | News ingestion: Google News RSS → URL resolve → scrape → Gemini structured sentiment → Firestore; defines `TopicSentimentSchema` (18 topics) |
+| `pipeline.py` | News ingestion: Finnhub `/company-news` (primary) or Google News RSS (local-dev fallback) → URL resolve → scrape → Gemini structured sentiment → Firestore; defines `TopicSentimentSchema` (18 topics) |
 | `agents/orchestrator.py` | Antigravity orchestrator agent + 3 sub-agents (ResearchAgent, SentimentAnalyst, MarketCorrelator) |
 | `agents/tools.py` | Agent tools: `fetch_news_tool`, `get_stock_history_tool` |
 | `agents/triggers.py` | Hourly watchdog (`every(3600, …)`) that flags critical sentiment drops as alerts |
@@ -135,12 +136,13 @@ scraping + scoring helpers to raise alerts.
 flowchart LR
     subgraph SRC["Sources"]
         wl[("Watchlist tickers<br/>(from users)")]
-        rss["Google News RSS<br/>search feed"]
+        finnhub["Finnhub /company-news<br/>(primary — real ticker symbols,<br/>direct article URLs)"]
+        rss["Google News RSS search feed<br/>(local-dev fallback —<br/>bot-blocked on Cloud Run)"]
     end
 
     subgraph ING["pipeline.run_pipeline()"]
-        fetch["fetch_news_items()"]
-        decode["googlenewsdecoder<br/>resolve real URL"]
+        fetch["fetch_news_items()<br/>dispatches to Finnhub if<br/>FINHUB_API_KEY set, else RSS"]
+        decode["googlenewsdecoder<br/>resolve real URL<br/>(RSS path only)"]
         scrape["BeautifulSoup<br/>extract article text"]
         dedupe["dedupe vs existing URLs"]
         score["analyze_sentiment_gemini()<br/>Gemini structured output<br/>TopicSentimentSchema · 18 topics"]
@@ -149,19 +151,22 @@ flowchart LR
     art[("Firestore: articles<br/>url · content · company_name · date · sentiment")]
 
     wl --> fetch
+    finnhub --> fetch
     rss --> fetch
-    fetch --> decode --> scrape --> dedupe --> score --> art
+    fetch -->|RSS path| decode --> scrape
+    fetch -->|Finnhub path<br/>direct URL, no decode| scrape
+    scrape --> dedupe --> score --> art
 
-    subgraph WD["triggers.py watchdog · hourly"]
+    subgraph WD["agents/triggers.py watchdog · hourly"]
         every["every(3600)"]
         check["check_watchlist_sentiment()<br/>flag avg overall_sentiment < -0.5"]
         alert[("Firestore: alerts<br/>+ db/alerts.json")]
     end
-    every --> check --> rss
+    every --> check --> fetch
     check --> alert
 
     classDef ext fill:#fde,stroke:#c39;
-    class rss,score ext;
+    class finnhub,rss,score ext;
 ```
 
 ![News ingestion pipeline](docs/diagrams/02_databricks_pipeline.png)
@@ -260,7 +265,8 @@ sequenceDiagram
 | Google Antigravity SDK | `agents/*` | Orchestrator + sub-agents + streaming |
 | Google Cloud Firestore (local emulator) | `database.py`, routes | Users / articles / alerts persistence |
 | Yahoo Finance (`yahooquery`) | `functions.get_stock_history` | Stock price series |
-| Google News RSS + `googlenewsdecoder` + BeautifulSoup | `pipeline.py`, `triggers.py` | News discovery + article scraping |
+| Finnhub (`/company-news`) | `pipeline.py`, `agents/triggers.py` | News discovery — primary source (`FINHUB_API_KEY`) |
+| Google News RSS + `googlenewsdecoder` + BeautifulSoup | `pipeline.py`, `agents/triggers.py` | News discovery + article scraping — local-dev fallback (Cloud Run blocks Google's bot-detection) |
 
 ## 6. Running Locally
 

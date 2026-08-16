@@ -476,7 +476,8 @@ async def run_pipeline(ticker_arg: Optional[str] = None, on_activity: Optional[C
         for ticker in tickers:
             print(f"\n--- Fetching news for {ticker} ---")
             await emit({"type": "start", "ticker": ticker})
-            await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "fetching", "detail": "Querying Google News RSS..."})
+            news_source = "Finnhub" if settings.finhub_api_key else "Google News RSS"
+            await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "fetching", "detail": f"Querying {news_source}..."})
             items = await asyncio.to_thread(fetch_news_items, ticker, limit=5)
             print(f"Found {len(items)} recent news items in RSS feed.")
             await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "found", "detail": f"Found {len(items)} recent articles", "total_items": len(items)})

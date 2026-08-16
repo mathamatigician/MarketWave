@@ -4,17 +4,17 @@ Every investor and trader knows that financial markets move on information long 
 
 Financial news is complex and multi-faceted. A single article about Tesla might contain positive news on vehicle deliveries (`product_launches`), negative news on worker restructuring (`layoffs`), and neutral news on battery research (`r_and_d`). Generic RAG applications and basic LLM wrappers fail because they treat news as flat text and cannot separate distinct financial dimensions or cross-reference sentiment trends directly against market price movements.
 
-We wanted an agentic platform that closes this gap in real time. You add a ticker to your watchlist or ask a market question, and GlobePulseAI.com automatically ingests live RSS feeds, extracts structured 18-topic sentiment scores using Gemini, correlates sentiment shifts against stock price series, and orchestrates a multi-agent team to answer complex market queries while streaming its reasoning live to the user.
+We wanted an agentic platform that closes this gap in real time. You add a ticker to your watchlist or ask a market question, and GlobePulseAI.com automatically ingests live company news (via Finnhub), extracts structured 18-topic sentiment scores using Gemini, correlates sentiment shifts against stock price series, and orchestrates a multi-agent team to answer complex market queries while streaming its reasoning live to the user.
 
 **What it does**
 
 You enter a ticker (e.g., `TSLA`, `AAPL`, `NVDA`) or open the GlobePulseAI.com dashboard. In seconds, it executes an end-to-end intelligence cycle across five integrated stages:
 
-1. **Live News Discovery & Scraping**: It queries Google News RSS feeds for real-time coverage, resolves Google News obfuscated redirect URLs via `googlenewsdecoder`, and scrapes clean article text with BeautifulSoup while deduplicating against existing corpus records.
+1. **Live News Discovery & Scraping**: It queries Finnhub's `/company-news` endpoint for real-time, per-ticker coverage (Google News RSS is retained as a local-dev fallback, resolved via `googlenewsdecoder` — Google blocks that feed from cloud IP ranges in production), and scrapes clean article text with BeautifulSoup while deduplicating against existing corpus records.
 2. **18-Topic Structured Sentiment Extraction**: It passes scraped articles through Gemini constrained by a strict `TopicSentimentSchema` (Pydantic model). Gemini scores 18 granular financial topics (`layoffs`, `revenue_growth`, `product_launches`, `regulatory_actions`, `executive_changes`, `guidance_updates`, `mergers_acquisitions`, etc.) on a normalized `[-1.0, 1.0]` scale, assigning `null` to unmentioned topics to eliminate hallucinated zero-scores.
 3. **Price-vs-Sentiment Correlation**: It pulls live historical OHLCV price series via `yahooquery` and overlays daily median topic sentiment scores onto a shared temporal axis, giving users visual and statistical proof of how news signals precede price breakouts or sell-offs.
 4. **Autonomous Multi-Agent Chat Assistant**: Powered by the Google  SDK (`google-antigravity`), an `OrchestratorAgent` dynamically coordinates three specialized sub-agents (`ResearchAgent`, `SentimentAnalyst`, and `MarketCorrelator`). Over a streaming WebSocket connection (`/ws/chat`), users watch the orchestrator's thought process unfold in real-time before receiving synthesis tokens.
-5. **Proactive Sentiment Watchdog Alerts**: An automated hourly watchdog (`triggers.py`) scans user watchlists for sharp sentiment drops (`overall_sentiment < -0.5`), automatically persisting high-priority alerts to Google Cloud Firestore (or local JSON fallback) without requiring manual refresh.
+5. **Proactive Sentiment Watchdog Alerts**: An automated hourly watchdog (`agents/triggers.py`) scans user watchlists for sharp sentiment drops (`overall_sentiment < -0.5`), automatically persisting high-priority alerts to Google Cloud Firestore (or local JSON fallback) without requiring manual refresh.
 
 On our demo dataset and live scans on volatile tickers like `TSLA` or `NVDA`, GlobePulseAI.com surfaced critical warnings hours before price pullbacks. For example, during a news cycle involving factory retooling and workforce restructuring, GlobePulseAI.com flagged a spike in negative `layoffs` (-0.85) and `guidance_updates` (-0.60) sentiment while `product_launches` remained positive (+0.40)—giving traders a nuanced breakdown rather than a misleading single binary score.
 
@@ -26,7 +26,7 @@ The engineering highlight of GlobePulseAI.com was our architectural transition f
 
 Instead of a single monolithic prompt attempting to scrape news, calculate statistics, format JSON, and stream text simultaneously, GlobePulseAI.com breaks market intelligence into a clear multi-agent hierarchy:
 
-1. **ResearchAgent**: Dedicated to news discovery and text extraction. Equipped with `fetch_news_tool`, it executes targeted RSS queries, resolves obfuscated links, scrapes raw text, and produces clean article summaries.
+1. **ResearchAgent**: Dedicated to news discovery and text extraction. Equipped with `fetch_news_tool`, it executes targeted Finnhub `/company-news` queries (falling back to RSS + link resolution locally), scrapes raw text, and produces clean article summaries.
 2. **SentimentAnalyst**: Enforces strict structured output parsing. Using `TopicSentimentSchema`, it evaluates raw text against 18 financial categories with mathematical precision.
 3. **MarketCorrelator**: Armed with `get_stock_history_tool`, it fetches OHLCV market series from Yahoo Finance and computes correlations between price volatility spikes and sentiment drops.
 4. **OrchestratorAgent**: The root coordinator that receives user queries, formulates execution plans, sequentially delegates tasks to sub-agents, and synthesizes final insights with Bloomberg Terminal-grade analytical rigor.
@@ -37,22 +37,22 @@ What makes this system remarkable for users is our **real-time thought stream**.
 
 | Layer | Technology | Role |
 |-------|------------|------|
-| Reasoning & LLM | Google Gemini (`gemini-3.5-flash`) via `google-generativeai` & `google-antigravity` | Powers multi-topic sentiment extraction, article synthesis, sub-agent reasoning, and market QA |
+| Reasoning & LLM | Google Gemini (`gemini-2.5-flash`) via `google-generativeai` & `google-antigravity` | Powers multi-topic sentiment extraction, article synthesis, sub-agent reasoning, and market QA |
 | Agentic Framework | Google Antigravity SDK (`google-antigravity`) | Code-owned agent runtime managing sub-agent delegation (`ResearchAgent`, `SentimentAnalyst`, `MarketCorrelator`), policies, and tools |
 | Backend Framework | FastAPI on Uvicorn | Async REST API (`/api/*`), streaming WebSocket server (`/ws/chat`), background ingestion tasks |
 | Frontend Framework | React 18 + Vite + TypeScript + Tailwind CSS | Interactive dashboard with dark/light themes, TradingView-style price/sentiment charts, sentiment heatmap, expandable agent thought viewer |
 | Database & DB | Google Cloud Firestore (emulator) & `users.json` / `alerts.json` | Persists user accounts, watchlists, scraped articles with 18-topic sentiment maps, and watchdog alerts with zero-config local fallbacks |
 | Payment Gateway | Razorpay Payment API & HMAC SHA256 Verifier | 3-tier subscription management (Free ₹0, Pro ₹159, Enterprise ₹299), Razorpay modal checkout, and server-side signature verification |
-| Market Data & Ingestion | `yahooquery`, Google News RSS, `googlenewsdecoder`, BeautifulSoup4 | Pulls historical stock price series, resolves obfuscated news URLs, and scrapes live web articles |
-| Alerting Watchdog | Async Background Watchdog (`triggers.py`) | Hourly autonomous watchdog evaluating watchlist overall sentiment against critical thresholds (`< -0.5`) |
+| Market Data & Ingestion | `yahooquery`, Finnhub `/company-news` (primary), Google News RSS + `googlenewsdecoder` (local-dev fallback), BeautifulSoup4 | Pulls historical stock price series, discovers per-ticker news, and scrapes live web articles |
+| Alerting Watchdog | Async Background Watchdog (`agents/triggers.py`) | Hourly autonomous watchdog evaluating watchlist overall sentiment against critical thresholds (`< -0.5`) |
 
 ### Core Architecture & Key System Modules
 
 #### 1. LLM & Multi-Agent Intelligence Engine
-- **Model**: Google Gemini (`gemini-3.5-flash`) integrated via the `google-antigravity` SDK.
+- **Model**: Google Gemini (`gemini-2.5-flash`) integrated via the `google-antigravity` SDK.
 - **Structured Output**: Uses Pydantic schema enforcement (`TopicSentimentSchema`) to map raw article text into 18 normalized financial categories (`layoffs`, `revenue_growth`, `product_launches`, `guidance_updates`, etc.) rated from `-1.0` to `+1.0` (or `null` if unmentioned).
 - **Multi-Agent Hierarchy**: The `OrchestratorAgent` decomposes user prompts and dynamically delegates to specialized sub-agents:
-  - `ResearchAgent`: Executes news RSS discovery and text extraction via `fetch_news_tool`.
+  - `ResearchAgent`: Executes news discovery (Finnhub, primary) and text extraction via `fetch_news_tool`.
   - `SentimentAnalyst`: Enforces 18-topic sentiment schema evaluation.
   - `MarketCorrelator`: Pulls stock market candles via `get_stock_history_tool` to compute price-sentiment correlations.
 - **Real-Time Streaming**: Emits intermediate reasoning thoughts (`{type: "thought"}`) and response tokens (`{type: "token"}`) live via WebSockets (`/ws/chat`).
@@ -79,7 +79,7 @@ What makes this system remarkable for users is our **real-time thought stream**.
   4. Upon verification, user subscription tier is granted and updated in Firestore.
 
 #### 4. Continuous Feedback & Watchdog Loop
-- **Autonomous Watchdog Loop (`triggers.py`)**: Runs background periodic monitoring (hourly cron loop) scanning user watchlists. If an asset's overall sentiment drops below `-0.5`, an automated high-priority alert is persisted and pushed to the user dashboard.
+- **Autonomous Watchdog Loop (`agents/triggers.py`)**: Runs background periodic monitoring (hourly cron loop) scanning user watchlists. If an asset's overall sentiment drops below `-0.5`, an automated high-priority alert is persisted and pushed to the user dashboard.
 - **User Preference & Refinement Loop**: Users continuously adjust watchlists, query target news events, and interact with the streaming thought drawer—providing an active feedback loop that refines sub-agent tool invocation parameters.
 - **Temporal Sentiment-Market Feedback**: Daily aggregated sentiment scores are correlated against Yahoo Finance stock candles, providing continuous evaluative feedback on sentiment accuracy versus actual market price movements.
 
@@ -87,14 +87,14 @@ What makes this system remarkable for users is our **real-time thought stream**.
 
 The complete end-to-end product flow operates across six synchronized stages:
 
-![GlobePulseAI.com Product Workflow & Data Flow](GlobePulseAIBlockDiagram.png)
+![GlobePulseAI.com Product Workflow & Data Flow](docs/diagrams/04_product_workflow.png)
 
 The pipeline operates as a multi-tier architecture:
-Stage 0 intake receives watchlist tickers or user search queries. Stage 1 executes parallel news retrieval via Google News RSS, resolves redirect links with `googlenewsdecoder`, and scrapes raw HTML body text. Stage 2 passes clean articles through Gemini with strict JSON schema constraints (`TopicSentimentSchema`) across 18 financial categories. Stage 3 persists structured articles into Firestore and computes daily median topic aggregates. Stage 4 maps daily sentiment timelines against Yahoo Finance stock price histories. Stage 5 hands interactive queries to the Antigravity Orchestrator, which streams thought logs and delegates tasks across sub-agents in real time. Stage 6 enables tier upgrades via Razorpay modal with server-side HMAC SHA256 signature verification.
+Stage 0 intake receives watchlist tickers or user search queries. Stage 1 executes parallel news retrieval via Finnhub's `/company-news` endpoint (falling back to Google News RSS + `googlenewsdecoder` for local development), and scrapes raw HTML body text. Stage 2 passes clean articles through Gemini with strict JSON schema constraints (`TopicSentimentSchema`) across 18 financial categories. Stage 3 persists structured articles into Firestore and computes daily median topic aggregates. Stage 4 maps daily sentiment timelines against Yahoo Finance stock price histories. Stage 5 hands interactive queries to the Antigravity Orchestrator, which streams thought logs and delegates tasks across sub-agents in real time. Stage 6 enables tier upgrades via Razorpay modal with server-side HMAC SHA256 signature verification.
 
 Architecture diagram: GlobePulseAI.com multi-agent pipeline and React/FastAPI architecture (with Payment Gateway)
 
-![GlobePulseAI.com AI System Architecture](GlobePulseArchitectureDiagram.jpg)
+![GlobePulseAI.com AI System Architecture](docs/diagrams/05_system_architecture.png)
 
 
 Google Antigravity SDK turns the backend into a transparent agentic system. The orchestrator configuration in `backend/agents/orchestrator.py` defines tools (`fetch_news_tool`, `get_stock_history_tool`), sub-agents (`ResearchAgent`, `SentimentAnalyst`, `MarketCorrelator`), and security policies. When a user connects to `/ws/chat`, FastAPI streams both execution thoughts and response tokens live to the UI.
@@ -107,7 +107,7 @@ How this maps to the competition / track requirements:
 | Structured Output Integration | Implements Pydantic schema enforcement (`TopicSentimentSchema`) on Gemini model calls for 18 distinct financial topics |
 | Multi-Agent Orchestration | Deploys an `OrchestratorAgent` managing 3 specialized sub-agents (`ResearchAgent`, `SentimentAnalyst`, `MarketCorrelator`) |
 | Real-time Thought Streaming | Streams raw agent reasoning thoughts (`{type: "thought"}`) and response tokens (`{type: "token"}`) via WebSockets directly into frontend logs |
-| Proactive Autonomous Watchdog | Runs an hourly watchdog trigger (`triggers.py`) that monitors watchlist sentiment and generates proactive market risk alerts |
+| Proactive Autonomous Watchdog | Runs an hourly watchdog trigger (`agents/triggers.py`) that monitors watchlist sentiment and generates proactive market risk alerts |
 | Resilient Local-First Fallbacks | Provides graceful degradation with local Firestore emulation, fallback JSON stores (`users.json`, `alerts.json`), and default sentiment scoring |
 
 A full GlobePulseAI.com agent workflow: the OrchestratorAgent delegating news fetch tasks to ResearchAgent, structured 18-topic sentiment scoring to SentimentAnalyst, and stock price history correlation to MarketCorrelator, while streaming live thoughts and tokens to the React frontend.
@@ -117,6 +117,8 @@ A full GlobePulseAI.com agent workflow: the OrchestratorAgent delegating news fe
 Building the multi-agent pipeline was straight-forward, but making it reliable and real-time under live market conditions required overcoming significant hurdles.
 
 Our first challenge was Google News URL obfuscation. Google News RSS feeds return heavily encoded redirect URLs (`news.google.com/rss/articles/...`) that throw errors when scraped directly with standard HTTP clients. We had to integrate `googlenewsdecoder` to asynchronously resolve canonical news source URLs before passing text to BeautifulSoup4 for clean DOM parsing.
+
+Our second challenge only surfaced after shipping to production: Google actively bot-blocks its News RSS endpoint from cloud provider IP ranges, returning an HTTP 503 "unusual traffic" page instead of results — invisible from a developer laptop, where the same query works fine. We root-caused it with direct request/response logging on the live service, ruled out a User-Agent fix, and replaced the production news source with Finnhub's `/company-news` API (keyed off real ticker symbols, no redirect-decoding needed), keeping Google News RSS only as a local-development fallback.
 
 Our second major battle was preventing schema hallucinations on unmentioned topics. When asking an LLM to score 18 granular financial topics for an article that only mentions two, standard prompts tend to return arbitrary `0.0` neutral scores for missing topics. We strictly typed the Pydantic schema fields as `Optional[float]` with explicit system prompts demanding `null` for unmentioned categories. This allowed our aggregation functions (`aggregate_sentiment()`) to compute true median scores across valid mentions without skewing averages.
 
@@ -145,11 +147,12 @@ Continuous evaluation benchmarks using Arize Phoenix to score agent groundedness
 fastapi
 react
 typescript
-gemini-3.5-flash
+gemini-2.5-flash
 google-antigravity
 firestore
 vite
 tailwindcss
 yahooquery
+finnhub
 python
 pydantic
