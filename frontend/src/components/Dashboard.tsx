@@ -4,6 +4,7 @@ import { OverallSentiment } from './OverallSentiment';
 import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
+import { IngestActivity } from './IngestActivity';
 import { Activity, RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL } from '../config';
@@ -170,16 +171,23 @@ export function Dashboard({ email }: DashboardProps) {
     }
   };
 
-  // Trigger Pipeline Ingestion
+  // Trigger Pipeline Ingestion for every ticker in this user's watchlist.
+  // Sequentially awaited (not concurrent) to keep behavior predictable and
+  // avoid bursting Gemini rate limits across a multi-ticker watchlist at
+  // once. No more blocking alert() -- the IngestActivity panel now shows
+  // real, live progress instead.
   const handleRunPipeline = async () => {
+    if (watchlist.length === 0) return;
     try {
       setPipelineRunning(true);
-      const res = await fetch(`${API_URL}/api/pipeline/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (res.ok) {
-        alert("Scraper pipeline successfully triggered in background. Please wait a few moments for data compilation.");
+      for (const ticker of watchlist) {
+        const res = await fetch(`${API_URL}/api/pipeline/run?ticker=${encodeURIComponent(ticker)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+          console.error(`Pipeline run failed for ${ticker}: HTTP ${res.status}`);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -305,8 +313,9 @@ export function Dashboard({ email }: DashboardProps) {
               onRunPipeline={handleRunPipeline}
               pipelineRunning={pipelineRunning}
             />
+            <IngestActivity />
           </div>
-          
+
           <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
             <SectorHeatmap 
               heatmapData={heatmapData} 

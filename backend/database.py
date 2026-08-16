@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import logging
 from typing import Optional
 from google.cloud import firestore
@@ -161,37 +162,57 @@ def get_order(order_id: str) -> Optional[dict]:
             logger.error(f"Error reading local orders file: {e}")
     return None
 
+_watchlist_tickers_cache: Optional[list] = None
+_watchlist_tickers_cached_at: float = 0.0
+_WATCHLIST_CACHE_TTL_SECONDS = 60  # matches main.py's per-ticker cooldown window
+
 def load_all_watchlist_tickers() -> list:
-    """Compiles all unique watchlist tickers from users, falling back to local users.json."""
+    """Compiles all unique watchlist tickers from users, falling back to local users.json.
+
+    Cached in-process for _WATCHLIST_CACHE_TTL_SECONDS. This is called on
+    every unauthenticated POST /api/pipeline/run?ticker=X request in
+    main.py (to validate the ticker before the 429 cooldown check even
+    runs), which itself calls load_users() and streams the entire `users`
+    collection -- without this cache, that's unauthenticated Firestore read
+    amplification: cheap for a caller to trigger repeatedly, not cheap for
+    Firestore. The cache benefits every caller (including run_pipeline's
+    own unscoped path), not just main.py's route.
+    """
+    global _watchlist_tickers_cache, _watchlist_tickers_cached_at
+    now = time.time()
+    if _watchlist_tickers_cache is not None and (now - _watchlist_tickers_cached_at) < _WATCHLIST_CACHE_TTL_SECONDS:
+        return _watchlist_tickers_cache
+
     default_tickers = ["Tesla", "Apple", "Google", "Microsoft", "Nvidia", "Amazon"]
-    
+
     users = load_users()
     if not users:
-        return default_tickers
-        
-    try:
-        tickers = set()
-        for email_key, data in users.items():
-            watchlist_val = data.get("watchlist", "")
-            if watchlist_val:
-                if isinstance(watchlist_val, list):
-                    for symbol in watchlist_val:
-                        symbol = symbol.strip()
-                        if symbol:
-                            tickers.add(symbol)
-                else:
-                    for symbol in watchlist_val.split(','):
-                        symbol = symbol.strip()
-                        if symbol:
-                            tickers.add(symbol)
-                            
-        if not tickers:
-            return default_tickers
-            
-        return sorted(list(tickers))
-    except Exception as e:
-        logger.error(f"Error compiling watchlist: {e}")
-        return default_tickers
+        result = default_tickers
+    else:
+        try:
+            tickers = set()
+            for email_key, data in users.items():
+                watchlist_val = data.get("watchlist", "")
+                if watchlist_val:
+                    if isinstance(watchlist_val, list):
+                        for symbol in watchlist_val:
+                            symbol = symbol.strip()
+                            if symbol:
+                                tickers.add(symbol)
+                    else:
+                        for symbol in watchlist_val.split(','):
+                            symbol = symbol.strip()
+                            if symbol:
+                                tickers.add(symbol)
+
+            result = sorted(list(tickers)) if tickers else default_tickers
+        except Exception as e:
+            logger.error(f"Error compiling watchlist: {e}")
+            result = default_tickers
+
+    _watchlist_tickers_cache = result
+    _watchlist_tickers_cached_at = now
+    return result
 
 def seed_demo_users():
     """Seeds default demo users and local JSON users in Firestore for testing persistence."""

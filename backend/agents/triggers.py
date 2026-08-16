@@ -44,7 +44,7 @@ async def check_watchlist_sentiment(ctx: TriggerContext):
                 if not body_text:
                     body_text = item['title']
                 
-                sentiment_dict = pipeline.analyze_sentiment_gemini(body_text, ticker)
+                sentiment_dict = await pipeline.score_sentiment_with_agent(body_text, ticker)
                 if sentiment_dict and sentiment_dict.get('overall_sentiment') is not None:
                     sentiments.append(sentiment_dict['overall_sentiment'])
                     

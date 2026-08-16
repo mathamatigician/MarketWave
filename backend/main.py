@@ -2,7 +2,8 @@ import os
 import sys
 import json
 import logging
-from typing import List, Optional
+import time
+from typing import List, Optional, Dict
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -42,6 +43,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# In-memory per-ticker cooldown for scoped (non-admin) pipeline runs.
+# Resets on process restart -- this is a spam-guard, not a durability
+# guarantee, and that's an acceptable tradeoff for this use case.
+_PIPELINE_COOLDOWN_SECONDS = 60
+_last_ticker_run: Dict[str, float] = {}
+
+# In-process set of connected /ws/ingest clients, for broadcasting live
+# pipeline activity. A plain set, not per-user scoped -- every connected
+# client sees every in-flight run's activity, which is acceptable at this
+# app's scale (matches this feature's spec).
+_ingest_websockets: set = set()
+
+async def broadcast_ingest_activity(event: dict):
+    """Sends one pipeline activity event to every connected /ws/ingest client.
+
+    Drops any socket that raises (disconnected) rather than letting one
+    dead connection break the broadcast for everyone else.
+    """
+    dead = set()
+    # Iterate a snapshot, not the live set -- a client connecting or
+    # disconnecting mid-broadcast mutates _ingest_websockets concurrently,
+    # which would otherwise raise "Set changed size during iteration" and
+    # silently abort the broadcast partway through.
+    for ws in list(_ingest_websockets):
+        try:
+            await ws.send_json(event)
+        except Exception:
+            dead.add(ws)
+    _ingest_websockets.difference_update(dead)
 
 COMPANY_TICKER_MAP = {
     "Tesla": "TSLA",
@@ -414,16 +445,36 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
 
 @app.post("/api/pipeline/run")
 def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = None, admin_key: Optional[str] = Query(None)):
-    # ADMIN_KEY must be provided via environment variables.
-    # Never commit secrets to source control.
-    actual_admin_key = settings.admin_key or os.getenv("ADMIN_KEY")
-    if not actual_admin_key:
-        logger.error("Configuration Error: ADMIN_KEY is not set.")
-        raise HTTPException(status_code=500, detail="Server configuration error")
-        
-    if admin_key != actual_admin_key:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    background_tasks.add_task(pipeline.run_pipeline, ticker)
+    if ticker and ticker not in database.load_all_watchlist_tickers():
+        # Unrecognized ticker string: the cooldown dict alone doesn't stop a
+        # scripted caller from bypassing rate-limiting by varying the ticker
+        # on every request (each new string gets its own fresh cooldown
+        # entry). Only a ticker that's actually on some user's watchlist
+        # gets the no-admin-key fast path; anything else falls through to
+        # the same admin-gated path as an unscoped run.
+        ticker = None
+
+    if ticker:
+        # Scoped, single-ticker run: bounded cost (~5 articles), no
+        # admin_key required -- it's a legitimate user action, not an
+        # admin one. Rate-limited per ticker to prevent spam-clicking from
+        # hammering the Gemini API / Firestore.
+        now = time.time()
+        last_run = _last_ticker_run.get(ticker)
+        if last_run is not None and (now - last_run) < _PIPELINE_COOLDOWN_SECONDS:
+            raise HTTPException(status_code=429, detail=f"'{ticker}' was refreshed recently, please wait a moment.")
+        _last_ticker_run[ticker] = now
+    else:
+        # Unscoped: refreshes every ticker across every user's watchlist --
+        # genuinely expensive, shared-cost. Stays admin-gated, unchanged.
+        actual_admin_key = settings.admin_key or os.getenv("ADMIN_KEY")
+        if not actual_admin_key:
+            logger.error("Configuration Error: ADMIN_KEY is not set.")
+            raise HTTPException(status_code=500, detail="Server configuration error")
+        if admin_key != actual_admin_key:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+
+    background_tasks.add_task(pipeline.run_pipeline, ticker, on_activity=broadcast_ingest_activity)
     return {"status": "started", "message": "Scraper pipeline running in background"}
 
 def load_local_alerts():
@@ -577,3 +628,21 @@ async def chat_websocket(websocket: WebSocket):
                 except Exception:
                     pass
                 break
+
+
+# --- WebSocket Ingest Activity Endpoint (Antigravity Agent) ---
+
+@app.websocket("/ws/ingest")
+async def ingest_activity_websocket(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("WebSocket ingest-activity connection established.")
+    _ingest_websockets.add(websocket)
+    try:
+        while True:
+            # This channel is push-only from the server; we still need to
+            # await something to detect a client-initiated disconnect.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        logger.info("WebSocket ingest-activity connection closed.")
+    finally:
+        _ingest_websockets.discard(websocket)

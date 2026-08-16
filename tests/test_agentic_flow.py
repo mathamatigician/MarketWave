@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 # Ensure parent directory is in sys.path so we can import backend packages
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -54,18 +54,18 @@ class TestAgenticFlow(unittest.TestCase):
     @patch('backend.agents.triggers.database.load_all_watchlist_tickers')
     @patch('backend.agents.triggers.pipeline.fetch_news_items')
     @patch('backend.agents.triggers.pipeline.resolve_and_scrape_article')
-    @patch('backend.agents.triggers.pipeline.analyze_sentiment_gemini')
+    @patch('backend.agents.triggers.pipeline.score_sentiment_with_agent', new_callable=AsyncMock)
     @patch('backend.agents.triggers.database.db')
     @patch('backend.agents.triggers.get_alerts_file_path')
-    def test_watchdog_trigger(self, mock_alerts_path, mock_db, mock_analyze, mock_scrape, mock_fetch, mock_load_tickers):
+    def test_watchdog_trigger(self, mock_alerts_path, mock_db, mock_score, mock_scrape, mock_fetch, mock_load_tickers):
         # Setup temp alerts file path
         mock_alerts_path.return_value = 'test_alerts.json'
-        
+
         # Setup mocks
         mock_load_tickers.return_value = ['TSLA']
         mock_fetch.return_value = [{'google_link': 'http://gnews.com/1', 'title': 'Negative News'}]
         mock_scrape.return_value = ('http://site.com/1', 'Bad news content')
-        mock_analyze.return_value = {'overall_sentiment': -0.8}
+        mock_score.return_value = {'overall_sentiment': -0.8}
         
         # Run watchdog trigger (using asyncio since check_watchlist_sentiment is async)
         import asyncio
