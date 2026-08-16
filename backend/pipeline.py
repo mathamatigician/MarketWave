@@ -6,6 +6,7 @@ import asyncio
 import argparse
 import requests
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -51,30 +52,118 @@ def load_all_watchlist_tickers() -> list:
 
 
 def fetch_news_items(ticker: str, limit: int = 5) -> list:
-    """Fetches recent news items from Google News RSS feed for a ticker."""
+    """Fetches recent news items for a ticker.
+
+    Prefers Finnhub's /company-news endpoint (real ticker symbols, direct
+    article URLs, no redirect-decoding needed) when FINHUB_API_KEY is
+    configured. Google News RSS -- the original source -- returns an HTTP
+    503 bot-detection block page ("Sorry... unusual traffic from your
+    computer network") when queried from Cloud Run's IP range, confirmed via
+    direct investigation (a real browser User-Agent did not avoid it,
+    ruling out a header-level fix; it's an IP-reputation block). It still
+    works fine from other networks, so it's kept as the local-dev fallback
+    when no Finnhub key is configured, rather than requiring every
+    developer to provision one just to run the app locally.
+    """
+    if settings.finhub_api_key:
+        return _fetch_news_items_finhub(ticker, limit)
+    return _fetch_news_items_google_rss(ticker, limit)
+
+
+def _fetch_news_items_finhub(ticker: str, limit: int) -> list:
+    """Fetches recent news items from Finnhub's /company-news endpoint.
+
+    `ticker` here is this app's company-name space (e.g. "Tesla"), resolved
+    to a real market symbol via database.COMPANY_TICKER_MAP -- Finnhub
+    requires an actual symbol (e.g. "TSLA"), not a free-text company name.
+    A ticker with no mapping (e.g. one not in COMPANY_TICKER_MAP) is passed
+    through as-is, on the assumption it's already a valid symbol.
+    """
+    symbol = database.COMPANY_TICKER_MAP.get(ticker, ticker)
+    to_date = datetime.now(timezone.utc).date()
+    from_date = to_date - timedelta(days=7)
+    url = (
+        "https://finnhub.io/api/v1/company-news"
+        f"?symbol={requests.utils.quote(symbol)}"
+        f"&from={from_date.isoformat()}&to={to_date.isoformat()}"
+        f"&token={settings.finhub_api_key}"
+    )
+
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            print(f"Failed to fetch Finnhub news for {ticker} ({symbol}): HTTP {r.status_code}")
+            return []
+
+        articles = r.json()
+        if not isinstance(articles, list):
+            print(f"Unexpected Finnhub response shape for {ticker} ({symbol}): {articles}")
+            return []
+
+        # Most recent first, capped at `limit` before anything reaches the
+        # cleaning/scoring agents downstream -- keeps per-run agent-call
+        # cost bounded the same way the previous Google RSS path was.
+        articles.sort(key=lambda a: a.get('datetime', 0), reverse=True)
+
+        items = []
+        for art in articles[:limit]:
+            article_url = art.get('url') or ''
+            if not article_url:
+                continue
+
+            unix_ts = art.get('datetime')
+            try:
+                dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) if unix_ts else None
+                date_str = f"{dt.month}/{dt.day}/{dt.year}" if dt else ""
+            except Exception:
+                date_str = ""
+
+            items.append({
+                'title': art.get('headline') or '',
+                # Field name kept as 'google_link' for compatibility with
+                # resolve_and_scrape_article's caller (run_pipeline) -- it
+                # holds a real, direct article URL here, not a Google News
+                # redirect. resolve_and_scrape_article's gnewsdecoder step
+                # already falls back to using the URL as-is when it isn't a
+                # decodable Google redirect, so no change needed there.
+                'google_link': article_url,
+                'date': date_str
+            })
+        return items
+    except Exception as e:
+        print(f"Error fetching Finnhub news for {ticker} ({symbol}): {e}")
+        return []
+
+
+def _fetch_news_items_google_rss(ticker: str, limit: int = 5) -> list:
+    """Fetches recent news items from Google News RSS feed for a ticker.
+
+    Local-dev fallback only when no FINHUB_API_KEY is configured -- see
+    fetch_news_items's docstring for why this is blocked on Cloud Run.
+    """
     query = f"{ticker} stock"
     url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en-US&gl=US&ceid=US:en"
-    
+
     try:
         r = requests.get(url, timeout=10)
         if r.status_code != 200:
             print(f"Failed to fetch Google News RSS for {ticker}: HTTP {r.status_code}")
             return []
-            
+
         root = ET.fromstring(r.text)
         items = []
         for item in root.findall('.//item')[:limit]:
             title = item.find('title').text if item.find('title') is not None else ""
             link = item.find('link').text if item.find('link') is not None else ""
             pub_date_raw = item.find('pubDate').text if item.find('pubDate') is not None else ""
-            
+
             # Convert date
             try:
                 dt = parsedate_to_datetime(pub_date_raw)
                 date_str = f"{dt.month}/{dt.day}/{dt.year}"
             except Exception:
                 date_str = ""
-                
+
             items.append({
                 'title': title,
                 'google_link': link,

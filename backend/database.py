@@ -17,6 +17,26 @@ from config import settings
 # silent data divergence between a developer's machine and the real database.
 FIRESTORE_MODE = "emulator" if "FIRESTORE_EMULATOR_HOST" in os.environ else "cloud"
 
+# Company name -> real market ticker symbol. Lives here (not main.py) so both
+# main.py and pipeline.py can import it without a circular import (main.py
+# already imports pipeline). This app otherwise works in company-name space
+# throughout (watchlists, run_pipeline's ticker_arg) -- this map is the one
+# place that bridges to a real tradeable symbol, e.g. for a news API that
+# takes symbols rather than free-text company names.
+COMPANY_TICKER_MAP = {
+    "Tesla": "TSLA",
+    "Apple": "AAPL",
+    "Google": "GOOG",
+    "Microsoft": "MSFT",
+    "Nvidia": "NVDA",
+    "Amazon": "AMZN",
+    "Intel": "INTC",
+    "Meta": "META",
+    "Reliance Industries": "RELIANCE.NS",
+    "Tata Motors": "TATAMOTORS.NS",
+    "Infosys": "INFY.NS"
+}
+
 db = None
 if settings.firestore_project_id:
     try:

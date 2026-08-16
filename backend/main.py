@@ -74,19 +74,10 @@ async def broadcast_ingest_activity(event: dict):
             dead.add(ws)
     _ingest_websockets.difference_update(dead)
 
-COMPANY_TICKER_MAP = {
-    "Tesla": "TSLA",
-    "Apple": "AAPL",
-    "Google": "GOOG",
-    "Microsoft": "MSFT",
-    "Nvidia": "NVDA",
-    "Amazon": "AMZN",
-    "Intel": "INTC",
-    "Meta": "META",
-    "Reliance Industries": "RELIANCE.NS",
-    "Tata Motors": "TATAMOTORS.NS",
-    "Infosys": "INFY.NS"
-}
+# Moved to database.py so pipeline.py can use it too (without a circular
+# import back into main.py). Kept as a module-level name here for backward
+# compatibility with the rest of this file's existing references.
+COMPANY_TICKER_MAP = database.COMPANY_TICKER_MAP
 
 # --- Pydantic Request Models ---
 class LoginRequest(BaseModel):

@@ -14,6 +14,7 @@ try:
     class Settings(BaseSettings):
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
+        finhub_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = None
@@ -34,6 +35,7 @@ except ImportError:
     class Settings(BaseSettings):
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
+        finhub_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
         firestore_project_id: str = "globepulse-demo"
         firestore_emulator_host: Optional[str] = None
