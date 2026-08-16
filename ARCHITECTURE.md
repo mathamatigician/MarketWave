@@ -117,6 +117,9 @@ FastAPI app (`main.py`) with CORS open to the Vite origin.
 | `/api/stock/history` | GET | Price series + daily sentiment series + recent articles |
 | `/api/pipeline/run` | POST | Kick off the ingestion pipeline as a background task |
 | `/api/alerts` | GET | Recent watchdog alerts (Firestore, else `db/alerts.json`) |
+| `/api/subscription/plans` | GET | Get subscription plan tiers (Starter Free, Pro Trader ₹159, Enterprise ₹299) |
+| `/api/subscription/create-order` | POST | Create Razorpay payment order for paid tiers |
+| `/api/subscription/verify-payment` | POST | Verify Razorpay HMAC SHA256 payment signature and grant plan |
 | `/ws/chat` | WS | Streaming conversation with the Antigravity orchestrator |
 
 ---
