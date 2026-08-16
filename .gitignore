@@ -36,3 +36,7 @@ orders.json
 *secret*.json
 firebase-key.json
 gcp-key.json
+
+# Vite cache & build
+.vite/
+dist/

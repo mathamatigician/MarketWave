@@ -41,7 +41,7 @@ fi
 
 # Fallback cleanup check on designated ports
 echo "Checking ports for orphaned services..."
-for port in $EMULATOR_PORT $BACKEND_PORT $FRONTEND_PORT; do
+for port in $EMULATOR_PORT $BACKEND_PORT $FRONTEND_PORT 4000 4400 4500 9150; do
   PID=$(lsof -t -i:$port -sTCP:LISTEN)
   if [ ! -z "$PID" ]; then
     kill -9 $PID 2>/dev/null

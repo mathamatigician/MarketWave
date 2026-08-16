@@ -248,7 +248,7 @@ export function TopStocks({
 
       {/* Search & Action Controls */}
       <div className="mb-6 space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs uppercase font-mono tracking-widest text-slate-400 dark:text-white/40">Watchlist Directory</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 dark:text-white/80 text-slate-700">
@@ -256,12 +256,12 @@ export function TopStocks({
             </span>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Run Scraper Pipeline Button */}
             <button 
               onClick={onRunPipeline}
               disabled={pipelineRunning}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
             >
               <Play className={`w-3 h-3 ${pipelineRunning ? 'animate-pulse text-emerald-500' : ''}`} />
               <span>{pipelineRunning ? 'Ingesting...' : 'Ingest News'}</span>
@@ -270,7 +270,7 @@ export function TopStocks({
             {/* Add Custom Ticker */}
             <button 
               onClick={() => setIsAddingCustom(!isAddingCustom)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1 shrink-0"
+              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1 shrink-0"
             >
               <span>+ Add Ticker</span>
             </button>
@@ -278,9 +278,9 @@ export function TopStocks({
             {/* Manage Watchlist Checklist */}
             <button 
               onClick={() => setIsEditingWatchlist(true)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1.5 shrink-0"
+              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border dark:border-white/10 border-slate-200 hover:border-emerald-500 hover:text-emerald-500 dark:hover:border-emerald-500 dark:hover:text-emerald-500 transition-all flex items-center gap-1.5 shrink-0"
             >
-              <span>⚙️ Manage Watchlist</span>
+              <span>⚙️ Manage</span>
             </button>
           </div>
         </div>
@@ -344,11 +344,11 @@ export function TopStocks({
         </div>
 
         {/* Filters Tabs Row */}
-        <div className="flex border-b dark:border-white/10 border-slate-200 gap-6 overflow-x-auto shrink-0 pb-1">
+        <div className="flex border-b dark:border-white/10 border-slate-200 gap-4 sm:gap-6 overflow-x-auto shrink-0 pb-1 scrollbar-none">
           <button 
             type="button"
             onClick={() => setActiveTab('watchlist')}
-            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 flex items-center gap-1.5 ${activeTab === 'watchlist' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
+            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'watchlist' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
           >
             <span>My Watchlist</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-full dark:bg-amber-400/10 bg-amber-500/10 dark:text-amber-300 text-amber-600 font-bold">
@@ -358,14 +358,14 @@ export function TopStocks({
           <button 
             type="button"
             onClick={() => setActiveTab('all')}
-            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 ${activeTab === 'all' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
+            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 whitespace-nowrap ${activeTab === 'all' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
           >
             All Equities
           </button>
           <button 
             type="button"
             onClick={() => setActiveTab('bullish')}
-            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 flex items-center gap-1.5 ${activeTab === 'bullish' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
+            className={`pb-3 text-xs uppercase tracking-widest font-black transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'bullish' ? 'border-emerald-500 dark:border-[#00FF94] dark:text-white text-slate-950' : 'border-transparent text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60'}`}
           >
             <span>Bullish Trends (&gt;0.15)</span>
           </button>
@@ -375,7 +375,7 @@ export function TopStocks({
       {/* Table Listing */}
       <div className="w-full overflow-hidden rounded-xl border dark:border-white/10 border-slate-200 dark:bg-[#0E0E10]/40 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[480px]">
             <thead>
               <tr className="dark:text-white/40 text-slate-500 border-b dark:border-white/10 border-slate-200 text-[10px] uppercase tracking-widest dark:bg-white/5 bg-slate-50">
                 <th className="p-4 font-bold text-left w-12">Watch</th>

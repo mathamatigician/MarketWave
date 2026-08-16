@@ -239,38 +239,38 @@ export function Dashboard({ email }: DashboardProps) {
       )}
 
       {/* Dashboard Header */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-2">Market Overview</label>
+          <label className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-1">Market Overview</label>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#00FF94] shadow-[0_0_8px_rgba(16,185,129,0.5)] dark:shadow-[0_0_8px_#00FF94]"></div>
-            <span className="text-[11px] font-mono uppercase tracking-widest dark:text-white/60 text-slate-600">
-              Live Stream Active (Firestore)
+            <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest dark:text-white/60 text-slate-600">
+              Live Stream (Firestore)
             </span>
           </div>
-          <span className="text-[11px] font-mono dark:text-white/40 text-slate-500 uppercase tracking-widest">
+          <span className="text-[10px] sm:text-[11px] font-mono dark:text-white/40 text-slate-500 uppercase tracking-widest">
             Sync: {format(new Date(), 'HH:mm:ss')}
           </span>
           <button 
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50"
+            className="p-1 rounded-md dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50"
             title="Refresh Data"
           >
-            <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCcw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Tabs Selection Header */}
-      <div className="flex border-b dark:border-white/10 border-slate-200 gap-6 mb-6">
+      <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-6 overflow-x-auto shrink-0 pb-1 scrollbar-none">
         <button 
           onClick={() => setDashboardTab('sentiment')}
-          className={`text-xs font-black uppercase tracking-widest pb-3 transition-all ${
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
             dashboardTab === 'sentiment' 
               ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
               : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -280,7 +280,7 @@ export function Dashboard({ email }: DashboardProps) {
         </button>
         <button 
           onClick={() => setDashboardTab('charts')}
-          className={`text-xs font-black uppercase tracking-widest pb-3 transition-all ${
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
             dashboardTab === 'charts' 
               ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
               : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -292,8 +292,8 @@ export function Dashboard({ email }: DashboardProps) {
 
       {/* Main Content Areas based on Tab selection */}
       {dashboardTab === 'sentiment' ? (
-        <div className="grid grid-cols-12 gap-8 animate-in fade-in duration-300">
-          <div className="col-span-12 lg:col-span-7 flex flex-col gap-8">
+        <div className="grid grid-cols-12 gap-6 lg:gap-8 animate-in fade-in duration-300">
+          <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 sm:gap-8">
             <OverallSentiment overallScore={overallScore} trendLabel={trendLabel} watchlistStocks={stocksData} />
             <TopStocks 
               email={email}
@@ -307,7 +307,7 @@ export function Dashboard({ email }: DashboardProps) {
             />
           </div>
           
-          <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-8 lg:pt-0 lg:pl-6">
+          <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
             <SectorHeatmap 
               heatmapData={heatmapData} 
               watchlist={watchlist}

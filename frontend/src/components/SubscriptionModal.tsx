@@ -201,43 +201,43 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="relative w-full max-w-5xl bg-white dark:bg-[#0E0E12] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in">
+      <div className="relative w-full max-w-5xl bg-white dark:bg-[#0E0E12] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="relative p-6 sm:p-8 text-center border-b border-slate-200 dark:border-white/10 dark:bg-gradient-to-b dark:from-emerald-950/20 dark:to-transparent">
+        <div className="relative p-5 sm:p-8 text-center border-b border-slate-200 dark:border-white/10 dark:bg-gradient-to-b dark:from-emerald-950/20 dark:to-transparent shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-white/60 transition-colors"
+            className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-white/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
           
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] text-xs font-mono font-bold uppercase tracking-widest mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] text-xs font-mono font-bold uppercase tracking-widest mb-2 sm:mb-3">
             <Sparkles className="w-3.5 h-3.5" /> GlobePulse Pricing Plans
           </div>
-          <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+          <h2 className="text-xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
             Choose Your AI Intelligence Tier
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60 mt-2 max-w-xl mx-auto font-mono">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60 mt-1.5 max-w-xl mx-auto font-mono">
             Unlock real-time news sentiment tracking, agent reasoning logs, and automated market watchdog alerts.
           </p>
 
           {/* Status Messages */}
           {errorMsg && (
-            <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-mono max-w-lg mx-auto">
+            <div className="mt-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-mono max-w-lg mx-auto">
               ⚠️ {errorMsg}
             </div>
           )}
           {successMsg && (
-            <div className="mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-[#00FF94] text-xs font-mono font-bold max-w-lg mx-auto animate-bounce">
+            <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-[#00FF94] text-xs font-mono font-bold max-w-lg mx-auto animate-bounce">
               {successMsg}
             </div>
           )}
         </div>
 
         {/* Plans Container */}
-        <div className="p-6 sm:p-8">
+        <div className="p-4 sm:p-8 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-[#00FF94]" />

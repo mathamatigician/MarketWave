@@ -222,11 +222,11 @@ export function StockPriceSentimentTab({
         <div className="space-y-6">
           {/* High Level Stats Card */}
           {tickerDetails && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Sentiment Score</span>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-4xl font-extrabold italic ${scoreColor}`}>
+                  <span className={`text-3xl sm:text-4xl font-extrabold italic ${scoreColor}`}>
                     {scoreVal >= 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2)}
                   </span>
                   <span className={`text-[10px] font-bold uppercase ${scoreColor}`}>
@@ -238,7 +238,7 @@ export function StockPriceSentimentTab({
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Current Price</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                  <span className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
                     {formatPrice(tickerDetails.price, activeTicker.endsWith('.NS') || activeTicker.endsWith('.BO') ? 'INR' : 'USD')}
                   </span>
                   <span className={`text-xs font-mono font-bold ${tickerDetails.changePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -249,7 +249,7 @@ export function StockPriceSentimentTab({
 
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Algorithmic Rating</span>
-                <span className="text-base font-extrabold uppercase text-slate-800 dark:text-white/80 block mt-1.5">
+                <span className="text-sm sm:text-base font-extrabold uppercase text-slate-800 dark:text-white/80 block mt-1.5">
                   {scoreVal >= 0.4 ? 'Strong Outperform' : 
                    scoreVal >= 0.15 ? 'Moderate Outperform' : 
                    scoreVal >= -0.15 ? 'Hold / Neutral' : 
@@ -260,7 +260,7 @@ export function StockPriceSentimentTab({
           )}
 
           {/* Composed Price and Sentiment Overlay Chart */}
-          <div className="p-6 bg-slate-50 dark:bg-[#121214] rounded-lg border border-slate-100 dark:border-white/5">
+          <div className="p-4 sm:p-6 bg-slate-50 dark:bg-[#121214] rounded-lg border border-slate-100 dark:border-white/5">
             <span className="text-[11px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-4 font-bold font-mono">
               Price Overlay & Sentiment Trajectory (Past 30 Days)
             </span>

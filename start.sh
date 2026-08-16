@@ -16,16 +16,40 @@ echo "============================================="
 echo "🚀 Starting GlobePulse Platform Services..."
 echo "============================================="
 
+# Auto-create .env from .env.example if missing
+if [ ! -f .env ] && [ -f .env.example ]; then
+  cp .env.example .env
+  echo "ℹ️  Created .env from .env.example"
+fi
+
+# Detect Python interpreter
+if [ -f ".venv/bin/python" ]; then
+  PYTHON_CMD=".venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+else
+  PYTHON_CMD="python"
+fi
+
 # 1. Start Firestore Emulator
 if check_port $EMULATOR_PORT; then
   echo "⚠️  Port $EMULATOR_PORT is already in use. Skipping Firestore Emulator start."
 else
   echo "Starting Firestore Emulator..."
-  export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"
-  npx -y firebase-tools@latest emulators:start --only firestore > firestore-emulator.log 2>&1 &
+  [ -d "/opt/homebrew/opt/openjdk@21/bin" ] && export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"
+  npx -y firebase-tools@latest emulators:start --only firestore --project globepulse-demo > firestore-emulator.log 2>&1 &
   EMULATOR_PID=$!
   echo "EMULATOR_PID=$EMULATOR_PID" >> .globepulse.pids
   echo "👉 Firestore Emulator started (PID: $EMULATOR_PID)"
+  
+  # Wait for emulator to listen on EMULATOR_PORT before starting backend
+  echo "Waiting for Firestore Emulator to initialize..."
+  for i in {1..15}; do
+    if check_port $EMULATOR_PORT; then
+      break
+    fi
+    sleep 1
+  done
 fi
 
 # 2. Start FastAPI Backend
@@ -33,7 +57,7 @@ if check_port $BACKEND_PORT; then
   echo "⚠️  Port $BACKEND_PORT is already in use. Skipping FastAPI Backend start."
 else
   echo "Starting FastAPI Backend..."
-  .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port $BACKEND_PORT --reload > backend.log 2>&1 &
+  $PYTHON_CMD -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload --reload-dir backend > backend.log 2>&1 &
   BACKEND_PID=$!
   echo "BACKEND_PID=$BACKEND_PID" >> .globepulse.pids
   echo "👉 FastAPI Backend started (PID: $BACKEND_PID)"
@@ -44,20 +68,35 @@ if check_port $FRONTEND_PORT; then
   echo "⚠️  Port $FRONTEND_PORT is already in use. Skipping Frontend Dev Server start."
 else
   echo "Starting Frontend Dev Server..."
-  npm --prefix frontend run dev -- --port $FRONTEND_PORT > frontend.log 2>&1 &
+  npx --prefix frontend vite frontend --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
   FRONTEND_PID=$!
   echo "FRONTEND_PID=$FRONTEND_PID" >> .globepulse.pids
   echo "👉 Frontend Dev Server started (PID: $FRONTEND_PID)"
 fi
 
 echo ""
-echo "Waiting for services to initialize..."
-for i in {1..6}; do
-  if check_port $EMULATOR_PORT && check_port $BACKEND_PORT && check_port $FRONTEND_PORT; then
+echo "Waiting for backend & frontend services to initialize..."
+for i in {1..15}; do
+  if check_port $BACKEND_PORT && check_port $FRONTEND_PORT; then
     break
   fi
   sleep 1
 done
+
+# Detect Local Network IP (portable across macOS/Linux -- avoids relying on
+# the Linux-only `ip` command or a hardcoded interface name; opens no real
+# connection, just asks the OS which local address it would route through).
+LOCAL_IP=$(python3 -c "
+import socket
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 80))
+    print(s.getsockname()[0])
+    s.close()
+except Exception:
+    pass
+" 2>/dev/null)
+[ -z "$LOCAL_IP" ] && LOCAL_IP="localhost"
 
 echo ""
 echo "============================================="
@@ -78,8 +117,6 @@ fi
 
 if check_port $FRONTEND_PORT; then
   echo "✅ Frontend Dev Server (Port $FRONTEND_PORT) is RUNNING."
-  # Read port from dev server if it changed, otherwise fallback to default
-  # (Vite defaults to 5173 but could choose another if occupied)
 else
   echo "❌ Frontend Dev Server (Port $FRONTEND_PORT) is NOT running. Check: tail -n 20 frontend.log"
 fi
@@ -87,9 +124,10 @@ fi
 echo "============================================="
 echo "🔗 Access URLs"
 echo "============================================="
-echo "🖥️  Frontend UI:        http://localhost:5173"
+echo "🖥️  Local UI:           http://localhost:5173"
+echo "📱 Phone / Network UI: http://$LOCAL_IP:5173"
 echo "🔌 FastAPI Swagger:    http://localhost:8000/docs"
-echo "🗄️  Firestore Console:  http://localhost:4001"
+echo "🗄️  Firestore Console:  http://localhost:4000"
 echo "============================================="
 echo "💡 To view logs: tail -f *.log"
 echo "🛑 To stop all services: ./stop.sh"

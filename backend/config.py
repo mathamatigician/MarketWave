@@ -68,3 +68,29 @@ def get_allowed_origins() -> List[str]:
     importing main.py's heavier dependencies.
     """
     return [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+
+
+# CORS regex for local-network dev convenience only (e.g. testing the app
+# from a phone on the same WiFi as the dev machine). Never applied on Cloud
+# Run -- see get_lan_origin_regex()'s "K_SERVICE" gate -- so it can never
+# widen the production CORS boundary, which is governed solely by
+# get_allowed_origins() above.
+#
+# The 172.x branch is scoped to the actual RFC1918 private range
+# (172.16.0.0 - 172.31.255.255, i.e. second octet 16-31) rather than all of
+# 172.x.x.x, most of which is public internet space (matching a real,
+# previously-shipped bug where the unscoped version accepted public IPs
+# like Google's or Cloudflare's as valid CORS origins).
+_LAN_ORIGIN_REGEX = (
+    r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+    r"|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
+)
+
+
+def get_lan_origin_regex() -> Optional[str]:
+    """Returns the LAN-dev CORS regex, or None when running on Cloud Run.
+
+    Kept here (rather than inline in main.py) for the same reason as
+    get_allowed_origins(): unit-testable without importing main.py.
+    """
+    return _LAN_ORIGIN_REGEX if "K_SERVICE" not in os.environ else None

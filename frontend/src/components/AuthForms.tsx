@@ -54,9 +54,9 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
   };
 
   return (
-    <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-12">
-      <div className="mb-8 w-full text-center">
-        <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Welcome back to GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
+    <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-6 sm:py-12 px-2 sm:px-0">
+      <div className="mb-6 sm:mb-8 w-full text-center">
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight dark:text-white text-slate-900">Welcome back to GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
         <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Initialize secure session</p>
       </div>
 
@@ -118,7 +118,7 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
       
       <div className="mt-6 flex items-center justify-between w-full text-sm">
         <button className="dark:text-white/60 text-slate-600 hover:text-[#00FF94] transition-colors">Forgot Password?</button>
-        <button onClick={onToggleMode} className="text-[#00FF94] hover:text-[#00FF94]/80 transition-colors font-medium">Sign Up for Free</button>
+        <button onClick={onToggleMode} className="font-bold text-[#00FF94] dark:text-[#00FF94] text-emerald-600 hover:underline">Create Account</button>
       </div>
     </div>
   );
@@ -180,9 +180,9 @@ export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUp
   };
 
   return (
-    <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-8">
+    <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in duration-500 w-full max-w-md mx-auto py-6 sm:py-8 px-2 sm:px-0">
       <div className="mb-6 w-full text-center">
-        <h2 className="text-3xl font-black tracking-tight dark:text-white text-slate-900">Create Account</h2>
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight dark:text-white text-slate-900">Create Account</h2>
         <p className="text-xs uppercase tracking-widest dark:text-white/40 text-slate-500 mt-2">Join GlobePulseAI Sentiment Terminal</p>
       </div>
 
@@ -196,7 +196,7 @@ export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUp
       <GoogleSignInButton onLoginSuccess={onLoginSuccess} />
 
       <form className="w-full space-y-4 text-left" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div className="space-y-1.5">
             <label className="text-[10px] dark:text-white/80 text-slate-700 font-bold uppercase tracking-widest">First Name *</label>
             <div className="relative">

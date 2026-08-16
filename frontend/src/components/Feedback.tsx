@@ -208,7 +208,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
           <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-2 font-mono">
             Community Intelligence & Reviews
           </label>
-          <h1 className="text-4xl sm:text-5xl font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">
             User Feedback & <span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">Insights</span>
           </h1>
           <p className="text-xs sm:text-sm dark:text-white/60 text-slate-600 mt-1 max-w-xl">
