@@ -1,0 +1,62 @@
+name: Sync main with develop
+
+# Keeps `main` caught up with `develop` automatically. `develop` is the
+# integration branch for this repo; `main` is release-only, protected
+# (no direct pushes, no merge commits — squash only), and previously
+# drifted behind on its own. This closes that gap on every develop push.
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check whether main is already in sync
+        id: diff
+        run: |
+          git fetch origin main
+          if git diff --quiet origin/main origin/develop; then
+            echo "Already in sync — nothing to do."
+            echo "in_sync=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in_sync=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or reuse sync PR
+        if: steps.diff.outputs.in_sync == 'false'
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            echo "Reusing existing open sync PR #$existing"
+            echo "number=$existing" >> "$GITHUB_OUTPUT"
+          else
+            gh pr create --base main --head develop \
+              --title "chore(release): sync main with develop" \
+              --body "Automated sync of \`main\` with \`develop\`, triggered by ${{ github.sha }}."
+            number="$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')"
+            echo "Opened sync PR #$number"
+            echo "number=$number" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Squash-merge sync PR
+        if: steps.diff.outputs.in_sync == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # main's branch protection disallows merge commits (only squash/rebase
+        # are permitted), so this must use --squash to succeed.
+        run: gh pr merge ${{ steps.pr.outputs.number }} --squash --delete-branch=false
