@@ -51,6 +51,3 @@ GlobePulse is a React + FastAPI app for tracking business and market-moving news
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full architecture, information-flow diagrams, and explanation.
 
 ![Current architecture](docs/diagrams/01_current_architecture.png)
-
-## Visuals
-<img src="https://i.postimg.cc/hvqBYt93/newspulse.gif" alt="Demo visualization" />
