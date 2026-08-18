@@ -23,6 +23,12 @@ try:
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
         google_client_id: str = ""
+        # Hackathon demo guardrail: total registered users (existing + new
+        # signups) allowed before /api/signup and first-time Google sign-in
+        # both start rejecting new accounts. 14 = 9 already registered as of
+        # 2026-08-18 + 5 new signups. Bump via MAX_TOTAL_USERS env var if
+        # ever needed -- no code change required.
+        max_total_users: int = 14
 
         model_config = SettingsConfigDict(
             env_file=env_path,
@@ -44,6 +50,7 @@ except ImportError:
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
         google_client_id: str = ""
+        max_total_users: int = 14
 
         class Config:
             env_file = env_path
@@ -51,6 +58,10 @@ except ImportError:
             extra = "ignore"
 
 settings = Settings()
+
+# Shared rejection message so /api/signup and /api/auth/google (google_auth.py)
+# return identical wording when settings.max_total_users is reached.
+SIGNUP_CLOSED_MESSAGE = "Signups are currently closed for this demo — thanks for your interest!"
 
 # Post-processing: Expose credentials as environment variables for downstream SDK integrations
 exposed_key = settings.gemini_api_key or settings.google_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")

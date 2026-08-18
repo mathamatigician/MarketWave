@@ -5,6 +5,13 @@ import database
 from config import settings
 
 
+class SignupCapReached(Exception):
+    """Raised when a brand-new Google sign-in would exceed
+    settings.max_total_users. Kept distinct from the ValueError used for an
+    invalid/unverified token so main.py can map it to its own 403, instead
+    of the misleading generic 401 "Invalid Google token"."""
+
+
 def verify_and_get_user(credential: str) -> dict:
     """Verifies a Google ID token and returns the corresponding user record,
     creating one on first sign-in or auto-linking by email if one already
@@ -22,6 +29,8 @@ def verify_and_get_user(credential: str) -> dict:
     users = database.load_users()
 
     if email_key not in users:
+        if len(users) >= settings.max_total_users:
+            raise SignupCapReached()
         users[email_key] = {
             "first_name": idinfo.get("given_name", ""),
             "last_name": idinfo.get("family_name", ""),

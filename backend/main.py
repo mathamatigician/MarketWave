@@ -118,7 +118,10 @@ def signup(req: SignupRequest):
     
     if email_key in users:
         raise HTTPException(status_code=400, detail="User already exists")
-        
+
+    if len(users) >= settings.max_total_users:
+        raise HTTPException(status_code=403, detail=config.SIGNUP_CLOSED_MESSAGE)
+
     password_hash = functions.hash_password(req.password)
     users[email_key] = {
         "first_name": req.first_name,
@@ -174,6 +177,8 @@ def google_auth(req: GoogleAuthRequest):
         user_info = google_auth_module.verify_and_get_user(req.credential)
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+    except google_auth_module.SignupCapReached:
+        raise HTTPException(status_code=403, detail=config.SIGNUP_CLOSED_MESSAGE)
 
     watchlist_str = user_info.get("watchlist", "")
     watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
