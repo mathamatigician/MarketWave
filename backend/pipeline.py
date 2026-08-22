@@ -19,6 +19,7 @@ from typing import Optional, Callable, Awaitable
 # `backend` importable as a package, which requires the repo root (parent
 # of backend/) on sys.path, not backend/ itself.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database
 
 
@@ -45,6 +46,34 @@ class TopicSentimentSchema(BaseModel):
     labor_issues: Optional[float] = Field(description="Sentiment score for labor issues topic (-1 to 1 or null if not mentioned)")
     product_recalls: Optional[float] = Field(description="Sentiment score for product recalls topic (-1 to 1 or null if not mentioned)")
     overall_sentiment: Optional[float] = Field(description="Overall sentiment score for the article (-1 to 1 or null if not mentioned)")
+
+
+class StockVerdictSchema(BaseModel):
+    """Canonical reconciled per-ticker verdict consumed by downstream surfaces."""
+    ticker: str = Field(description="Stock ticker symbol or company identifier")
+    overall_sentiment: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Aggregated sentiment score bounded between -1.0 and 1.0",
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Confidence score bounded between 0.0 and 1.0",
+    )
+    topic_sentiment: TopicSentimentSchema = Field(
+        description="Granular topic-level sentiment breakdown"
+    )
+    bull_summary: str = Field(description="Summary of positive/bullish factors and drivers")
+    bear_summary: str = Field(description="Summary of negative/bearish factors and risks")
+    groundedness_notes: list[str] = Field(
+        default_factory=list,
+        description="Notes on evidence grounding and cross-validation across sources",
+    )
+    sources: list[str] = Field(
+        default_factory=list,
+        description="List of news or data sources referenced",
+    )
 
 def load_all_watchlist_tickers() -> list:
     """Reads all unique tickers from users.json."""

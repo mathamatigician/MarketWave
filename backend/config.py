@@ -23,6 +23,7 @@ try:
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
         google_client_id: str = ""
+        sec_user_agent: str = "GlobePulse/1.0 (admin@globepulse.local)"
         # Hackathon demo guardrail: total registered users (existing + new
         # signups) allowed before /api/signup and first-time Google sign-in
         # both start rejecting new accounts. 14 = 9 already registered as of
@@ -50,6 +51,7 @@ except ImportError:
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
         google_client_id: str = ""
+        sec_user_agent: str = "GlobePulse/1.0 (admin@globepulse.local)"
         max_total_users: int = 14
 
         class Config:

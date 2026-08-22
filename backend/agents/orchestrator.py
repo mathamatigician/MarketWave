@@ -7,9 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from google.antigravity import Agent, LocalAgentConfig, types
 from google.antigravity.hooks import policy
 from pipeline import TopicSentimentSchema
-from backend.agents.tools import fetch_news_tool, get_stock_history_tool
-
-from config import settings
+from backend.agents.tools import fetch_news_tool, get_stock_history_tool, fetch_filings_tool, get_sector_macro_tool
 
 from config import settings
 # google.genai (not the legacy, frozen google.generativeai package) —
@@ -61,6 +59,33 @@ correlator_config = LocalAgentConfig(
         "sentiment scores and news events. Highlight any cause-and-effect patterns."
     ),
     tools=[get_stock_history_tool],
+    model=settings.agent_model,
+    safety_settings=safety_settings
+)
+
+# Filings Agent Configuration (Evidence Tier)
+# Dedicated to retrieving and summarizing SEC EDGAR filings
+filings_agent_config = LocalAgentConfig(
+    system_instructions=(
+        "You are the GlobePulse Filings Analyst. Retrieve and summarize relevant SEC filings "
+        "for the requested company. Use SEC filings only as evidence. Never invent filing "
+        "information. Return filing metadata and source URLs for downstream agents."
+    ),
+    tools=[fetch_filings_tool],
+    model=settings.agent_model,
+    safety_settings=safety_settings
+)
+
+# Sector & Macro Agent Configuration (Evidence Tier)
+# Dedicated to gathering sector, benchmark, and market-context evidence
+sector_macro_agent_config = LocalAgentConfig(
+    system_instructions=(
+        "You are the GlobePulse Sector & Macro Analyst. Your job is to gather objective "
+        "sector, benchmark, and market-context evidence for a requested ticker. Do not "
+        "produce the final stock verdict. Do not fabricate sector information or market "
+        "data. Clearly distinguish retrieved facts from derived calculations."
+    ),
+    tools=[get_sector_macro_tool],
     model=settings.agent_model,
     safety_settings=safety_settings
 )
