@@ -1,0 +1,59 @@
+flowchart TB
+    subgraph FE["Frontend & UI · React + TypeScript"]
+        dash["React SPA Dashboard"]
+        wl["Watchlist panel"]
+        hm["Sentiment heatmap"]
+        chart["Stock price chart"]
+        thought["WebSocket thought viewer"]
+        sub["Subscription & Razorpay modal<br/>Free · Pro ₹159 · Enterprise ₹299"]
+    end
+
+    subgraph BE["Backend & Service Layer · FastAPI"]
+        rest["REST API &<br/>subscription controllers<br/>/api/*"]
+        wsconn["WebSocket connection<br/>manager · /ws/chat"]
+        verify["Payment signature verifier<br/>HMAC SHA256"]
+    end
+
+    subgraph AGENTS["Multi-Agent Engine · Google Antigravity SDK"]
+        orch["Orchestrator Agent"]
+        research["ResearchAgent<br/>fetch_news_tool"]
+        sentiment["SentimentAnalyst<br/>TopicSentimentSchema"]
+        correlator["MarketCorrelator<br/>get_stock_history_tool"]
+    end
+
+    subgraph ING["Data Ingestion & Extraction Pipeline"]
+        finnhub["Finnhub /company-news<br/>(primary)"]
+        rss["Google News RSS<br/>(local-dev fallback —<br/>blocked on Cloud Run)"]
+        decode["URL decoder<br/>(RSS path only)"]
+        scrape["BeautifulSoup web scraper"]
+        extract["18-topic Gemini<br/>sentiment extractor"]
+    end
+
+    subgraph PERSIST["Persistence & External APIs"]
+        firestore[("Google Cloud Firestore<br/>users · articles · orders")]
+        yahoo["Yahoo Finance API"]
+        gemini["Google Gemini API<br/>(gemini-2.5-flash)"]
+    end
+
+    razorpay["Razorpay Payment<br/>Gateway API"]
+
+    dash --> wl & hm & chart & thought & sub
+    dash <--> rest
+    thought <--> wsconn
+    sub --> verify --> razorpay
+
+    wsconn --> orch
+    orch --> research & sentiment & correlator
+    research --> finnhub & rss
+    correlator --> yahoo
+
+    finnhub --> scrape
+    rss --> decode --> scrape
+    scrape --> extract --> gemini
+    extract --> firestore
+    rest --> firestore
+    rest --> yahoo
+    gemini --> firestore
+
+    classDef ext fill:#fde,stroke:#c39;
+    class finnhub,rss,yahoo,gemini,razorpay ext;

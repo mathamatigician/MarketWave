@@ -1,0 +1,225 @@
+========================================================================
+ GlobePulse - DEVELOPER GUIDE (for Collaborators)
+========================================================================
+
+WHO THIS IS FOR:
+  Ananya01Agrawal, SUNILMVVK, Keshawk025, and any future team member
+  with Write access. This is a beginner guide - if you have never used
+  Git before, start at Part 1 and do every step in order.
+
+THE ONE GOLDEN RULE:
+  You never write code directly on "main" or "develop". You always make
+  your own branch, push it, and open a Pull Request (PR). Someone reviews
+  it, then it gets merged. That's it.
+
+WORDS YOU'LL SEE (plain-English glossary):
+  - Repository / repo = the project's folder of code on GitHub.
+  - Clone            = download a copy of the repo to your computer.
+  - Branch           = your own private copy of the code to work on, so
+                       you don't disturb others.
+  - Commit           = a saved snapshot of your changes with a message.
+  - Push             = upload your commits to GitHub.
+  - Pull             = download the latest changes from GitHub.
+  - Pull Request(PR) = a request to merge your branch into "develop",
+                       where teammates review it.
+  - main             = the finished, production code.
+  - develop          = where everyone's work is combined and tested.
+
+Repo home page: https://github.com/pravintakpire/GlobePulse
+
+
+------------------------------------------------------------------------
+ PART 1 - ONE-TIME SETUP (do this once per computer)
+------------------------------------------------------------------------
+
+1.1 INSTALL GIT
+  - Windows: download from https://git-scm.com/download/win and run the
+    installer (click Next through all the defaults).
+  - Mac: open the Terminal app and type:  git --version
+    If not installed, a popup offers to install it - click Install.
+
+  Check it worked (type this, press Enter):
+      git --version
+  You should see something like: git version 2.4x.x
+
+1.2 TELL GIT WHO YOU ARE (use YOUR name and your GitHub email)
+      git config --global user.name "Ananya Agrawal"
+      git config --global user.email "your-github-email@example.com"
+
+1.3 ACCEPT THE INVITE & GET ACCESS
+  The owner sends you a collaborator invite. Check your email or go to
+  https://github.com/notifications and click "Accept invitation".
+  You now have Write access.
+
+1.4 DOWNLOAD (CLONE) THE PROJECT TO YOUR COMPUTER
+  Pick a folder where you keep projects, then run:
+
+      cd ~/Documents
+      git clone https://github.com/pravintakpire/GlobePulse.git
+      cd GlobePulse
+
+  The first time, GitHub asks you to log in in your browser - do it.
+  Done - you now have the code.
+
+  NOTE: If it asks for a password on the command line, GitHub no longer
+  accepts your account password. Easiest fix: install the GitHub CLI
+  (https://cli.github.com), then run once:
+      gh auth login
+  Follow the browser prompts. After that, cloning/pushing "just works".
+
+
+------------------------------------------------------------------------
+ PART 2 - THE EVERYDAY WORKFLOW (do this for EVERY task)
+------------------------------------------------------------------------
+
+Follow these steps every single time you build a feature or fix a bug.
+Example used below: adding a "Manage Watchlist" button to the frontend.
+
+STEP 1 - GET LATEST CODE AND START FROM "develop"
+      git checkout develop
+      git pull origin develop
+
+STEP 2 - CREATE YOUR OWN BRANCH
+  Name it feature/short-description (or bugfix/short-description for a fix)
+      git checkout -b feature/watchlist-button
+  You are now on your own branch. Nothing here affects anyone else.
+
+STEP 3 - DO YOUR WORK, THEN SAVE IT (COMMIT)
+  Edit the code in your editor (e.g. VS Code). When you've made progress:
+      git status                 (see what you changed)
+      git add .                  (stage ALL your changes)
+      git commit -m "feat(frontend): add Manage Watchlist button"
+  Commit as often as you like. Small saves are good.
+
+  COMMIT MESSAGE FORMAT:  type(area): what you did
+  Examples:
+      feat(frontend): add watchlist modal
+      fix(backend): stop crash when price is NaN
+      docs(readme): add setup instructions
+  Common type values: feat (new feature), fix (bug fix), docs (docs),
+  refactor (cleanup), test (tests), chore (misc).
+
+STEP 4 - UPLOAD YOUR BRANCH (PUSH)
+      git push -u origin feature/watchlist-button
+  (You only need "-u origin ..." the first push. After that: just git push)
+
+STEP 5 - OPEN A PULL REQUEST (PR)
+  Easiest way (in your browser):
+    1. Go to https://github.com/pravintakpire/GlobePulse
+    2. You'll see a yellow banner "Compare & pull request". Click it.
+    3. VERY IMPORTANT: the "base" dropdown must say "develop" (NOT main).
+    4. Write a title and fill the description with this template:
+
+         ## Goal / Description
+         Adds a "Manage Watchlist" button so users can add/remove stocks.
+
+         ## Proposed Changes
+         - frontend/src/components/DataWidgets.tsx - new button + modal
+
+         ## Verification Plan
+         Ran `npm run build` in /frontend - builds with no errors.
+         Clicked the button locally, modal opens.
+
+    5. Click "Create pull request".
+    6. On the right, under "Reviewers", request a teammate to review.
+
+  Prefer the command line? After pushing (Step 4):
+      gh pr create --base develop \
+        --title "feat: add Manage Watchlist button" \
+        --body "Adds a button to add/remove stocks. npm run build passes."
+  (Requires the GitHub CLI from Part 1.4.)
+
+STEP 6 - GET IT REVIEWED AND MERGED
+  - A teammate reviews. They "approve" or "request changes".
+  - If they request changes: fix them, then repeat:
+        git add .
+        git commit -m "fix: ..."
+        git push
+    The PR updates automatically. (Pushing new changes cancels the old
+    approval - that's normal, just ask for a re-review.)
+  - Once you have 1 approval and all comment threads are resolved, click
+    the green "Squash and merge" button -> "Confirm".
+  - Click "Delete branch" when GitHub offers it.
+  Your work is now in "develop". Done!
+
+STEP 7 - CLEAN UP ON YOUR COMPUTER (optional but tidy)
+      git checkout develop
+      git pull origin develop
+      git branch -d feature/watchlist-button
+
+
+------------------------------------------------------------------------
+ PART 3 - KEEPING YOUR BRANCH UP TO DATE
+------------------------------------------------------------------------
+
+If you've worked on a branch for a while, other PRs may have merged into
+"develop". Pull those into your branch to avoid falling behind:
+
+      (while on your feature branch)
+      git fetch origin
+      git merge origin/develop
+
+  If Git reports a conflict, see Part 4.
+
+
+------------------------------------------------------------------------
+ PART 4 - WHEN SOMETHING GOES WRONG (don't panic)
+------------------------------------------------------------------------
+
+"MERGE CONFLICT!"
+  You and someone else changed the same lines. Git marks them like this:
+      <<<<<<< HEAD
+      your version
+      =======
+      their version
+      >>>>>>> origin/develop
+  1. Open each marked file in your editor.
+  2. Delete the <<<<<<<, =======, >>>>>>> lines; keep the correct code.
+  3. Then:
+        git add .
+        git commit -m "fix: resolve merge conflict"
+        git push
+  To bail out completely and start over:  git merge --abort
+
+"IT WON'T LET ME PUSH TO main / develop"
+  That is CORRECT and intentional. You cannot push directly to main or
+  develop. Make a branch and open a PR (Part 2).
+
+"IT'S ASKING FOR A PASSWORD AND REJECTS IT"
+  Install GitHub CLI (https://cli.github.com) and run: gh auth login
+  See Part 1.4.
+
+"I COMMITTED TO THE WRONG BRANCH"
+  Ask the owner before doing anything destructive. Usually nothing is
+  lost - Git keeps history.
+
+
+------------------------------------------------------------------------
+ PART 5 - QUICK REFERENCE CARD (copy/paste)
+------------------------------------------------------------------------
+
+  --- Start a new task ---
+  git checkout develop
+  git pull origin develop
+  git checkout -b feature/my-task
+
+  --- Save progress (repeat as needed) ---
+  git add .
+  git commit -m "feat(area): what I did"
+
+  --- Upload & open PR ---
+  git push -u origin feature/my-task
+  (then open PR in browser, base = develop, request a reviewer)
+
+  --- After review, on GitHub: click "Squash and merge" ---
+
+  --- Clean up ---
+  git checkout develop
+  git pull origin develop
+  git branch -d feature/my-task
+
+THE RULES IN ONE BREATH:
+  branch from develop -> commit -> push -> PR into develop -> get 1
+  approval -> squash-merge -> delete branch.
+  Never touch main or develop directly.
+========================================================================

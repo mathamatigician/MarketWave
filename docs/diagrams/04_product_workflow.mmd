@@ -1,0 +1,56 @@
+flowchart TB
+    input(("👤 User watchlist /<br/>query input"))
+
+    subgraph S1["Stage 1 · News Retrieval"]
+        finnhub["Finnhub /company-news<br/>(primary)"]
+        rss["Google News RSS<br/>+ googlenewsdecoder<br/>(local-dev fallback only)"]
+        scrape["BeautifulSoup scraper"]
+    end
+
+    subgraph S2["Stage 2 · Gemini Scoring"]
+        gemini["Gemini AI<br/>(gemini-2.5-flash)"]
+        schema["TopicSentimentSchema"]
+        topics["18 financial topics<br/>sentiment score [-1.0, 1.0]"]
+    end
+
+    subgraph S3["Stage 3 · Persistence"]
+        firestore[("Firestore Database")]
+        articles["articles"]
+        users["users"]
+        orders["orders"]
+    end
+
+    subgraph S4["Stage 4 · Market Join"]
+        yahoo["Yahoo Finance API<br/>(yahooquery)"]
+        price["Price series"]
+        overlay["Daily sentiment overlay"]
+    end
+
+    subgraph S5["Stage 5 · Multi-Agent QA"]
+        orch["Antigravity Orchestrator"]
+        subagents["Sub-agents: ResearchAgent ·<br/>SentimentAnalyst · MarketCorrelator"]
+        ws["Streaming WebSocket<br/>/ws/chat"]
+    end
+
+    subgraph S6["Stage 6 · Monetization"]
+        modal["Subscription modal"]
+        razorpay["Razorpay API"]
+        hmac["HMAC SHA256<br/>signature verification"]
+    end
+
+    input --> S1
+    finnhub --> scrape
+    rss --> scrape
+    S1 --> S2
+    gemini --> schema --> topics
+    S2 --> S3
+    firestore --- articles & users & orders
+    S3 --> S4
+    yahoo --> price --> overlay
+    S4 --> S5
+    orch --> subagents --> ws
+    S5 --> S6
+    modal --> razorpay --> hmac
+
+    classDef ext fill:#fde,stroke:#c39;
+    class finnhub,rss,gemini,yahoo,razorpay ext;

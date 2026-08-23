@@ -1,0 +1,53 @@
+flowchart TB
+    user(("👤 User<br/>Browser"))
+
+    subgraph FE["React Frontend · Vite (:5173)"]
+        app["App.tsx<br/>view state machine"]
+        auth["AuthForms<br/>Sign In / Sign Up"]
+        dash["Dashboard"]
+        wl["Watchlist"]
+        hm["Heatmap · OverallSentiment"]
+        chart["ChartPanel · StockPriceSentimentTab"]
+        chat["AgentChat<br/>(WebSocket)"]
+        cfg["config.ts<br/>API_URL / WS_URL"]
+    end
+
+    subgraph BE["FastAPI Backend (:8000)"]
+        rest["REST routes<br/>/api/*"]
+        ws["WebSocket<br/>/ws/chat"]
+        orch["Antigravity Orchestrator<br/>+ 3 sub-agents"]
+        pipe["pipeline.py<br/>news ingestion"]
+        trig["triggers.py<br/>hourly watchdog"]
+        fn["functions.py<br/>sentiment / stock helpers"]
+    end
+
+    fs[("Firestore Emulator (:8080)<br/>users · articles · alerts")]
+    localjson[("Local fallback<br/>users.json · db/alerts.json")]
+
+    gemini["Google Gemini<br/>(gemini-2.5-flash)"]
+    yahoo["Yahoo Finance<br/>(yahooquery)"]
+    finnhub["Finnhub /company-news<br/>(primary news source)"]
+    gnews["Google News RSS<br/>+ article scraping<br/>(local-dev fallback only —<br/>blocked on Cloud Run)"]
+
+    user <--> FE
+    app --> auth & dash & chat
+    dash --> wl & hm & chart
+    FE -->|REST /api/*| rest
+    chat -->|WebSocket| ws
+
+    rest --> fs
+    rest --> fn
+    fn --> yahoo
+    rest -. fallback .-> localjson
+
+    ws --> orch
+    orch --> gemini
+    orch -. tools .-> pipe & fn
+
+    pipe --> finnhub & gnews & gemini --> fs
+    trig --> finnhub & gnews & gemini --> fs
+
+    classDef ext fill:#fde,stroke:#c39;
+    classDef data fill:#eef,stroke:#669;
+    class gemini,yahoo,finnhub,gnews ext;
+    class fs,localjson data;

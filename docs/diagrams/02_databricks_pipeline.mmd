@@ -1,0 +1,34 @@
+flowchart LR
+    subgraph SRC["Sources"]
+        wl[("Watchlist tickers<br/>(from users)")]
+        finnhub["Finnhub /company-news<br/>(primary — real ticker symbols,<br/>direct article URLs)"]
+        rss["Google News RSS search feed<br/>(local-dev fallback —<br/>bot-blocked on Cloud Run)"]
+    end
+
+    subgraph ING["pipeline.run_pipeline()"]
+        fetch["fetch_news_items()<br/>dispatches to Finnhub if<br/>FINHUB_API_KEY set, else RSS"]
+        decode["googlenewsdecoder<br/>resolve real URL<br/>(RSS path only)"]
+        scrape["BeautifulSoup<br/>extract article text"]
+        dedupe["dedupe vs existing URLs"]
+        score["analyze_sentiment_gemini()<br/>Gemini structured output<br/>TopicSentimentSchema · 18 topics"]
+    end
+
+    art[("Firestore: articles<br/>url · content · company_name · date · sentiment")]
+
+    wl --> fetch
+    finnhub --> fetch
+    rss --> fetch
+    fetch -->|RSS path| decode --> scrape
+    fetch -->|Finnhub path<br/>direct URL, no decode| scrape
+    scrape --> dedupe --> score --> art
+
+    subgraph WD["agents/triggers.py watchdog · hourly"]
+        every["every(3600)"]
+        check["check_watchlist_sentiment()<br/>flag avg overall_sentiment < -0.5"]
+        alert[("Firestore: alerts<br/>+ db/alerts.json")]
+    end
+    every --> check --> fetch
+    check --> alert
+
+    classDef ext fill:#fde,stroke:#c39;
+    class finnhub,rss,score ext;

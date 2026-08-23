@@ -1,0 +1,82 @@
+[
+    {
+        "id": "fb_demo_1",
+        "rating": "Excellent",
+        "comment": "The real-time sentiment watchdog is game-changing! Caught the TSLA sentiment shift right before the Q3 earnings call.",
+        "user_name": "Arjun Mehta",
+        "user_email": "hello@javacapital.co",
+        "created_at": "2026-08-16T14:20:00Z"
+    },
+    {
+        "id": "fb_demo_2",
+        "rating": "Excellent",
+        "comment": "Extremely impressive AI orchestration. The sub-agent thought stream gives complete transparency into how sentiment scores are calculated.",
+        "user_name": "Zain Sheikh",
+        "user_email": "contact.zauey@gmail.com",
+        "created_at": "2026-08-15T10:45:00Z"
+    },
+    {
+        "id": "fb_demo_3",
+        "rating": "Good",
+        "comment": "Love the stock price vs sentiment overlay charts. Would love to see support for crypto tickers and European index options in future updates.",
+        "user_name": "Aarav Goodall",
+        "user_email": "agoodall@hunterbond.com",
+        "created_at": "2026-08-15T09:30:00Z"
+    },
+    {
+        "id": "fb_demo_4",
+        "rating": "Excellent",
+        "comment": "Seamless integration with Razorpay UPI payments for Pro Trader subscription. Clean UI design and lightning-fast websocket chat response.",
+        "user_name": "Fatima Hussain",
+        "user_email": "fatimahhussain@berkeley.edu",
+        "created_at": "2026-08-14T15:10:00Z"
+    },
+    {
+        "id": "fb_demo_5",
+        "rating": "Need Improvement",
+        "comment": "The dark mode aesthetic is top-notch, but initial watchlist aggregation latency can occasionally spike during high news volume hours.",
+        "user_name": "Mukesh Sharma",
+        "user_email": "mukesh@equibeeipo.com",
+        "created_at": "2026-08-14T11:15:00Z"
+    },
+    {
+        "id": "fb_demo_6",
+        "rating": "Excellent",
+        "comment": "The 18-topic granular sentiment breakdown (layoffs, board changes, disputes, ESG) provides insights that raw news summaries completely miss.",
+        "user_name": "Tim Thomas",
+        "user_email": "tim@techwithtim.net",
+        "created_at": "2026-08-13T16:05:00Z"
+    },
+    {
+        "id": "fb_demo_7",
+        "rating": "Good",
+        "comment": "Great financial AI copilot. Answers detailed questions on market trends effortlessly. Highly recommended for daily market monitoring.",
+        "user_name": "Mayank Shah",
+        "user_email": "heymayankshah@gmail.com",
+        "created_at": "2026-08-13T12:50:00Z"
+    },
+    {
+        "id": "fb_demo_8",
+        "rating": "Need Improvement",
+        "comment": "Solid platform overall. Suggest adding export functionality for sentiment history as CSV so we can pipe data into custom models.",
+        "user_name": "Akshay Khanna",
+        "user_email": "akshay.khanna@gmail.com",
+        "created_at": "2026-08-12T08:40:00Z"
+    },
+    {
+        "id": "fb_demo_9",
+        "rating": "Excellent",
+        "comment": "The real-time WebSocket sentiment heatmap streaming gives our desk an edge during early morning market opens. Remarkable accuracy.",
+        "user_name": "Rohit Kumar",
+        "user_email": "rohitcsk88@gmail.com",
+        "created_at": "2026-08-11T18:25:00Z"
+    },
+    {
+        "id": "fb_demo_10",
+        "rating": "Good",
+        "comment": "The Gemini 2.5 integration provides concise, context-aware macro summaries without the fluff. Very clean UI interface.",
+        "user_name": "Vivian Rao",
+        "user_email": "vivian@streaml.app",
+        "created_at": "2026-08-10T14:15:00Z"
+    }
+]

@@ -1,0 +1,13 @@
+llm:
+  provider: google
+  config:
+    model: 'gemini-2.5-flash'
+    temperature: 0.0
+    stream: false
+    max_tokens: 1000
+    top_p: 1
+
+embedder:
+  provider: google
+  config:
+    model: 'models/gemini-embedding-001'

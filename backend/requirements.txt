@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+google-antigravity
+pydantic
+pandas
+numpy
+requests
+beautifulsoup4
+googlenewsdecoder
+google-genai
+google-auth
+yahooquery
+websockets
+google-cloud-firestore
+pydantic-settings
+
+razorpay

@@ -1,0 +1,242 @@
+========================================================================
+ GlobePulse - ADMIN / OWNER GUIDE
+========================================================================
+
+WHO THIS IS FOR:
+  The repository owner (pravintakpire). This covers the things only an
+  admin can do: managing who has access, protecting branches, configuring
+  merge/PR settings, reviewing & merging releases, and handling
+  emergencies. Every step has BOTH the click-path (GitHub website) and the
+  command line version. Use whichever you prefer.
+
+Repo home page: https://github.com/pravintakpire/GlobePulse
+Settings page:  https://github.com/pravintakpire/GlobePulse/settings
+
+CURRENT STATUS (already configured):
+  - main    : protected - PR + 1 approval, dismiss stale approvals,
+              admins included, no force-push/delete.  DONE
+  - develop : protected - PR + 1 approval, dismiss stale approvals,
+              conversation resolution, admins included, no
+              force-push/delete.  DONE
+  - Collaborators: Ananya01Agrawal, SUNILMVVK, Keshawk025 - all Write. DONE
+
+
+------------------------------------------------------------------------
+ PART 1 - MANAGING PEOPLE (Add / Restrict / Remove)
+------------------------------------------------------------------------
+
+ACCESS LEVELS (pick the least powerful one that works):
+  Read     - View & clone, comment on issues     -> Observers/stakeholders
+  Triage   - Read + manage issues/PRs, no push   -> QA/PM without coding
+  Write    - Push branches, merge approved PRs    -> YOUR DEVELOPERS
+  Maintain - Write + some settings                -> A trusted co-lead
+  Admin    - Everything, incl. settings & access  -> YOU ONLY
+
+  RULE OF THUMB: keep developers at Write. Only you should be Admin.
+  Branch protection only means something if very few people can change it.
+
+1.1 ADD A COLLABORATOR
+  Click-path:
+    1. Go to https://github.com/pravintakpire/GlobePulse/settings/access
+    2. Click "Add people" (green button).
+    3. Type their GitHub username -> select -> choose "Write" -> "Add".
+    4. They get an email invite and must click "Accept".
+  Command line:
+    gh api -X PUT repos/pravintakpire/GlobePulse/collaborators/USERNAME -f permission=push
+  Example - invite a dev named priya-dev:
+    gh api -X PUT repos/pravintakpire/GlobePulse/collaborators/priya-dev -f permission=push
+
+1.2 CHANGE SOMEONE'S ACCESS LEVEL
+  Click-path: Settings -> Collaborators -> click the person -> pick role.
+  Command line (downgrade to read-only):
+    gh api -X PUT repos/pravintakpire/GlobePulse/collaborators/USERNAME -f permission=pull
+  permission values: pull (Read), triage, push (Write), maintain, admin.
+
+1.3 RESTRICT OR REMOVE SOMEONE
+  Click-path: Settings -> Collaborators -> find person -> "Remove".
+  Command line:
+    gh api -X DELETE repos/pravintakpire/GlobePulse/collaborators/USERNAME
+  Removing them instantly revokes push access. Code they already merged
+  stays in history (that's fine).
+
+1.4 SEE WHO CURRENTLY HAS ACCESS
+    gh api repos/pravintakpire/GlobePulse/collaborators --jq '.[] | "\(.login) - \(.role_name)"'
+  Example output:
+    pravintakpire - admin
+    Ananya01Agrawal - write
+    SUNILMVVK - write
+    Keshawk025 - write
+
+
+------------------------------------------------------------------------
+ PART 2 - PROTECTING BRANCHES (Keeping the Code Safe)
+------------------------------------------------------------------------
+
+Protected branches cannot be pushed to directly - everything must go
+through a reviewed PR. Both main and develop are ALREADY protected; this
+section explains the settings so you can understand/adjust them.
+
+WHAT EACH SETTING MEANS:
+  Require a pull request before merging - No direct pushes; must use a PR
+  Require approvals                     - N teammates must approve (we: 1)
+  Dismiss stale approvals               - New pushes cancel old approvals
+  Require conversation resolution       - All comments resolved before merge
+  Include admins (no bypassing)         - Even you must follow the rules
+  Allow force pushes                    - OFF (rewriting history=dangerous)
+  Allow deletions                       - OFF (can't delete the branch)
+
+2.1 VIEW OR EDIT PROTECTION (Click-path)
+    1. Go to https://github.com/pravintakpire/GlobePulse/settings/branches
+    2. Click "Edit" next to main or develop.
+    3. Toggle checkboxes -> scroll down -> "Save changes".
+
+2.2 CHECK PROTECTION FROM THE COMMAND LINE
+    gh api repos/pravintakpire/GlobePulse/branches/develop/protection \
+      --jq '{approvals: .required_pull_request_reviews.required_approving_review_count,
+             dismiss_stale: .required_pull_request_reviews.dismiss_stale_reviews,
+             convo_resolution: .required_conversation_resolution.enabled,
+             admins_enforced: .enforce_admins.enabled,
+             force_push: .allow_force_pushes.enabled}'
+
+2.3 (OPTIONAL) TURN ON CONVERSATION RESOLUTION FOR main TOO
+  develop has it but main doesn't. To match them:
+  Settings -> Branches -> Edit main -> check "Require conversation
+  resolution before merging" -> Save.
+
+
+------------------------------------------------------------------------
+ PART 3 - REPOSITORY SETTINGS YOU SHOULD TURN ON
+------------------------------------------------------------------------
+
+STATUS: already configured (both ON). This explains what they do and how
+to check/change them. Can be set in the website OR from the command line.
+
+Click-path: https://github.com/pravintakpire/GlobePulse/settings , scroll
+to the "Pull Requests" section.
+  1. Allow squash merging - keep ON. Uncheck "Allow merge commits" and
+     "Allow rebase merging" to force clean one-commit-per-PR history.
+  2. Automatically delete head branches - check this so feature branches
+     vanish after their PR merges.
+
+Command line (does the same as both toggles above):
+  gh api -X PATCH repos/pravintakpire/GlobePulse \
+    -F allow_squash_merge=true \
+    -F allow_merge_commit=false \
+    -F allow_rebase_merge=false \
+    -F delete_branch_on_merge=true
+
+Check current values anytime:
+  gh api repos/pravintakpire/GlobePulse \
+    --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge, delete_branch_on_merge}'
+
+  (Optional) Settings -> General -> Default branch -> switch to "develop"
+  if you want new PRs to target it by default. Leaving main is also fine.
+
+
+------------------------------------------------------------------------
+ PART 4 - REVIEWING AND MERGING PRs
+------------------------------------------------------------------------
+
+4.1 REVIEW IN THE BROWSER
+    1. Go to https://github.com/pravintakpire/GlobePulse/pulls
+    2. Click the PR. Read the description. Click "Files changed" tab.
+    3. Click "Review changes" (top right) -> choose:
+         Approve          - looks good
+         Request changes  - needs fixes (leave comments)
+         Comment          - general feedback, no verdict
+    4. With 1 approval and all threads resolved, click green
+       "Squash and merge" -> "Confirm" -> "Delete branch".
+
+4.2 REVIEW FROM THE COMMAND LINE (optional)
+    gh pr list                              (see open PRs)
+    gh pr view 7                            (read PR number 7)
+    gh pr diff 7                            (see the code changes)
+    gh pr review 7 --approve                (approve it)
+    gh pr merge 7 --squash --delete-branch  (merge + delete branch)
+
+
+------------------------------------------------------------------------
+ PART 5 - RELEASING TO PRODUCTION (develop -> main)
+------------------------------------------------------------------------
+
+When develop is tested and ready, promote it to main. You CANNOT push to
+main directly (protection blocks it, even for you) - do it via a PR, then
+tag the version.
+
+STEP 1 - Open a release PR
+    gh pr create --base main --head develop \
+      --title "release: v1.0.0" \
+      --body "Promote tested develop to production."
+  (Or in browser: New pull request -> base main, compare develop -> Create)
+
+STEP 2 - Approve & merge it (browser "Squash and merge", or CLI)
+    gh pr merge --squash
+
+STEP 3 - Tag the version
+    git checkout main
+    git pull origin main
+    git tag -a v1.0.0 -m "Release v1.0.0"
+    git push origin v1.0.0
+
+VERSION NUMBERS (SemVer): MAJOR.MINOR.PATCH
+    v1.0.0 -> v1.0.1  = a small bug fix
+    v1.0.0 -> v1.1.0  = new features, nothing broken
+    v1.0.0 -> v2.0.0  = big/breaking changes
+
+
+------------------------------------------------------------------------
+ PART 6 - EMERGENCY HOTFIX (bug in production / main)
+------------------------------------------------------------------------
+
+    # 1. Branch off main
+    git checkout main
+    git pull origin main
+    git checkout -b hotfix/login-crash
+
+    # 2. Fix it, then save and upload
+    git add .
+    git commit -m "fix(auth): stop crash on empty login"
+    git push -u origin hotfix/login-crash
+
+    # 3. PR the fix into main, approve, squash-merge (browser or CLI)
+    gh pr create --base main --head hotfix/login-crash \
+      --title "fix: login crash" --body "Emergency production fix."
+
+    # 4. Tag the patched version
+    git checkout main && git pull origin main
+    git tag -a v1.0.1 -m "Hotfix v1.0.1"
+    git push origin v1.0.1
+
+    # 5. IMPORTANT: also send the fix back into develop so it isn't lost
+    gh pr create --base develop --head hotfix/login-crash \
+      --title "fix: sync hotfix v1.0.1 into develop" --body "Backport."
+
+
+------------------------------------------------------------------------
+ PART 7 - ADMIN QUICK REFERENCE
+------------------------------------------------------------------------
+
+  # WHO HAS ACCESS
+  gh api repos/pravintakpire/GlobePulse/collaborators --jq '.[] | "\(.login) - \(.role_name)"'
+
+  # ADD / CHANGE / REMOVE a person
+  gh api -X PUT    repos/pravintakpire/GlobePulse/collaborators/USER -f permission=push  (add Write)
+  gh api -X PUT    repos/pravintakpire/GlobePulse/collaborators/USER -f permission=pull  (read-only)
+  gh api -X DELETE repos/pravintakpire/GlobePulse/collaborators/USER                     (remove)
+
+  # REVIEW / MERGE PRs
+  gh pr list
+  gh pr view 7
+  gh pr review 7 --approve
+  gh pr merge 7 --squash --delete-branch
+
+  # RELEASE
+  gh pr create --base main --head develop --title "release: v1.0.0" --body "Promote develop."
+  (merge in browser, then:)
+  git checkout main && git pull origin main
+  git tag -a v1.0.0 -m "Release v1.0.0" && git push origin v1.0.0
+
+YOUR JOB IN ONE LINE:
+  manage access (keep devs at Write), keep main/develop protected, review
+  & squash-merge PRs, and cut releases via PR + tag.
+========================================================================

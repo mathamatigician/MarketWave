@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    participant U as User (React :5173)
+    participant A as FastAPI (:8000)
+    participant D as Firestore (:8080)
+    participant Y as Yahoo Finance
+    participant O as Antigravity Orchestrator
+    participant G as Google Gemini
+
+    rect rgb(235,245,255)
+    note over U,D: Login + Dashboard load
+    U->>A: POST /api/login {email, password}
+    A->>D: load users
+    D-->>A: profile + watchlist
+    A-->>U: session (stored in localStorage)
+    U->>A: GET /api/sentiment/heatmap?email
+    A->>D: query articles where company_name in watchlist
+    D-->>A: sentiment maps
+    A->>A: aggregate_sentiment() (median per topic)
+    A-->>U: heatmap rows
+    U->>A: GET /api/stock/history?ticker
+    A->>Y: price series (yahooquery)
+    A->>D: article sentiment by date
+    A-->>U: price + sentiment series + recent articles
+    end
+
+    rect rgb(255,245,235)
+    note over U,G: AI Assistant chat (streaming)
+    U->>A: WS /ws/chat {prompt}
+    A->>O: agent.chat(prompt)
+    O->>O: delegate to ResearchAgent / SentimentAnalyst / MarketCorrelator
+    O->>G: reason + generate (tools: fetch_news, stock_history)
+    G-->>O: thoughts + tokens
+    O-->>A: async streams
+    A-->>U: {type: thought} … {type: token} … {type: done}
+    end
