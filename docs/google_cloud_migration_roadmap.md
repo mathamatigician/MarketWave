@@ -53,7 +53,7 @@ One of the greatest benefits of using Firestore within Google Cloud is **Identit
 
 Instead of running a persistent background Python loop or requiring a Databricks cluster to run 24/7 (which incurs high baseline idle costs), we can run the news ingestion scraper serverlessly:
 
-1.  **Cloud Run Jobs / Cloud Functions**: Package [pipeline.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/pipeline.py) as a containerized job or serverless function.
+1.  **Cloud Run Jobs / Cloud Functions**: Package [pipeline.py](file:///Users/mathamatigician/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/pipeline.py) as a containerized job or serverless function.
 2.  **Cloud Scheduler**: Trigger the job once an hour using a cron trigger (e.g. `0 * * * *`).
 3.  **Lifecycle**: 
     *   Cloud Scheduler wakes up the Cloud Run Job.

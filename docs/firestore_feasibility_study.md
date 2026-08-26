@@ -75,8 +75,8 @@ Here is how our main operations compare between the current implementation and F
 
 If we proceed with Firestore integration, the tasks will be:
 
-1.  **Backend Dependency Update**: Add `google-cloud-firestore` to [backend/requirements.txt](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/requirements.txt).
-2.  **Initialize Database Client**: Define the Firestore client helper in [backend/database.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/database.py):
+1.  **Backend Dependency Update**: Add `google-cloud-firestore` to [backend/requirements.txt](file:///Users/mathamatigician/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/requirements.txt).
+2.  **Initialize Database Client**: Define the Firestore client helper in [backend/database.py](file:///Users/mathamatigician/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/database.py):
     ```python
     from google.cloud import firestore
     db = firestore.Client()

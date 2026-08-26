@@ -86,7 +86,7 @@ The AI assistant and the sentiment pipeline call Google Gemini, so you need a fr
 cd ~/Documents          # macOS/Linux
 # cd %USERPROFILE%\Documents   # Windows CMD
 
-git clone https://github.com/pravintakpire/MarketWave.git
+git clone https://github.com/mathamatigician/MarketWave.git
 cd MarketWave
 ```
 
@@ -242,7 +242,7 @@ To start again later: activate the venv (`source .venv/bin/activate` / `.venv\Sc
 **macOS / Linux — full first-time setup:**
 ```bash
 brew install git python node openjdk@21
-git clone https://github.com/pravintakpire/MarketWave.git && cd MarketWave
+git clone https://github.com/mathamatigician/MarketWave.git && cd MarketWave
 cp .env.example .env            # then edit .env and add your GEMINI_API_KEY
 python3 -m venv .venv && source .venv/bin/activate
 make install
@@ -252,7 +252,7 @@ make start                      # open http://localhost:5173
 **Windows (PowerShell) — full first-time setup:**
 ```powershell
 winget install Git.Git Python.Python.3.12 OpenJS.NodeJS.LTS EclipseAdoptium.Temurin.21.JDK
-git clone https://github.com/pravintakpire/MarketWave.git; cd MarketWave
+git clone https://github.com/mathamatigician/MarketWave.git; cd MarketWave
 copy .env.example .env          # then edit .env and add your GEMINI_API_KEY
 python -m venv .venv; .venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt; npm install --prefix frontend

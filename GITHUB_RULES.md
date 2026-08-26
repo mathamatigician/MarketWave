@@ -6,7 +6,7 @@ and releases code, and how repository access is managed to protect the codebase.
 > **Audience:** all collaborators. Sections marked **(Owner/Admin)** require admin rights
 > and are performed by the repository owner only.
 
-**Repo:** `pravintakpire/MarketWave` · **Visibility:** Public · **Default branch:** `main`
+**Repo:** `mathamatigician/MarketWave` · **Visibility:** Public · **Default branch:** `main`
 
 ---
 
@@ -57,7 +57,7 @@ Settings → **Branches** → **Add branch ruleset / rule** → pattern `develop
 
 | Member | GitHub Role | Capabilities |
 | :--- | :--- | :--- |
-| `pravintakpire` (Owner) | **Admin** | Full control: settings, protection rules, manage collaborators, releases |
+| `mathamatigician` (Owner) | **Admin** | Full control: settings, protection rules, manage collaborators, releases |
 | `Ananya01Agrawal` | **Write** | Create branches, push to non-protected branches, open & merge approved PRs, triage issues |
 | `SUNILMVVK` | **Write** | Same as above |
 | `Keshawk025` | **Write** | Same as above |
@@ -85,11 +85,11 @@ is minimal. With `enforce_admins` ON, even the owner must use PRs, which is the 
 - **CLI equivalents:**
   ```bash
   # Invite with write permission
-  gh api -X PUT repos/pravintakpire/MarketWave/collaborators/<handle> -f permission=push
+  gh api -X PUT repos/mathamatigician/MarketWave/collaborators/<handle> -f permission=push
   # Downgrade to read-only
-  gh api -X PUT repos/pravintakpire/MarketWave/collaborators/<handle> -f permission=pull
+  gh api -X PUT repos/mathamatigician/MarketWave/collaborators/<handle> -f permission=pull
   # Remove entirely
-  gh api -X DELETE repos/pravintakpire/MarketWave/collaborators/<handle>
+  gh api -X DELETE repos/mathamatigician/MarketWave/collaborators/<handle>
   ```
 
 ### 1.4 How codebase integrity is protected
@@ -189,11 +189,11 @@ The squash commit title should follow Conventional Commits, e.g.
 Auto-requests reviews from owners of touched paths. Create `.github/CODEOWNERS`:
 ```text
 # Fallback reviewer for everything
-*              @pravintakpire
+*              @mathamatigician
 
 # Area owners (adjust handles as the team specializes)
-/backend/      @pravintakpire
-/frontend/     @pravintakpire
+/backend/      @mathamatigician
+/frontend/     @mathamatigician
 ```
 Then enable *Require review from Code Owners* in the branch rule.
 
