@@ -194,11 +194,20 @@ def transform_sentiment(df: pd.DataFrame):
     """
     aggregated_data = defaultdict(lambda: defaultdict(list))
 
-    import ast
     for index, row in df.iterrows():
-        try:
-            sentiment_map = ast.literal_eval(row["sentiment"])
-        except Exception:
+        raw_sentiment = row.get("sentiment", {})
+        if isinstance(raw_sentiment, dict):
+            sentiment_map = raw_sentiment
+        elif isinstance(raw_sentiment, str):
+            try:
+                sentiment_map = json.loads(raw_sentiment)
+            except Exception:
+                try:
+                    import ast
+                    sentiment_map = ast.literal_eval(raw_sentiment)
+                except Exception:
+                    sentiment_map = {}
+        else:
             sentiment_map = {}
         for topic, sentiment in sentiment_map.items():
             aggregated_data[row["date"]][topic].append(sentiment)

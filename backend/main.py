@@ -111,10 +111,19 @@ class VerifyPaymentRequest(BaseModel):
 
 # --- REST Routes ---
 
+def _sanitize_email(email: str) -> str:
+    """Validates and normalizes email inputs to prevent injection and malformed lookups."""
+    if not email or not isinstance(email, str) or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address format")
+    sanitized = email.strip().lower()
+    if len(sanitized) > 254:
+        raise HTTPException(status_code=400, detail="Email address exceeds maximum length")
+    return sanitized
+
 @app.post("/api/signup")
 def signup(req: SignupRequest):
     users = database.load_users()
-    email_key = req.email.lower()
+    email_key = _sanitize_email(req.email)
     
     if email_key in users:
         raise HTTPException(status_code=400, detail="User already exists")
@@ -143,7 +152,7 @@ def signup(req: SignupRequest):
 @app.post("/api/login")
 def login(req: LoginRequest):
     users = database.load_users()
-    email_key = req.email.lower()
+    email_key = _sanitize_email(req.email)
     
     if email_key not in users:
         raise HTTPException(status_code=400, detail="User does not exist")
@@ -164,7 +173,7 @@ def login(req: LoginRequest):
     })
     
     return {
-        "email": req.email,
+        "email": email_key,
         "first_name": user_info.get("first_name"),
         "last_name": user_info.get("last_name"),
         "watchlist": watchlist,
@@ -195,7 +204,7 @@ def google_auth(req: GoogleAuthRequest):
 @app.get("/api/watchlist")
 def get_watchlist(email: str = Query(...)):
     users = database.load_users()
-    email_key = email.lower()
+    email_key = _sanitize_email(email)
     if email_key not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -209,7 +218,7 @@ def get_watchlist(email: str = Query(...)):
 @app.post("/api/watchlist")
 def update_watchlist(req: WatchlistRequest):
     users = database.load_users()
-    email_key = req.email.lower()
+    email_key = _sanitize_email(req.email)
     if email_key not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -226,7 +235,7 @@ def get_plans():
 @app.get("/api/subscription/status")
 def get_subscription_status(email: str = Query(...)):
     users = database.load_users()
-    email_key = email.lower()
+    email_key = _sanitize_email(email)
     if email_key not in users:
         raise HTTPException(status_code=404, detail="User not found")
     user_info = users[email_key]
@@ -241,7 +250,8 @@ def get_subscription_status(email: str = Query(...)):
 @app.post("/api/subscription/create-order")
 def create_order(req: CreateOrderRequest):
     try:
-        order_details = subscription.create_subscription_order(req.plan_id, req.email)
+        clean_email = _sanitize_email(req.email)
+        order_details = subscription.create_subscription_order(req.plan_id, clean_email)
         return order_details
     except Exception as e:
         logger.error(f"Error creating subscription order: {e}")
@@ -250,7 +260,7 @@ def create_order(req: CreateOrderRequest):
 @app.post("/api/subscription/verify-payment")
 def verify_payment(req: VerifyPaymentRequest):
     users = database.load_users()
-    email_key = req.email.lower()
+    email_key = _sanitize_email(req.email)
     if email_key not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -320,7 +330,7 @@ def verify_payment(req: VerifyPaymentRequest):
 @app.get("/api/sentiment/heatmap")
 def get_heatmap(email: str = Query(...), ticker: Optional[str] = Query(None)):
     users = database.load_users()
-    email_key = email.lower()
+    email_key = _sanitize_email(email)
     if email_key not in users:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -467,7 +477,8 @@ def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = 
         if not actual_admin_key:
             logger.error("Configuration Error: ADMIN_KEY is not set.")
             raise HTTPException(status_code=500, detail="Server configuration error")
-        if admin_key != actual_admin_key:
+        import hmac
+        if not admin_key or not hmac.compare_digest(str(admin_key), str(actual_admin_key)):
             raise HTTPException(status_code=403, detail="Unauthorized")
 
     background_tasks.add_task(pipeline.run_pipeline, ticker, on_activity=broadcast_ingest_activity)
@@ -577,53 +588,65 @@ async def chat_websocket(websocket: WebSocket):
     logger.info("WebSocket chat connection established.")
     
     # Establish chat session using google-antigravity Agent
-    async with Agent(orchestrator_config) as agent:
-        while True:
-            try:
-                # Receive payload
-                message = await websocket.receive_text()
-                data = json.loads(message)
-                prompt = data.get("prompt")
-                
-                if not prompt:
-                    continue
-                    
-                response = await agent.chat(prompt)
-                
-                # Step 1: Stream reasoning thoughts in real-time
-                async for thought_chunk in response.thoughts:
-                    await websocket.send_json({
-                        "type": "thought",
-                        "content": thought_chunk
-                    })
-                    
-                # Step 2: Stream final text tokens in real-time
-                async for token_chunk in response:
-                    await websocket.send_json({
-                        "type": "token",
-                        "content": token_chunk
-                    })
-                    
-                # Signal completion
-                await websocket.send_json({
-                    "type": "done"
-                })
-                
-            except WebSocketDisconnect:
-                logger.info("WebSocket chat connection closed.")
-                break
-            except Exception as e:
-                import uuid
-                err_id = str(uuid.uuid4())
-                logger.error(f"WebSocket error [{err_id}]: {e}")
+    try:
+        async with Agent(orchestrator_config) as agent:
+            while True:
                 try:
+                    # Receive payload
+                    message = await websocket.receive_text()
+                    try:
+                        data = json.loads(message)
+                    except Exception:
+                        await websocket.send_json({"type": "error", "content": "Malformed JSON payload."})
+                        continue
+
+                    prompt = data.get("prompt")
+                    if not prompt or not isinstance(prompt, str):
+                        continue
+                    
+                    # Sanitize prompt and enforce maximum character limit to prevent resource exhaustion
+                    clean_prompt = prompt.strip()[:4000]
+                    if not clean_prompt:
+                        continue
+                        
+                    response = await agent.chat(clean_prompt)
+                    
+                    # Step 1: Stream reasoning thoughts in real-time
+                    async for thought_chunk in response.thoughts:
+                        await websocket.send_json({
+                            "type": "thought",
+                            "content": thought_chunk
+                        })
+                        
+                    # Step 2: Stream final text tokens in real-time
+                    async for token_chunk in response:
+                        await websocket.send_json({
+                            "type": "token",
+                            "content": token_chunk
+                        })
+                        
+                    # Signal completion
                     await websocket.send_json({
-                        "type": "error",
-                        "content": f"An internal error occurred. Ref: {err_id}"
+                        "type": "done"
                     })
-                except Exception:
-                    pass
-                break
+                    
+                except WebSocketDisconnect:
+                    logger.info("WebSocket chat connection closed.")
+                    break
+                except Exception as e:
+                    import uuid
+                    err_id = str(uuid.uuid4())
+                    logger.error(f"WebSocket error [{err_id}]: {e}")
+                    try:
+                        await websocket.send_json({
+                            "type": "error",
+                            "content": f"An internal error occurred. Ref: {err_id}"
+                        })
+                    except Exception:
+                        pass
+                    break
+    except Exception as e:
+        logger.error(f"Error initializing Agent in chat WebSocket: {e}")
 
 
 # --- WebSocket Ingest Activity Endpoint (Antigravity Agent) ---
