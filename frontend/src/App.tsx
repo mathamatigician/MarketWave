@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Sun, Moon, MessageSquare, LogOut, X, Crown, Menu, User as UserIcon } from 'lucide-react';
+import { Sun, Moon, MessageSquare, LogOut, X, Crown, Menu, User as UserIcon } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { Home } from './components/Home';
 import { SignIn, SignUp } from './components/AuthForms';
@@ -130,7 +130,7 @@ export default function App() {
         <header className="flex justify-between items-center py-4 sm:py-6 border-b dark:border-white/10 border-slate-200 gap-2 shrink-0">
           <button onClick={() => handleNavigate('home')} className="text-left group flex-shrink-0">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase flex items-center gap-2 sm:gap-3 group-hover:opacity-80 transition-opacity">
-              <Activity className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-[#00FF94] dark:text-[#00FF94] text-emerald-500 animate-pulse" />
+              <img src="/favicon.svg" alt="MarketWave Logo" className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
               MarketWave<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">AI</span>
             </h1>
             <p className="text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] dark:text-white/40 text-slate-500 mt-0.5 sm:mt-1 font-mono">Sentiment Ingestion Engine v2.5</p>
