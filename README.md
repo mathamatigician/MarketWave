@@ -23,7 +23,8 @@ GlobePulse is a React + FastAPI app for tracking business and market-moving news
    ```bash
    make install
    ```
-4. Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY`, `ADMIN_KEY`, and Razorpay test keys. The default `.env.example` values point at the local Firestore emulator; see the comments in that file to target real Cloud Firestore instead.
+4. Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY`, `ADMIN_KEY`, and Razorpay test keys. The default `.env.example` values point at the local Firestore emulator; see the comments in that file to target real Cloud Firestore instead. Also copy `.env.example.frontend` to `frontend/.env`
+
 5. Run all services (Firestore emulator, FastAPI backend, React frontend):
    ```bash
    make start        # or ./start.sh
