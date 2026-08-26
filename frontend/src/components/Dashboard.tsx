@@ -35,10 +35,30 @@ export function Dashboard({ email }: DashboardProps) {
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-
   const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts'>('sentiment');
+  const [briefing, setBriefing] = useState<{ ticker: string; bullet: string }[]>([]);
+  const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
+
+  const handleGenerateBriefing = async () => {
+    setLoadingBriefing(true);
+    try {
+      const res = await fetch(`${API_URL}/api/gemma/briefing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, tickers: watchlist })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBriefing(data.briefing || []);
+      }
+    } catch (err) {
+      console.error("Failed to generate Gemma briefing", err);
+    } finally {
+      setLoadingBriefing(false);
+    }
+  };
   const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
   const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
 
@@ -223,28 +243,80 @@ export function Dashboard({ email }: DashboardProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Active Alerts Banner */}
+      {/* Active Alerts Banner with Gemma Catalyst */}
       {alerts.length > 0 && alerts.some(alert => watchlist.includes(alert.ticker)) && (
         <div className="space-y-3">
           {alerts
             .filter(alert => watchlist.includes(alert.ticker))
             .map((alert, idx) => (
-              <div key={idx} className="bg-red-950/40 border border-red-500/30 rounded-lg p-4 text-rose-300 text-xs flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">⚠️</span>
-                  <span>
-                    <strong>Critical Sentiment Alert:</strong> {alert.ticker} has experienced a negative sentiment drop! (Average Sentiment: {alert.average_sentiment})
-                  </span>
+              <div key={idx} className="bg-red-950/40 border border-red-500/30 rounded-lg p-4 text-rose-300 text-xs flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚠️</span>
+                    <span>
+                      <strong>Critical Sentiment Alert:</strong> {alert.ticker} experienced a negative sentiment drop (Avg: {alert.average_sentiment})
+                    </span>
+                  </div>
+                  {alert.timestamp && (
+                    <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+                      {formatAlertDate(alert.timestamp)}
+                    </span>
+                  )}
                 </div>
-                {alert.timestamp && (
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                    {formatAlertDate(alert.timestamp)}
-                  </span>
+                {alert.catalyst && (
+                  <div className="pl-6 text-[11px] text-rose-200/90 font-medium flex flex-wrap items-center gap-2 bg-red-900/20 p-2 rounded border border-red-500/20">
+                    <span>💡 <strong>Breaking Catalyst:</strong> {alert.catalyst}</span>
+                    <span className="bg-purple-900/50 border border-purple-400/40 text-purple-200 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ml-auto">
+                      ⚡ Google Gemma 2
+                    </span>
+                  </div>
                 )}
               </div>
             ))}
         </div>
       )}
+
+      {/* ⚡ Gemma 60-Second Executive Flash Briefing Card */}
+      <div className="bg-gradient-to-r from-purple-950/30 to-slate-900/40 border border-purple-500/30 rounded-xl p-4 sm:p-5 backdrop-blur-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">⚡</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold tracking-tight text-white">Gemma 60s Executive Briefing</h3>
+                <span className="bg-purple-500/20 border border-purple-400/30 text-purple-300 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
+                  Google Gemma 2 (9B)
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">Instant AI market digest synthesized across your active watchlist.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerateBriefing}
+            disabled={loadingBriefing}
+            className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold tracking-wide transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <RefreshCcw className={`w-3 h-3 ${loadingBriefing ? 'animate-spin' : ''}`} />
+            {loadingBriefing ? 'Synthesizing...' : 'Generate Flash Briefing'}
+          </button>
+        </div>
+
+        {briefing.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-purple-500/20">
+            {briefing.map((item, i) => (
+              <div key={i} className="bg-slate-900/80 border border-purple-500/20 rounded-lg p-3 text-xs flex flex-col gap-1">
+                <span className="font-mono font-bold text-emerald-400 text-[11px] uppercase tracking-wider">{item.ticker}</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">{item.bullet}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-slate-500 text-[11px] italic mt-1">
+            Click "Generate Flash Briefing" to create a fast, AI-distilled summary of current watchlist drivers.
+          </p>
+        )}
+      </div>
 
       {/* Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">

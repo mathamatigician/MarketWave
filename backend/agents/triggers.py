@@ -52,10 +52,19 @@ async def check_watchlist_sentiment(ctx: TriggerContext):
                 avg_sentiment = sum(sentiments) / len(sentiments)
                 logger.info(f"Watchdog sentiment result for {ticker}: {avg_sentiment}")
                 if avg_sentiment < -0.5:
+                    headlines = [item['title'] for item in items if item.get('title')]
+                    try:
+                        import gemma_service
+                        catalyst = await gemma_service.gemma_generate_catalyst_bullet(ticker, headlines)
+                    except Exception:
+                        catalyst = f"Severe negative sentiment drop detected for {ticker} across recent news."
+
                     alerts.append({
                         "ticker": ticker,
                         "average_sentiment": round(avg_sentiment, 2),
                         "message": f"Critical sentiment drop detected for {ticker}: {round(avg_sentiment, 2)}",
+                        "catalyst": catalyst,
+                        "powered_by": "Google Gemma 2",
                         "timestamp": int(datetime.datetime.now().timestamp())
                     })
         except Exception as e:

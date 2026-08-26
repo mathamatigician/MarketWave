@@ -520,6 +520,15 @@ async def run_pipeline(ticker_arg: Optional[str] = None, on_activity: Optional[C
                     print("Scraping returned no text body. Using article title as fallback.")
                     text = title
 
+                # Fast Frontline Triage via Google Gemma 2
+                try:
+                    import gemma_service
+                    triage_res = await gemma_service.gemma_triage_news(title, text[:300], ticker)
+                    impact = triage_res.get("market_impact", "MEDIUM")
+                    await emit({"type": "activity", "agent": "GemmaTriage", "ticker": ticker, "status": "triaged", "detail": f"Gemma Impact: {impact} — {triage_res.get('reason', '')[:50]}", "impact": impact})
+                except Exception:
+                    pass
+
                 # Clean text via ResearchAgent (falls back to regex clean internally
                 # on failure, and emits its own "fallback" activity event when it does)
                 await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "cleaning", "detail": f"Cleaning article {idx}/{len(items)}: \"{title[:60]}\""})

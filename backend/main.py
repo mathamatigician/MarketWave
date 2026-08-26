@@ -18,6 +18,7 @@ import pipeline
 import subscription
 import config
 from config import settings
+import gemma_service
 import google_auth as google_auth_module
 from google.antigravity import Agent, LocalAgentConfig
 from backend.agents.orchestrator import orchestrator_config
@@ -108,6 +109,15 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_order_id: Optional[str] = ""
     razorpay_payment_id: Optional[str] = ""
     razorpay_signature: Optional[str] = ""
+
+class GemmaTriageRequest(BaseModel):
+    title: str
+    summary: Optional[str] = ""
+    ticker: Optional[str] = ""
+
+class GemmaBriefingRequest(BaseModel):
+    email: Optional[str] = None
+    tickers: Optional[List[str]] = None
 
 # --- REST Routes ---
 
@@ -575,6 +585,57 @@ def submit_feedback(req: FeedbackRequest):
     }
     database.save_feedback(feedback_item)
     return {"message": "Feedback submitted successfully", "feedback": feedback_item}
+
+
+# --- Google Gemma Hybrid AI Endpoints ---
+
+@app.post("/api/gemma/triage")
+async def gemma_triage_endpoint(req: GemmaTriageRequest):
+    """Uses Google Gemma 2 to classify headline market impact and relevance score."""
+    result = await gemma_service.gemma_triage_news(req.title, req.summary or "", req.ticker or "")
+    return {
+        "status": "success",
+        "model": "Google Gemma 2 (9B)",
+        "triage": result
+    }
+
+@app.post("/api/gemma/briefing")
+async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
+    """Generates a 60-second executive flash market briefing using Google Gemma 2."""
+    tickers = []
+    if req.email:
+        try:
+            clean_email = _sanitize_email(req.email)
+            users = database.load_users()
+            if clean_email in users:
+                w_str = users[clean_email].get("watchlist", "")
+                tickers = [t.strip() for t in w_str.split(",") if t.strip()]
+        except Exception:
+            pass
+    if not tickers and req.tickers:
+        tickers = req.tickers
+    if not tickers:
+        tickers = ["TSLA", "AAPL", "NVDA", "GOOG", "MSFT"]
+
+    # Gather recent headlines by ticker from Firestore
+    headlines_by_ticker = {}
+    try:
+        articles = database.load_articles()
+        for a in articles:
+            company = a.get("company", "")
+            sym = database.COMPANY_TICKER_MAP.get(company, company)
+            title = a.get("title", "")
+            if sym and title:
+                headlines_by_ticker.setdefault(sym, []).append(title)
+    except Exception:
+        pass
+
+    briefing = await gemma_service.gemma_generate_flash_briefing(tickers, headlines_by_ticker)
+    return {
+        "status": "success",
+        "model": "Google Gemma 2 (9B)",
+        "briefing": briefing
+    }
 
 
 # --- WebSocket Chat Endpoint (Antigravity Agent) ---
