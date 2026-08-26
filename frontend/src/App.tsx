@@ -7,6 +7,7 @@ import { About, Contact, FAQ } from './components/StaticPages';
 import { Feedback } from './components/Feedback';
 import { AgentChat } from './components/AgentChat';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { FEATURES } from './config';
 
 function LinkedinIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -141,14 +142,16 @@ export default function App() {
               {theme === 'dark' ? <Sun className="w-4 h-4 text-white/60 hover:text-white" /> : <Moon className="w-4 h-4 text-slate-600 hover:text-slate-900" />}
             </button>
 
-            <button
-              onClick={() => setIsSubscriptionOpen(true)}
-              className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-600 dark:text-[#00FF94] hover:opacity-80 transition-opacity px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20"
-              title="View Subscription Plans"
-            >
-              <Crown className="w-3.5 h-3.5 animate-bounce" />
-              <span>Pricing</span>
-            </button>
+            {FEATURES.pricing && (
+              <button
+                onClick={() => setIsSubscriptionOpen(true)}
+                className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-600 dark:text-[#00FF94] hover:opacity-80 transition-opacity px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20"
+                title="View Subscription Plans"
+              >
+                <Crown className="w-3.5 h-3.5 animate-bounce" />
+                <span>Pricing</span>
+              </button>
+            )}
 
             <button
               onClick={() => handleNavigate(user ? 'dashboard' : 'signin')}
@@ -169,14 +172,18 @@ export default function App() {
             {user ? (
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setIsSubscriptionOpen(true)}
-                  className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded cursor-pointer transition-transform hover:scale-105 ${user.subscription?.badge === 'PRO'
+                  onClick={() => FEATURES.pricing && setIsSubscriptionOpen(true)}
+                  disabled={!FEATURES.pricing}
+                  className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-transform ${FEATURES.pricing
+                    ? 'cursor-pointer hover:scale-105'
+                    : 'cursor-default'
+                    } ${user.subscription?.badge === 'PRO'
                     ? 'bg-emerald-500/20 text-[#00FF94] border border-[#00FF94]/40 shadow-[0_0_10px_rgba(0,255,148,0.2)]'
                     : user.subscription?.badge === 'ENTERPRISE'
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-400/40'
                       : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-white/60'
                     }`}
-                  title="Click to change plan"
+                  title={FEATURES.pricing ? "Click to change plan" : undefined}
                 >
                   [{user.subscription?.badge || 'STARTER'}]
                 </button>
@@ -215,13 +222,15 @@ export default function App() {
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors" title="Toggle Theme">
               {theme === 'dark' ? <Sun className="w-4 h-4 text-white/60" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
-            <button
-              onClick={() => setIsSubscriptionOpen(true)}
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-[#00FF94] px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20"
-            >
-              <Crown className="w-3 h-3" />
-              <span>Pro</span>
-            </button>
+            {FEATURES.pricing && (
+              <button
+                onClick={() => setIsSubscriptionOpen(true)}
+                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-[#00FF94] px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20"
+              >
+                <Crown className="w-3 h-3" />
+                <span>Pro</span>
+              </button>
+            )}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-lg border dark:border-white/10 border-slate-200 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
@@ -244,8 +253,9 @@ export default function App() {
                   </span>
                 </div>
                 <button
-                  onClick={() => { setIsSubscriptionOpen(true); setIsMobileMenuOpen(false); }}
-                  className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-[#00FF94]"
+                  onClick={() => { if (FEATURES.pricing) { setIsSubscriptionOpen(true); setIsMobileMenuOpen(false); } }}
+                  disabled={!FEATURES.pricing}
+                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-[#00FF94] ${FEATURES.pricing ? 'cursor-pointer' : 'cursor-default'}`}
                 >
                   [{user.subscription?.badge || 'STARTER'}]
                 </button>
@@ -309,13 +319,15 @@ export default function App() {
         )}
 
         {/* Subscription Modal */}
-        <SubscriptionModal
-          isOpen={isSubscriptionOpen}
-          onClose={() => setIsSubscriptionOpen(false)}
-          userEmail={user?.email || ''}
-          currentSubscription={user?.subscription}
-          onSubscriptionSuccess={handleSubscriptionSuccess}
-        />
+        {FEATURES.pricing && (
+          <SubscriptionModal
+            isOpen={isSubscriptionOpen}
+            onClose={() => setIsSubscriptionOpen(false)}
+            userEmail={user?.email || ''}
+            currentSubscription={user?.subscription}
+            onSubscriptionSuccess={handleSubscriptionSuccess}
+          />
+        )}
 
         {/* Main Content */}
         <main className="flex-grow w-full mx-auto py-4 sm:py-6 flex flex-col overflow-y-auto min-h-0">
