@@ -6,7 +6,7 @@ from typing import List, Dict, Optional, Any
 logger = logging.getLogger("GemmaService")
 
 HF_TOKEN = os.environ.get("HF_TOKEN") or ""
-GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "google/gemma-2-9b-it")
+GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "google/gemma-2-9b-it:featherless-ai")
 
 
 def get_hf_client():
@@ -20,6 +20,31 @@ def get_hf_client():
     except Exception as e:
         logger.warning(f"Could not initialize Hugging Face InferenceClient: {e}")
         return None
+
+
+def _extract_json(content: str):
+    """Extracts and parses JSON from raw LLM output, handling markdown blocks and trailing text."""
+    if not content:
+        return None
+    cleaned = content.strip()
+    if "```json" in cleaned:
+        cleaned = cleaned.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in cleaned:
+        cleaned = cleaned.split("```", 1)[1].split("```", 1)[0].strip()
+    
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+
+    import re
+    obj_match = re.search(r'(\{.*\}|\[.*\])', cleaned, re.DOTALL)
+    if obj_match:
+        try:
+            return json.loads(obj_match.group(1))
+        except Exception:
+            pass
+    return None
 
 
 async def gemma_triage_news(title: str, summary: str = "", ticker: str = "") -> Dict[str, Any]:
@@ -55,22 +80,26 @@ Summary: {summary[:300]}
         response = client.chat.completions.create(
             model=model_id,
             messages=messages,
-            max_tokens=150,
+            max_tokens=250,
             temperature=0.1
         )
         content = response.choices[0].message.content.strip()
+        parsed = _extract_json(content)
+        if isinstance(parsed, dict):
+            raw_score = parsed.get("relevance_score", 0.5)
+            try:
+                score = float(raw_score)
+                if score > 1.0:
+                    score = score / 100.0
+            except Exception:
+                score = 0.5
 
-        # Clean JSON markdown if wrapped in ```json ... ```
-        if content.startswith("```"):
-            lines = content.splitlines()
-            content = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
-        
-        parsed = json.loads(content)
-        return {
-            "market_impact": parsed.get("market_impact", "MEDIUM"),
-            "relevance_score": float(parsed.get("relevance_score", 0.5)),
-            "reason": parsed.get("reason", "Gemma triage classification")
-        }
+            return {
+                "market_impact": parsed.get("market_impact", "MEDIUM").upper(),
+                "relevance_score": round(score, 2),
+                "reason": str(parsed.get("reason", "Gemma triage classification"))
+            }
+        return default_result
     except Exception as e:
         logger.warning(f"Gemma triage request failed, using default: {e}")
         return default_result
@@ -149,11 +178,7 @@ Return a valid JSON array of objects with keys:
             temperature=0.2
         )
         content = response.choices[0].message.content.strip()
-        if content.startswith("```"):
-            lines = content.splitlines()
-            content = "\n".join(lines[1:-1] if lines[-1].startswith("```") else lines[1:])
-        
-        parsed = json.loads(content)
+        parsed = _extract_json(content)
         if isinstance(parsed, list):
             return parsed
         return default_briefing
