@@ -1,12 +1,12 @@
 # Plan: Gmail Authentication & Authorization Integration
 
-This document outlines the design and integration plan for replacing the local username-password authentication system in GlobePulse with Gmail-based authentication (Google Sign-In via OAuth 2.0 / OpenID Connect).
+This document outlines the design and integration plan for replacing the local username-password authentication system in MarketWave with Gmail-based authentication (Google Sign-In via OAuth 2.0 / OpenID Connect).
 
 ---
 
 ## 1. Overview & Benefits
 
-Currently, GlobePulse uses a local SQLite database table with SHA-256 password hashing. Moving to Gmail-based authentication offers several key improvements:
+Currently, MarketWave uses a local SQLite database table with SHA-256 password hashing. Moving to Gmail-based authentication offers several key improvements:
 *   **Security:** Offloads password storage and credential leakage risks to Google.
 *   **User Experience:** One-click Login (SSO) without registering passwords.
 *   **Verification:** Automatically verifies the user's email address.

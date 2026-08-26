@@ -1,4 +1,4 @@
-# GlobePulse — Developer Guide (for Collaborators)
+# MarketWave — Developer Guide (for Collaborators)
 
 **Who this is for:** `Ananya01Agrawal`, `SUNILMVVK`, `Keshawk025`, and any future team member with
 **Write** access. This is a beginner guide — if you have never used Git before, start at Part 1 and
@@ -47,11 +47,11 @@ Pick a folder where you keep projects, then:
 # Go to your projects folder (example)
 cd ~/Documents
 
-# Download the repo (creates a "GlobePulse" folder)
-git clone https://github.com/pravintakpire/GlobePulse.git
+# Download the repo (creates a "MarketWave" folder)
+git clone https://github.com/pravintakpire/MarketWave.git
 
 # Go into it
-cd GlobePulse
+cd MarketWave
 ```
 The first time, GitHub will ask you to log in in your browser — do it. Done — you now have the code.
 
@@ -116,7 +116,7 @@ git push -u origin feature/watchlist-button
 
 ### Step 5 — Open a Pull Request (PR)
 **Easiest way (in your browser):**
-1. Go to https://github.com/pravintakpire/GlobePulse
+1. Go to https://github.com/pravintakpire/MarketWave
 2. You'll see a yellow banner: **"feature/watchlist-button had recent pushes — Compare & pull request"**. Click it.
 3. **Very important:** make sure the **base** dropdown says **`develop`** (NOT `main`).
 4. Write a title and description. Fill in this template in the description box:

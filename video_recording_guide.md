@@ -1,7 +1,7 @@
-# GlobePulse AI — Video Presentation Guide & Transcript
+# MarketWave AI — Video Presentation Guide & Transcript
 
 This document provides step-by-step instructions and a detailed 4-to-5 minute presentation
-script to record an explainer video for the **GlobePulse AI** application. It covers the
+script to record an explainer video for the **MarketWave AI** application. It covers the
 functional logic, user experience, live ingestion pipeline, and technical architecture
 (the **React** dashboard, the **FastAPI** backend, the **Firestore** data store, and the
 **Google Antigravity / Gemini** agent layer).
@@ -57,12 +57,12 @@ Follow these guidelines to prepare a high-quality video capture.
 
 ### Section 1: Introduction (0:00 - 0:45)
 
-**[Visual: Screen shows the GlobePulse home screen with the neon "GlobePulse.ai" banner and the Sign In / Sign Up navigation. The mouse pointer sits near the center.]**
+**[Visual: Screen shows the MarketWave home screen with the neon "MarketWave.ai" banner and the Sign In / Sign Up navigation. The mouse pointer sits near the center.]**
 
 **Presenter (Voiceover):**
-> "Hello everyone! Welcome to this quick walkthrough of **GlobePulse AI**, a modern financial news monitoring and sentiment analysis platform.
+> "Hello everyone! Welcome to this quick walkthrough of **MarketWave AI**, a modern financial news monitoring and sentiment analysis platform.
 >
-> In today's fast-moving markets, traders and analysts are flooded with news. The challenge is extracting structured, actionable signals from unstructured articles, and seeing how those signals correlate with stock prices. GlobePulse solves this with a React dashboard backed by a FastAPI service — real-time news scraping, structured multi-topic sentiment analysis powered by Google Gemini, stock price overlays, and a conversational AI assistant. Let's dive in!"
+> In today's fast-moving markets, traders and analysts are flooded with news. The challenge is extracting structured, actionable signals from unstructured articles, and seeing how those signals correlate with stock prices. MarketWave solves this with a React dashboard backed by a FastAPI service — real-time news scraping, structured multi-topic sentiment analysis powered by Google Gemini, stock price overlays, and a conversational AI assistant. Let's dive in!"
 
 ---
 
@@ -103,7 +103,7 @@ Follow these guidelines to prepare a high-quality video capture.
 
 ### Section 4: AI Assistant — Streaming Agent (3:00 - 3:45)
 
-**[Visual: Click the floating 'GlobePulse AI' bubble in the bottom-right to open the assistant drawer. Type: 'Why did Tesla sentiment turn negative this week?' and press Enter.]**
+**[Visual: Click the floating 'MarketWave AI' bubble in the bottom-right to open the assistant drawer. Type: 'Why did Tesla sentiment turn negative this week?' and press Enter.]**
 
 **Presenter (Voiceover):**
 > "Finally, the **AI Assistant**. Instead of manually scanning dozens of articles, users can just ask.
@@ -121,7 +121,7 @@ Follow these guidelines to prepare a high-quality video capture.
 **[Visual: Switch to the ARCHITECTURE.md tab and scroll to the 'Current Architecture' Mermaid flowchart.]**
 
 **Presenter (Voiceover):**
-> "Now let's see how this fits together. GlobePulse is a cleanly decoupled system.
+> "Now let's see how this fits together. MarketWave is a cleanly decoupled system.
 >
 > The **React + Vite frontend** on port 5173 never talks to the database or the model directly — everything flows through the **FastAPI backend** on port 8000, over REST for the dashboard and a WebSocket for the assistant.
 >
@@ -143,11 +143,11 @@ Follow these guidelines to prepare a high-quality video capture.
 
 ## Part 4: Wrap-up & Conclusion (4:45 - 5:00)
 
-**[Visual: Switch back to the running app on the dashboard. Hover over the GlobePulse logo in the top-left corner.]**
+**[Visual: Switch back to the running app on the dashboard. Hover over the MarketWave logo in the top-left corner.]**
 
 **Presenter (Voiceover):**
-> "To summarize, GlobePulse AI pairs a polished React dashboard with a FastAPI backend and a Google Antigravity agent layer. By turning raw financial news into clean topic sentiment, overlaying it with live stock prices, and letting users interrogate it through a streaming assistant, we transform noise into clear, actionable signals.
+> "To summarize, MarketWave AI pairs a polished React dashboard with a FastAPI backend and a Google Antigravity agent layer. By turning raw financial news into clean topic sentiment, overlaying it with live stock prices, and letting users interrogate it through a streaming assistant, we transform noise into clear, actionable signals.
 >
-> Thank you for watching! Feel free to clone the repository, set up your Gemini API key, run `make start`, and explore GlobePulse yourself."
+> Thank you for watching! Feel free to clone the repository, set up your Gemini API key, run `make start`, and explore MarketWave yourself."
 
 **[Visual: Fade screen to black. Stop recording.]**

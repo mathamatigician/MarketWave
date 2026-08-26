@@ -1,6 +1,6 @@
-# GlobePulse AI: Financial News Monitoring and Sentiment Analysis
+# MarketWave AI: Financial News Monitoring and Sentiment Analysis
 
-GlobePulse is a React + FastAPI app for tracking business and market-moving news, analyzing article sentiment, and comparing sentiment trends with stock price activity.
+MarketWave is a React + FastAPI app for tracking business and market-moving news, analyzing article sentiment, and comparing sentiment trends with stock price activity.
 
 **🌐 Live at [globepulseai.com](https://globepulseai.com)** — frontend and backend run on Google Cloud Run, backed by real Cloud Firestore.
 

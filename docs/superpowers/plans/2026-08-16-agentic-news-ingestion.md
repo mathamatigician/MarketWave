@@ -636,7 +636,7 @@ Current (`backend/pipeline.py`, right after the loop):
         print("\nNo new articles to ingest.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="GlobePulse Stock News Scraper & Ingestion Pipeline")
+    parser = argparse.ArgumentParser(description="MarketWave Stock News Scraper & Ingestion Pipeline")
     parser.add_argument("--ticker", type=str, help="Specific ticker symbol to run ingestion for (optional)")
     args = parser.parse_args()
     
@@ -675,7 +675,7 @@ Change to:
 if __name__ == "__main__":
     import asyncio
 
-    parser = argparse.ArgumentParser(description="GlobePulse Stock News Scraper & Ingestion Pipeline")
+    parser = argparse.ArgumentParser(description="MarketWave Stock News Scraper & Ingestion Pipeline")
     parser.add_argument("--ticker", type=str, help="Specific ticker symbol to run ingestion for (optional)")
     args = parser.parse_args()
     

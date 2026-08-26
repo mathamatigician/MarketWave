@@ -1,12 +1,12 @@
-# GlobePulse — GitHub Collaboration & Code Integrity Guide
+# MarketWave — GitHub Collaboration & Code Integrity Guide
 
-This is the single source of truth for how the GlobePulse team branches, reviews, merges,
+This is the single source of truth for how the MarketWave team branches, reviews, merges,
 and releases code, and how repository access is managed to protect the codebase.
 
 > **Audience:** all collaborators. Sections marked **(Owner/Admin)** require admin rights
 > and are performed by the repository owner only.
 
-**Repo:** `pravintakpire/GlobePulse` · **Visibility:** Public · **Default branch:** `main`
+**Repo:** `pravintakpire/MarketWave` · **Visibility:** Public · **Default branch:** `main`
 
 ---
 
@@ -85,11 +85,11 @@ is minimal. With `enforce_admins` ON, even the owner must use PRs, which is the 
 - **CLI equivalents:**
   ```bash
   # Invite with write permission
-  gh api -X PUT repos/pravintakpire/GlobePulse/collaborators/<handle> -f permission=push
+  gh api -X PUT repos/pravintakpire/MarketWave/collaborators/<handle> -f permission=push
   # Downgrade to read-only
-  gh api -X PUT repos/pravintakpire/GlobePulse/collaborators/<handle> -f permission=pull
+  gh api -X PUT repos/pravintakpire/MarketWave/collaborators/<handle> -f permission=pull
   # Remove entirely
-  gh api -X DELETE repos/pravintakpire/GlobePulse/collaborators/<handle>
+  gh api -X DELETE repos/pravintakpire/MarketWave/collaborators/<handle>
   ```
 
 ### 1.4 How codebase integrity is protected

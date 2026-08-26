@@ -1,10 +1,10 @@
-# GlobePulse — Installation Guide (Mac & Windows)
+# MarketWave — Installation Guide (Mac & Windows)
 
-**Who this is for:** anyone setting up GlobePulse on a fresh laptop/desktop for the first time.
+**Who this is for:** anyone setting up MarketWave on a fresh laptop/desktop for the first time.
 This is a beginner guide — do every step in order. For the day-to-day Git/PR workflow *after* setup,
 see [DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md).
 
-**What you're installing:** GlobePulse runs as three local services —
+**What you're installing:** MarketWave runs as three local services —
 a **React** frontend, a **FastAPI** backend, and a local **Google Firestore emulator** —
 with **Google Gemini** powering the AI assistant.
 
@@ -16,7 +16,7 @@ with **Google Gemini** powering the AI assistant.
 
 You need **four** tools. Install each, then run its "check" command to confirm.
 
-| Tool | Why GlobePulse needs it | Minimum version |
+| Tool | Why MarketWave needs it | Minimum version |
 |------|-------------------------|-----------------|
 | **Git** | Download the code | any recent |
 | **Python** | FastAPI backend + data pipeline | **3.10+** (3.12 recommended) |
@@ -86,8 +86,8 @@ The AI assistant and the sentiment pipeline call Google Gemini, so you need a fr
 cd ~/Documents          # macOS/Linux
 # cd %USERPROFILE%\Documents   # Windows CMD
 
-git clone https://github.com/pravintakpire/GlobePulse.git
-cd GlobePulse
+git clone https://github.com/pravintakpire/MarketWave.git
+cd MarketWave
 ```
 
 ---
@@ -204,7 +204,7 @@ Then log in with a seeded demo account to confirm the full stack works:
 - **Email:** `demo1@globepulse.com`
 - **Password:** `password123`
 
-You should land on the dashboard with a sentiment heatmap and a price/sentiment chart, and the floating **GlobePulse AI** button should open a chat that streams a response.
+You should land on the dashboard with a sentiment heatmap and a price/sentiment chart, and the floating **MarketWave AI** button should open a chat that streams a response.
 
 ---
 
@@ -242,7 +242,7 @@ To start again later: activate the venv (`source .venv/bin/activate` / `.venv\Sc
 **macOS / Linux — full first-time setup:**
 ```bash
 brew install git python node openjdk@21
-git clone https://github.com/pravintakpire/GlobePulse.git && cd GlobePulse
+git clone https://github.com/pravintakpire/MarketWave.git && cd MarketWave
 cp .env.example .env            # then edit .env and add your GEMINI_API_KEY
 python3 -m venv .venv && source .venv/bin/activate
 make install
@@ -252,7 +252,7 @@ make start                      # open http://localhost:5173
 **Windows (PowerShell) — full first-time setup:**
 ```powershell
 winget install Git.Git Python.Python.3.12 OpenJS.NodeJS.LTS EclipseAdoptium.Temurin.21.JDK
-git clone https://github.com/pravintakpire/GlobePulse.git; cd GlobePulse
+git clone https://github.com/pravintakpire/MarketWave.git; cd MarketWave
 copy .env.example .env          # then edit .env and add your GEMINI_API_KEY
 python -m venv .venv; .venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt; npm install --prefix frontend

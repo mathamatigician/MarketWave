@@ -2,7 +2,7 @@
 
 ## Summary
 
-GlobePulse's news-ingestion pipeline (`backend/pipeline.py`) currently scores
+MarketWave's news-ingestion pipeline (`backend/pipeline.py`) currently scores
 article sentiment by calling `google.genai`'s `Client.generate_content()`
 directly. Meanwhile, the repo already defines a real multi-agent framework
 (`backend/agents/orchestrator.py`: `ResearchAgent`, `SentimentAnalyst`,

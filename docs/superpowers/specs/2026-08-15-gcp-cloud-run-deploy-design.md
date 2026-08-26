@@ -6,7 +6,7 @@
 
 ## Goal & Scope
 
-Make GlobePulse reachable on the real internet at `globepulseai.com`, replacing
+Make MarketWave reachable on the real internet at `globepulseai.com`, replacing
 "runs on a developer's laptop" with a deployed, publicly reachable service —
 end to end: containerize both the FastAPI backend and the React frontend,
 deploy both to Cloud Run, move secrets out of local `.env` files into Secret
@@ -315,7 +315,7 @@ implementation plan turns these into concrete, testable tasks.
    ```
    gcloud iam service-accounts create globepulse-backend \
      --project=globepulse-ai \
-     --display-name="GlobePulse backend runtime"
+     --display-name="MarketWave backend runtime"
    ```
 3. Create the 4 secrets (empty shells; the user adds real values themselves,
    not pasted into any AI session):

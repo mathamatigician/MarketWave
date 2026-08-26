@@ -516,7 +516,7 @@ Current `frontend/index.html`:
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GlobePulse - Agentic Financial Dashboard</title>
+    <title>MarketWave - Agentic Financial Dashboard</title>
   </head>
   <body>
     <div id="root"></div>
@@ -534,7 +534,7 @@ Add the script tag before `</head>`:
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GlobePulse - Agentic Financial Dashboard</title>
+    <title>MarketWave - Agentic Financial Dashboard</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>

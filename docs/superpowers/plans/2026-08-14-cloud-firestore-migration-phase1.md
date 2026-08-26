@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make it possible to point GlobePulse's FastAPI backend at a real, GCP-hosted Cloud Firestore database instead of the local-only emulator, purely via environment configuration — with no silent data divergence if the real database is briefly unreachable.
+**Goal:** Make it possible to point MarketWave's FastAPI backend at a real, GCP-hosted Cloud Firestore database instead of the local-only emulator, purely via environment configuration — with no silent data divergence if the real database is briefly unreachable.
 
 **Architecture:** Two modes, selected entirely by whether `FIRESTORE_EMULATOR_HOST` is present in the process environment. Emulator mode (today's default developer experience) keeps the existing lenient behavior: a Firestore failure logs and falls back to a local JSON file. Cloud mode is new: a Firestore failure raises instead of silently falling back, so a developer's laptop and the real shared database can never quietly drift apart. No new library — `google-cloud-firestore` stays; only `backend/config.py` and `backend/database.py` change.
 

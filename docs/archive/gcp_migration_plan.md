@@ -1,6 +1,6 @@
 # Migration Plan: Databricks to Google Cloud Platform (GCP)
 
-This document outlines the proposal and implementation details for migrating the GlobePulse ingestion pipeline, storage layer, and online retrieval/inference engine from Databricks to Google Cloud and Google AI products.
+This document outlines the proposal and implementation details for migrating the MarketWave ingestion pipeline, storage layer, and online retrieval/inference engine from Databricks to Google Cloud and Google AI products.
 
 ---
 

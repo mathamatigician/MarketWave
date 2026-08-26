@@ -1,6 +1,6 @@
-# GlobePulse Agentic Architecture Transition Tasks
+# MarketWave Agentic Architecture Transition Tasks
 
-This document contains a structured list of development tasks to migrate the GlobePulse dashboard from its current procedural RAG (Embedchain) pipeline to an **Agentic Architecture** powered by the **Google Antigravity SDK (AGY)**. 
+This document contains a structured list of development tasks to migrate the MarketWave dashboard from its current procedural RAG (Embedchain) pipeline to an **Agentic Architecture** powered by the **Google Antigravity SDK (AGY)**. 
 
 ---
 
@@ -192,7 +192,7 @@ This document contains a structured list of development tasks to migrate the Glo
     
     orchestrator_config = LocalAgentConfig(
         system_instructions=(
-            "You are the GlobePulse primary Financial Orchestrator. "
+            "You are the MarketWave primary Financial Orchestrator. "
             "You handle user conversations, delegate research to the Research Agent, "
             "request sentiment reports from the Sentiment Analyst, and "
             "cross-reference trends using the Market Correlator Agent."

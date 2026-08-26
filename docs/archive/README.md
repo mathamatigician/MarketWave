@@ -1,6 +1,6 @@
 # Archived Design Docs
 
-These documents describe **earlier, pre-migration designs** of GlobePulse (the original
+These documents describe **earlier, pre-migration designs** of MarketWave (the original
 Streamlit/Databricks system and the plans that guided the move to the current
 **React + FastAPI + Firestore + Gemini** stack). They are kept for historical context and
 are **no longer accurate** for the running system.

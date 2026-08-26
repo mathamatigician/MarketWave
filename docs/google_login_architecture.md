@@ -1,6 +1,6 @@
 # Google Sign-In Architecture with Firebase Auth & Firestore
 
-This document describes the design and flow for implementing **Google Sign-In** as the primary authentication mechanism for GlobePulse, using **Firebase Authentication** on the client side and verifying identities securely on the **FastAPI backend**.
+This document describes the design and flow for implementing **Google Sign-In** as the primary authentication mechanism for MarketWave, using **Firebase Authentication** on the client side and verifying identities securely on the **FastAPI backend**.
 
 ---
 
@@ -152,5 +152,5 @@ Once the user's Identity is verified on the backend:
 ## 📈 Architecture Benefits
 
 1.  **Fully Serverless**: No hosting of auth databases or hashing routines. Firebase Auth takes care of scaling.
-2.  **Multi-Platform Ready**: If GlobePulse expands to mobile apps (iOS/Android), the same Firebase Auth backend handles authentication seamlessly.
+2.  **Multi-Platform Ready**: If MarketWave expands to mobile apps (iOS/Android), the same Firebase Auth backend handles authentication seamlessly.
 3.  **Password Security Compliance**: Offloading authentication to Google ensures industry-standard MFA (Multi-Factor Authentication), account recovery, and security compliance.

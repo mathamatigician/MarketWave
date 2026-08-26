@@ -1,6 +1,6 @@
-# GlobePulse Data Pipeline & Sentiment Ingestion Documentation
+# MarketWave Data Pipeline & Sentiment Ingestion Documentation
 
-This document describes the design, implementation, and execution details of the GlobePulse Stock Market News Ingestion and Sentiment Ingestion Data Pipeline.
+This document describes the design, implementation, and execution details of the MarketWave Stock Market News Ingestion and Sentiment Ingestion Data Pipeline.
 
 ---
 
@@ -53,7 +53,7 @@ flowchart TD
 ## 2. Ingestion Step-by-Step Flow
 
 ### Step 1: Watchlist Compiling
-The pipeline loads [users.json](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/users.json) and aggregates all tickers from all registered users' watchlists into a unique set (e.g., `['TSLA', 'AAPL', 'GOOGL', 'MSFT', 'NVDA', 'AMZN']`). If no user watchlists are defined, the pipeline falls back to this set of default stock symbols.
+The pipeline loads [users.json](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/users.json) and aggregates all tickers from all registered users' watchlists into a unique set (e.g., `['TSLA', 'AAPL', 'GOOGL', 'MSFT', 'NVDA', 'AMZN']`). If no user watchlists are defined, the pipeline falls back to this set of default stock symbols.
 
 ### Step 2: Google News RSS Fetching
 For each ticker, the pipeline queries the official, free Google News RSS search feed:

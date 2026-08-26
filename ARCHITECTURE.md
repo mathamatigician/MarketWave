@@ -1,6 +1,6 @@
-# GlobePulse — Architecture & Information Flow
+# MarketWave — Architecture & Information Flow
 
-GlobePulse is a financial-news **sentiment monitoring** platform. It is built as a
+MarketWave is a financial-news **sentiment monitoring** platform. It is built as a
 decoupled **React + FastAPI** application backed by **Google Cloud Firestore** and
 powered by **Google Gemini** (via the **Google Antigravity** agent SDK).
 

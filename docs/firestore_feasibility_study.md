@@ -1,12 +1,12 @@
-# Feasibility Study: Cloud Firestore as GlobePulse Backend Datastore
+# Feasibility Study: Cloud Firestore as MarketWave Backend Datastore
 
-This document outlines the feasibility, architecture design, and benefits of migrating the GlobePulse data layer from local files (`users.json`, `articles.csv`, and `db/alerts.json`) to **Cloud Firestore**.
+This document outlines the feasibility, architecture design, and benefits of migrating the MarketWave data layer from local files (`users.json`, `articles.csv`, and `db/alerts.json`) to **Cloud Firestore**.
 
 ---
 
 ## 🏁 Feasibility Verdict: **Highly Feasible & Recommended**
 
-Migrating to Cloud Firestore is not only fully feasible, but it also represents a **critical production-grade upgrade** for GlobePulse. The current file-based database (`articles.csv`) will degrade in performance as more news is scraped, since pandas must load the entire file into memory on every API call. Firestore resolves this by offering indexed, scalable, and concurrent queries.
+Migrating to Cloud Firestore is not only fully feasible, but it also represents a **critical production-grade upgrade** for MarketWave. The current file-based database (`articles.csv`) will degrade in performance as more news is scraped, since pandas must load the entire file into memory on every API call. Firestore resolves this by offering indexed, scalable, and concurrent queries.
 
 ---
 
@@ -75,8 +75,8 @@ Here is how our main operations compare between the current implementation and F
 
 If we proceed with Firestore integration, the tasks will be:
 
-1.  **Backend Dependency Update**: Add `google-cloud-firestore` to [backend/requirements.txt](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/backend/requirements.txt).
-2.  **Initialize Database Client**: Define the Firestore client helper in [backend/database.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/backend/database.py):
+1.  **Backend Dependency Update**: Add `google-cloud-firestore` to [backend/requirements.txt](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/requirements.txt).
+2.  **Initialize Database Client**: Define the Firestore client helper in [backend/database.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/backend/database.py):
     ```python
     from google.cloud import firestore
     db = firestore.Client()

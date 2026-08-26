@@ -1,6 +1,6 @@
-# GlobePulse Sentiment Score Calculation & Aggregation Details
+# MarketWave Sentiment Score Calculation & Aggregation Details
 
-This document explains how GlobePulse extracts sentiment scores from news articles and aggregates them for dashboard tables, heatmaps, and charts.
+This document explains how MarketWave extracts sentiment scores from news articles and aggregates them for dashboard tables, heatmaps, and charts.
 
 ---
 
@@ -32,7 +32,7 @@ This document explains how GlobePulse extracts sentiment scores from news articl
 ## 🔍 Detailed Sentiment Stages
 
 ### 1. Sentiment Score Extraction (Per Article)
-*   **Source Logic:** `analyze_sentiment_gemini()` in [pipeline.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/pipeline.py)
+*   **Source Logic:** `analyze_sentiment_gemini()` in [pipeline.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/pipeline.py)
 *   **LLM Model:** Google Gemini `gemini-2.5-flash` (or fallback to OpenAI `gpt-4o-mini` if configured, or neutral default if no keys are found).
 *   **Structured Outputs:** Uses structured generation by enforcing a Pydantic schema: `TopicSentimentSchema` (18 topics).
 *   **Value Scale:**
@@ -67,7 +67,7 @@ This document explains how GlobePulse extracts sentiment scores from news articl
 ---
 
 ### 2. Cross-Article Aggregation (Overall Metrics)
-*   **Source Logic:** `aggregate_sentiment(sentiments)` in [functions.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/functions.py)
+*   **Source Logic:** `aggregate_sentiment(sentiments)` in [functions.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/functions.py)
 *   **Purpose:** Summarize the sentiment of multiple articles for the overview dashboard heatmap.
 *   **Aggregator Choice:** **Median**
     *   *Why Median?* Financial sentiment is highly prone to outlier biases (e.g., one extremely negative article skewing average perception). The median calculation maintains a robust center point.
@@ -81,7 +81,7 @@ This document explains how GlobePulse extracts sentiment scores from news articl
 ---
 
 ### 3. Daily Aggregation (Time Series Charting)
-*   **Source Logic:** `transform_sentiment(df)` in [functions.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/GlobePulse/functions.py)
+*   **Source Logic:** `transform_sentiment(df)` in [functions.py](file:///Users/pravintakpire/datascience/Competitions/Hackathons/Gemini_Hackathon/MarketWave/functions.py)
 *   **Purpose:** Format sentiment data to be plotted alongside stock price charts in the *Stock Price vs Sentiment* tab.
 *   **Aggregator Choice:** **Mean (Average)**
     *   *Why Mean?* For temporal tracking, the average of daily sentiment scores provides a continuous scale that represents the overall daily market tone.

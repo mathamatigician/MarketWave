@@ -1,6 +1,6 @@
 # Agentic Architecture Transition Plan
 
-This document outlines the proposed architecture and execution steps to migrate the GlobePulse dashboard and pipeline from a procedural client-server model to an **Agentic Architecture** powered by the **Google Antigravity SDK (AGY)**.
+This document outlines the proposed architecture and execution steps to migrate the MarketWave dashboard and pipeline from a procedural client-server model to an **Agentic Architecture** powered by the **Google Antigravity SDK (AGY)**.
 
 ---
 

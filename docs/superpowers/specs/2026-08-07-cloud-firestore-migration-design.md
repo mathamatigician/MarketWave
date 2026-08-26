@@ -6,7 +6,7 @@
 
 ## Goal & Scope
 
-Move GlobePulse's datastore off the local-only Firestore emulator onto a real,
+Move MarketWave's datastore off the local-only Firestore emulator onto a real,
 GCP-hosted Cloud Firestore database. The FastAPI backend keeps running wherever
 it runs today (a developer's machine) — it just talks to real Firestore instead
 of `localhost:8080`.
