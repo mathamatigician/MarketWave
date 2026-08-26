@@ -1,54 +1,213 @@
-# MarketWave AI: Financial News Monitoring and Sentiment Analysis
+# MarketWave AI: Autonomous Financial News Monitoring & Multi-Agent Sentiment Engine
 
-MarketWave is a React + FastAPI app for tracking business and market-moving news, analyzing article sentiment, and comparing sentiment trends with stock price activity.
+![MarketWave AI Architecture](docs/diagrams/01_current_architecture.png)
 
-**🌐 Live at [globepulseai.com](https://globepulseai.com)** — frontend and backend run on Google Cloud Run, backed by real Cloud Firestore.
+**MarketWave AI** is an intelligent, agentic market research and financial monitoring platform powered by **Google Gemini** and the **Google Antigravity SDK (`google-antigravity`)**. 
 
-## Features
-- **Sentiment Analysis:** Visualize news sentiment over time and by topic.
-- **Price vs Sentiment:** Compare stock price behavior with sentiment signals.
-- **Chat Assistant:** Ask questions about recent news using a streaming, agentic Gemini pipeline (WebSocket).
-- **User Authentication:** Email/password sign-up and sign-in plus Google Sign-In, backed by Cloud Firestore.
-- **Subscriptions:** Free, Pro Trader, and Enterprise plans with Razorpay checkout.
-- **Live News Ingestion:** Company news pulled from the Finnhub API (Google News RSS scraping is kept only as a local-dev fallback — it's blocked on Cloud Run).
+It continuously ingests live market-moving news, performs structured 18-topic sentiment analysis, correlates multi-dimensional sentiment trajectories against real historical stock candles (OHLCV), and coordinates a specialized multi-agent hierarchy with real-time reasoning thoughts streamed to the user interface.
 
-## Local Setup
-1. Clone the repository or use the existing local folder.
-2. Create and activate the virtual environment:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
+---
+
+## 🌟 Key Features
+
+- 🤖 **Autonomous Multi-Agent Architecture**: Orchestrated via Google Antigravity SDK (`google-antigravity`), deploying specialized agents (`OrchestratorAgent`, `ResearchAgent`, `SentimentAnalyst`, `MarketCorrelator`).
+- 🧠 **18-Topic Structured Sentiment Scoring**: Strict Pydantic schema enforcement (`TopicSentimentSchema`) rating 18 granular financial topics (`layoffs`, `revenue_growth`, `product_launches`, `mergers`, `esg`, `board_changes`, etc.) on a normalized `[-1.0, 1.0]` scale, with `null` for unmentioned topics to eliminate hallucinated zero-scores.
+- 📈 **Stock Price vs. Sentiment Overlay Charts**: Synchronizes Yahoo Finance historical OHLCV price series with daily aggregated topic sentiment histograms on a dual-axis interactive chart.
+- ⚡ **Real-Time Thought & Token Streaming**: WebSocket endpoint (`/ws/chat`) streams live agent reasoning thoughts (`{type: "thought"}`) to an expandable log drawer before streaming synthesis tokens (`{type: "token"}`).
+- 🛰️ **Live Ingestion Activity Broadcaster**: WebSocket channel (`/ws/ingest`) broadcasts ingestion status (fetching, cleaning, scoring, saving) live to the dashboard.
+- ⏰ **Proactive Sentiment Watchdog**: Hourly autonomous trigger (`backend/agents/triggers.py`) monitors user watchlists for severe negative sentiment drops (`< -0.5`) and generates alert notifications.
+- 🔒 **User Authentication**: Secure PBKDF2 HMAC-SHA256 email/password login and **Google Sign-In** (OAuth 2.0 ID token verification).
+- 💳 **3-Tier Monetization & Payments**: Built-in Razorpay integration (`Starter ₹0`, `Pro Trader ₹159/mo`, `Enterprise ₹299/mo`) with server-side HMAC-SHA256 signature verification.
+- ☁️ **Resilient Cloud & Local Persistence**: Backed by **Google Cloud Firestore** in production with zero-config local emulation and fallback JSON stores (`users.json`, `alerts.json`, `orders.json`, `feedback.json`).
+
+---
+
+## 🏗️ Multi-Agent Hierarchy
+
+MarketWave separates market intelligence into distinct, coordinated agent personas:
+
+| Agent | Core Responsibility | Tools & Capabilities |
+| :--- | :--- | :--- |
+| **`OrchestratorAgent`** | Root coordinator; decomposes user queries, plans multi-step execution, sequentially delegates tasks, and streams reasoning logs | Sub-agent delegation, guardrails, policy enforcement |
+| **`ResearchAgent`** | Discovers per-ticker company news, scrapes clean body text, and removes ads/boilerplate | `fetch_news_tool` (Finnhub API / Google News fallback) |
+| **`SentimentAnalyst`** | Scores raw text against 18 financial categories with mathematical precision | `TopicSentimentSchema` structured schema constraint |
+| **`MarketCorrelator`** | Fetches OHLCV market series and correlates price breakouts/drawdowns with sentiment shifts | `get_stock_history_tool` (YahooQuery) |
+
+---
+
+## 📊 18-Topic Financial Sentiment Taxonomy
+
+Each ingested article is evaluated across 18 distinct financial dimensions:
+
+| Category | Topics |
+| :--- | :--- |
+| **Corporate Operations** | `layoffs`, `restructuring`, `board_changes`, `labor_issues`, `expansion` |
+| **Growth & Performance** | `revenue_growth`, `product_launches`, `mergers`, `partnerships`, `investor_activity` |
+| **Risks & Macro** | `macro_economic`, `geo_political`, `disputes`, `cyber_security`, `supply_chain`, `product_recalls` |
+| **Sustainability & Net** | `esg`, `overall_sentiment` |
+
+---
+
+## 💻 Tech Stack
+
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Recharts, Lucide Icons
+- **Backend**: FastAPI, Uvicorn, WebSockets, Pydantic v2
+- **Agentic Runtime & LLM**: Google Antigravity SDK (`google-antigravity`), Google Gemini (`gemini-2.5-flash` / `gemini-3.5-flash`), `google-genai`
+- **Market Data & Ingestion**: Finnhub `/company-news` (primary), YahooQuery (stock price candles), BeautifulSoup4, Google News RSS decoder (fallback)
+- **Database & Cloud**: Google Cloud Firestore, Firebase Hosting, Google Cloud Run
+- **Payments & Auth**: Razorpay Payment API & HMAC SHA-256 verifier, Google OAuth 2.0
+
+---
+
+## 🚀 Quickstart & Local Setup
+
+### 1. Clone & Prepare Virtual Environment
+```bash
+git clone https://github.com/mathamatigician/MarketWave.git
+cd MarketWave
+
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Install Dependencies
+```bash
+make install
+```
+*(Or manually: `pip install -r backend/requirements.txt && cd frontend && npm install && cd ..`)*
+
+### 3. Configure Environment Variables
+Copy the example environment files:
+```bash
+cp .env.example .env
+cp .env.example.frontend frontend/.env
+```
+
+Edit `.env` and supply your API keys:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+FINHUB_API_KEY=your_finnhub_api_key_here
+ADMIN_KEY=your_secure_admin_secret
+AGENT_MODEL=gemini-2.5-flash
+
+# Firestore (Defaults to local emulator; see .env.example for cloud mode)
+FIRESTORE_PROJECT_ID=marketwave-demo
+FIRESTORE_EMULATOR_HOST=localhost:8080
+
+# Razorpay Test Keys (optional for payment testing)
+RAZORPAY_KEY_ID=rzp_test_your_key_id
+RAZORPAY_KEY_SECRET=your_test_key_secret
+```
+
+### 4. Start All Services
+```bash
+make start
+# Or execute: ./start.sh
+```
+
+| Service | Access URL |
+| :--- | :--- |
+| **MarketWave Web UI** | `http://localhost:5173` |
+| **FastAPI Backend & Swagger Docs** | `http://localhost:8000/docs` |
+| **Firestore Local Emulator Console** | `http://localhost:4000` |
+
+To stop all background services:
+```bash
+make stop
+# Or execute: ./stop.sh
+```
+
+---
+
+## 🛠️ Individual Dev Commands
+
+Run `make help` to see all available targets:
+
+- `make dev-backend` — Start FastAPI backend with hot-reload on port 8000.
+- `make dev-frontend` — Start React Vite dev server on port 5173.
+- `make dev-emulator` — Start Google Cloud Firestore local emulator.
+- `make test-api` — Verify Firestore integration test.
+- `make clean` — Clean `__pycache__` and compiled artifacts.
+
+---
+
+## 🌐 Google Cloud Platform (GCP) Deployment
+
+MarketWave is architected for serverless scale-to-zero deployment on **Google Cloud Run**:
+
+1. **Cloud Firestore**:
+   Remove `FIRESTORE_EMULATOR_HOST` in `.env` and specify your real GCP project ID:
+   ```env
+   FIRESTORE_PROJECT_ID=your-gcp-project-id
    ```
-3. Install backend and frontend dependencies:
+   Authenticate using Application Default Credentials:
    ```bash
-   make install
+   gcloud auth application-default login
    ```
-4. Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY`, `ADMIN_KEY`, and Razorpay test keys. The default `.env.example` values point at the local Firestore emulator; see the comments in that file to target real Cloud Firestore instead. Also copy `.env.example.frontend` to `frontend/.env`
 
-5. Run all services (Firestore emulator, FastAPI backend, React frontend):
+2. **Container Build & Deploy**:
+   Build and deploy backend & frontend containers using Google Cloud Build / Cloud Run:
    ```bash
-   make start        # or ./start.sh
+   gcloud run deploy marketwave-backend --source ./backend --region us-central1 --allow-unauthenticated
    ```
-   The frontend is served at `http://localhost:5173` and the FastAPI docs at `http://localhost:8000/docs`.
 
-   Run `make help` to see individual dev targets (`make dev-backend`, `make dev-frontend`, `make dev-emulator`).
+---
 
-## Notes
-- News is fetched live from the Finnhub API; Google News RSS scraping only runs as a local-dev fallback (Cloud Run blocks it).
-- `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `ADMIN_KEY`, and Razorpay test keys should be set in a `.env` file or as environment variables — see `.env.example`.
-- User, watchlist, and article data are stored in Cloud Firestore in production; local development can run against the Firestore emulator instead (no code changes needed, just env vars).
+## 🧪 Testing
 
-## Tech Stack
-- React 19 (Vite + TypeScript) frontend
-- FastAPI backend
-- Google Cloud Firestore (Cloud Run in production; local emulator for dev)
-- Google Gemini via the `google-antigravity` agent SDK
-- Finnhub (news), YahooQuery (stock prices)
-- Razorpay (subscriptions/payments)
-- Pandas, NumPy
-- Deployed on Google Cloud Run (`globepulseai.com`)
+Run backend unit and integration test suites:
+```bash
+python3 -m unittest discover -s backend -p "test_*.py"
+python3 -m unittest tests/test_agentic_flow.py
+```
 
-## Architecture
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full architecture, information-flow diagrams, and explanation.
+---
 
-![Current architecture](docs/diagrams/01_current_architecture.png)
+## 📁 Repository Structure
+
+```
+MarketWave/
+├── backend/
+│   ├── agents/
+│   │   ├── orchestrator.py      # Orchestrator & sub-agent configurations
+│   │   ├── tools.py             # Agent tools (news fetcher, stock history)
+│   │   └── triggers.py          # Hourly autonomous watchdog trigger
+│   ├── config.py                # Pydantic Settings & environment parsing
+│   ├── database.py              # Cloud Firestore & fallback JSON persistence
+│   ├── functions.py             # Stock metrics, aggregations & password hashers
+│   ├── google_auth.py           # Google Sign-In ID token verification
+│   ├── main.py                  # FastAPI REST endpoints & WebSocket handlers
+│   ├── pipeline.py              # Ingestion, scraping & 18-topic sentiment scoring
+│   ├── subscription.py          # Razorpay payment orders & signature checks
+│   └── requirements.txt         # Python dependencies
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AgentChat.tsx              # Copilot with real-time thought log drawer
+│   │   │   ├── AuthForms.tsx              # Login & signup with Google Auth
+│   │   │   ├── Dashboard.tsx              # Main sentiment intelligence dashboard
+│   │   │   ├── DataWidgets.tsx            # Sector heatmap & top movers
+│   │   │   ├── Heatmap.tsx                # 18-topic sentiment matrix table
+│   │   │   ├── IngestActivity.tsx         # Live ingestion activity broadcaster
+│   │   │   ├── OverallSentiment.tsx       # Market gauge meter
+│   │   │   ├── StockPriceSentimentTab.tsx # Composed price & sentiment chart
+│   │   │   ├── SubscriptionModal.tsx      # Razorpay payment modal
+│   │   │   └── Watchlist.tsx              # Watchlist manager
+│   │   ├── App.tsx                        # Root application & routing
+│   │   ├── config.ts                      # Frontend environment config
+│   │   └── types.ts                       # Shared TypeScript interfaces
+│   └── package.json
+├── databricks_notebooks/        # Scraper, Sentiment & RAG notebooks
+├── docs/                        # Architecture specs & flow diagrams
+├── tests/                       # End-to-end integration tests
+├── Makefile                     # Build & run automation
+├── start.sh                     # Service startup script
+├── stop.sh                      # Service shutdown script
+└── README.md
+```
+
+---
+
+## 📄 License & Attribution
+
+Built for the **Google Gemini & Antigravity Agent Hackathon**. Powered by Google Gemini and Google Antigravity SDK.
