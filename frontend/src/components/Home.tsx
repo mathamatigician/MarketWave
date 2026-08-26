@@ -4,7 +4,8 @@ export function Home({ onEnter }: { onEnter: () => void }) {
   return (
     <div className="flex flex-col h-full justify-center items-center text-center animate-in fade-in zoom-in duration-700 py-12">
       <div className="mb-8">
-        <Activity className="w-24 h-24 md:w-32 md:h-32 text-emerald-500 dark:text-[#00FF94] mx-auto mb-6" />
+        {/* <Activity className="w-24 h-24 md:w-32 md:h-32 text-emerald-500 dark:text-[#00FF94] mx-auto mb-6" /> */}
+        <img src="/favicon.svg" alt="MarketWave Logo" className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-6" />
         <h1 className="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-4 dark:text-white text-slate-950">
           MarketWave<span className="text-emerald-500 dark:text-[#00FF94]">AI</span>
         </h1>

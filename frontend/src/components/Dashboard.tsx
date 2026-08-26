@@ -215,7 +215,7 @@ export function Dashboard({ email }: DashboardProps) {
   if (loading && stocksData.length === 0) {
     return (
       <div className="flex h-[calc(100vh-160px)] items-center justify-center flex-col gap-4 text-slate-400 dark:text-slate-500">
-        <Activity className="w-8 h-8 animate-pulse text-[#00FF94]" />
+        <img src="/favicon.svg" alt="MarketWave Logo" className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
         <p className="font-mono text-sm uppercase tracking-widest">Accessing Firestore datastore...</p>
       </div>
     );
