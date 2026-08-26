@@ -75,33 +75,6 @@ export function Contact() {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-start gap-4">
-            <div className="p-3 dark:bg-white/10 bg-slate-200 rounded-sm shrink-0">
-              <Mail className="w-5 h-5 sm:w-6 sm:h-6 dark:text-[#00FF94] text-emerald-600" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest dark:text-white/40 text-slate-500 mb-1 font-bold">Direct Dispatch</div>
-              <div className="font-mono text-xs sm:text-sm">support@globepulseai.com</div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="p-3 dark:bg-white/10 bg-slate-200 rounded-sm shrink-0">
-              <LinkedinIcon className="w-5 h-5 sm:w-6 sm:h-6 dark:text-[#00FF94] text-emerald-600" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest dark:text-white/40 text-slate-500 mb-1 font-bold">LinkedIn Network</div>
-              <a 
-                href="https://www.linkedin.com/company/globepulse-ai/?viewAsMember=true" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="font-mono text-xs sm:text-sm text-emerald-600 dark:text-[#00FF94] hover:underline font-bold transition-colors break-all flex items-center gap-1 mt-0.5"
-              >
-                <span>linkedin.com/company/globepulse-ai</span>
-              </a>
-            </div>
-          </div>
         </div>
         
         <div>
