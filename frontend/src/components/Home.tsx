@@ -1,4 +1,4 @@
-import { Activity, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export function Home({ onEnter }: { onEnter: () => void }) {
   return (

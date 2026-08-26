@@ -5,7 +5,7 @@ import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity } from './IngestActivity';
-import { Activity, RefreshCcw } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL } from '../config';
 

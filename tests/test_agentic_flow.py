@@ -44,11 +44,12 @@ class TestAgenticFlow(unittest.TestCase):
         mock_get_history.assert_called_once_with('TSLA', '30d', interval='1d')
 
     def test_agent_configurations(self):
+        from config import settings
         # Verify orchestrator and sub-agents configurations loaded correctly
-        self.assertEqual(orchestrator_config.model, 'gemini-2.5-flash')
+        self.assertEqual(orchestrator_config.model, settings.agent_model)
         self.assertTrue(orchestrator_config.capabilities.enable_subagents)
-        self.assertEqual(research_agent_config.model, 'gemini-2.5-flash')
-        self.assertEqual(sentiment_analyst_config.model, 'gemini-2.5-flash')
+        self.assertEqual(research_agent_config.model, settings.agent_model)
+        self.assertEqual(sentiment_analyst_config.model, settings.agent_model)
         self.assertIsNotNone(sentiment_analyst_config.response_schema)
 
     @patch('backend.agents.triggers.database.load_all_watchlist_tickers')
