@@ -451,13 +451,10 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
 
 @app.post("/api/pipeline/run")
 def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = None, admin_key: Optional[str] = Query(None)):
-    if ticker and ticker not in database.load_all_watchlist_tickers():
-        # Unrecognized ticker string: the cooldown dict alone doesn't stop a
-        # scripted caller from bypassing rate-limiting by varying the ticker
-        # on every request (each new string gets its own fresh cooldown
-        # entry). Only a ticker that's actually on some user's watchlist
-        # gets the no-admin-key fast path; anything else falls through to
-        # the same admin-gated path as an unscoped run.
+    all_watchlists = database.load_all_watchlist_tickers()
+    valid_watchlist_entries = set(all_watchlists) | {COMPANY_TICKER_MAP.get(t) for t in all_watchlists if COMPANY_TICKER_MAP.get(t)}
+    if ticker and ticker not in valid_watchlist_entries:
+        # Unrecognized ticker string: only tickers on user watchlists get the fast path
         ticker = None
 
     if ticker:
