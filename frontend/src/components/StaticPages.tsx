@@ -12,7 +12,7 @@ export function About() {
   return (
     <div className="max-w-4xl mx-auto w-full animate-in fade-in duration-500 py-8 sm:py-12">
       <label className="text-[11px] uppercase tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-4 sm:mb-6">About the Engine</label>
-      <h2 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter mb-8 sm:mb-12">GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">AI</span></h2>
+      <h2 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase italic tracking-tighter mb-8 sm:mb-12">MarketWave<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">AI</span></h2>
       
       <div className="grid md:grid-cols-2 gap-8 sm:gap-12 dark:text-white/80 text-slate-700">
         <div className="space-y-6">
@@ -95,7 +95,7 @@ export function Contact() {
 export function FAQ() {
   const faqs = [
     {
-      q: "What defines GlobePulseAI's sentiment score?",
+      q: "What defines MarketWaveAI's sentiment score?",
       a: "Our sentiment score ranges from -1.0 (extremely bearish) to +1.0 (extremely bullish). It is compiled by our advanced agentic pipelines (Orchestrator, ResearchAgent, SentimentAnalyst, and MarketCorrelator) reading from Firestore datastores. A score > 0.15 indicates bullish divergence; < -0.15 signals bearish pressure."
     },
     {

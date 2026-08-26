@@ -21,7 +21,7 @@ export const AgentChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: "👋 Welcome to GlobePulseAI.\n\nI'm your intelligent financial copilot designed to help you analyze markets, understand stock movements, monitor watchlists, summarize financial news, compare companies, and generate AI-powered investment insights.\n\nAsk me anything about the markets." 
+      content: "👋 Welcome to MarketWaveAI.\n\nI'm your intelligent financial copilot designed to help you analyze markets, understand stock movements, monitor watchlists, summarize financial news, compare companies, and generate AI-powered investment insights.\n\nAsk me anything about the markets." 
     }
   ]);
   const [input, setInput] = useState('');

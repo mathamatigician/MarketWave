@@ -97,7 +97,7 @@ export const Watchlist: React.FC<WatchlistProps> = ({ email, activeWatchlist, on
     <div className="glass-card flex flex-col h-full p-6 text-slate-200">
       <div className="flex items-center gap-3 mb-6">
         <span className="text-2xl">🌍</span>
-        <h2 className="text-xl font-bold tracking-tight text-white m-0">GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
+        <h2 className="text-xl font-bold tracking-tight text-white m-0">MarketWave<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></h2>
       </div>
 
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Watchlist Tickers</h3>

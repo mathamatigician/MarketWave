@@ -136,7 +136,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        name: 'GlobePulseAI',
+        name: 'MarketWaveAI',
         description: `${orderData.plan_name} Subscription`,
         image: 'https://i.postimg.cc/hvqBYt93/newspulse.gif',
         order_id: orderData.order_id,
@@ -214,7 +214,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           </button>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] text-xs font-mono font-bold uppercase tracking-widest mb-2 sm:mb-3">
-            <Sparkles className="w-3.5 h-3.5" /> GlobePulse Pricing Plans
+            <Sparkles className="w-3.5 h-3.5" /> MarketWave Pricing Plans
           </div>
           <h2 className="text-xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
             Choose Your AI Intelligence Tier

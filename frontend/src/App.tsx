@@ -131,7 +131,7 @@ export default function App() {
           <button onClick={() => handleNavigate('home')} className="text-left group flex-shrink-0">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase flex items-center gap-2 sm:gap-3 group-hover:opacity-80 transition-opacity">
               <Activity className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-[#00FF94] dark:text-[#00FF94] text-emerald-500 animate-pulse" />
-              GlobePulse<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">AI</span>
+              MarketWave<span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">AI</span>
             </h1>
             <p className="text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] dark:text-white/40 text-slate-500 mt-0.5 sm:mt-1 font-mono">Sentiment Ingestion Engine v2.5</p>
           </button>
@@ -375,12 +375,12 @@ export default function App() {
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 rounded-full dark:hover:bg-white/10 hover:bg-slate-200 text-slate-500 dark:text-white/60 hover:text-emerald-500 dark:hover:text-[#00FF94] transition-colors"
-              title="GlobePulseAI on LinkedIn"
+              title="MarketWaveAI on LinkedIn"
             >
               <LinkedinIcon className="w-4 h-4" />
             </a>
             <p className="text-[10px] dark:text-white/20 text-slate-400 font-mono uppercase tracking-widest text-center sm:text-right">
-              GlobePulseAI &copy; {new Date().getFullYear()}
+              MarketWaveAI &copy; {new Date().getFullYear()}
             </p>
           </div>
         </footer>
@@ -391,11 +391,11 @@ export default function App() {
         <button
           onClick={() => setIsAgentOpen(true)}
           className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 p-3.5 sm:p-4 rounded-full bg-slate-900 dark:bg-white text-white dark:text-black shadow-[0_0_15px_#00FF94] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:scale-105 transition-transform flex items-center justify-center z-40 group"
-          title="Open GlobePulseAI Assistant"
+          title="Open MarketWaveAI Assistant"
         >
           <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce" />
           <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 font-black uppercase text-[10px] tracking-widest pl-0 group-hover:pl-2">
-            GlobePulseAI
+            MarketWaveAI
           </span>
         </button>
       )}

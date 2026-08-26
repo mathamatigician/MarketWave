@@ -85,7 +85,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
           rating,
           comment: comment.trim(),
           user_name: name.trim() || 'Anonymous User',
-          user_email: email.trim() || 'anonymous@globepulseai.com'
+          user_email: email.trim() || 'anonymous@MarketWaveAI.com'
         })
       });
 
@@ -179,7 +179,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
   const getDomainFromEmail = (emailStr: string) => {
     if (!emailStr || !emailStr.includes('@')) return null;
     const domain = emailStr.split('@')[1];
-    if (domain === 'globepulse.com' || domain === 'globepulseai.com' || domain === 'example.com') return null;
+    if (domain === 'globepulse.com' || domain === 'MarketWaveAI.com' || domain === 'example.com') return null;
     return domain;
   };
 
@@ -212,7 +212,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
             User Feedback & <span className="text-[#00FF94] dark:text-[#00FF94] text-emerald-500">Insights</span>
           </h1>
           <p className="text-xs sm:text-sm dark:text-white/60 text-slate-600 mt-1 max-w-xl">
-            Help us continuously refine GlobePulseAI. Share your terminal experience and browse feedback from institutional operators.
+            Help us continuously refine MarketWaveAI. Share your terminal experience and browse feedback from institutional operators.
           </p>
         </div>
 
