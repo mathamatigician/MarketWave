@@ -116,7 +116,7 @@ export default function App() {
       case 'faq':
         return <FAQ />;
       case 'feedback':
-        return <Feedback user={user} />;
+        return FEATURES.feedback ? <Feedback user={user} /> : <Home onEnter={() => handleNavigate(user ? 'dashboard' : 'signin')} />;
       default:
         return <Home onEnter={() => handleNavigate(user ? 'dashboard' : 'signin')} />;
     }
@@ -160,12 +160,14 @@ export default function App() {
               Dashboard
             </button>
 
-            <button
-              onClick={() => handleNavigate('feedback')}
-              className={`text-[11px] font-black uppercase tracking-widest ${view === 'feedback' ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 pb-1' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors pb-1'}`}
-            >
-              Feedback
-            </button>
+            {FEATURES.feedback && (
+              <button
+                onClick={() => handleNavigate('feedback')}
+                className={`text-[11px] font-black uppercase tracking-widest ${view === 'feedback' ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 pb-1' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors pb-1'}`}
+              >
+                Feedback
+              </button>
+            )}
 
             <div className="w-px h-4 dark:bg-white/20 bg-slate-300"></div>
 
@@ -269,12 +271,14 @@ export default function App() {
               >
                 📊 Dashboard
               </button>
-              <button
-                onClick={() => handleNavigate('feedback')}
-                className={`p-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-left transition-colors ${view === 'feedback' ? 'bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] border border-emerald-500/20' : 'hover:bg-slate-100 dark:hover:bg-white/5'}`}
-              >
-                💬 Feedback
-              </button>
+              {FEATURES.feedback && (
+                <button
+                  onClick={() => handleNavigate('feedback')}
+                  className={`p-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-left transition-colors ${view === 'feedback' ? 'bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] border border-emerald-500/20' : 'hover:bg-slate-100 dark:hover:bg-white/5'}`}
+                >
+                  💬 Feedback
+                </button>
+              )}
               <button
                 onClick={() => handleNavigate('about')}
                 className={`p-2.5 text-xs font-bold uppercase tracking-wider rounded-lg text-left transition-colors ${view === 'about' ? 'bg-emerald-500/10 text-emerald-600 dark:text-[#00FF94] border border-emerald-500/20' : 'hover:bg-slate-100 dark:hover:bg-white/5'}`}
@@ -349,12 +353,14 @@ export default function App() {
             >
               Contact
             </button>
-            <button
-              onClick={() => handleNavigate('feedback')}
-              className={`text-[10px] uppercase tracking-widest ${view === 'feedback' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}
-            >
-              Feedback
-            </button>
+            {FEATURES.feedback && (
+              <button
+                onClick={() => handleNavigate('feedback')}
+                className={`text-[10px] uppercase tracking-widest ${view === 'feedback' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}
+              >
+                Feedback
+              </button>
+            )}
             <button
               onClick={() => handleNavigate('faq')}
               className={`text-[10px] uppercase tracking-widest ${view === 'faq' ? 'dark:text-white text-slate-900 font-bold' : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'} transition-colors`}

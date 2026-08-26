@@ -12,9 +12,11 @@ export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 // Feature flag settings to enable/disable frontend features
 export interface FeatureFlags {
   pricing: boolean;
+  feedback: boolean;
 }
 
 export const FEATURES: FeatureFlags = {
   pricing: import.meta.env.VITE_ENABLE_PRICING !== 'false',
+  feedback: import.meta.env.VITE_ENABLE_FEEDBACK !== 'false',
 };
 
