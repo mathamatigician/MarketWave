@@ -1,17 +1,37 @@
 import os
+import sys
 import json
 import logging
 from typing import List, Dict, Optional, Any
 
+try:
+    from config import settings
+except ImportError:
+    try:
+        from backend.config import settings
+    except ImportError:
+        settings = None
+
 logger = logging.getLogger("GemmaService")
 
-HF_TOKEN = os.environ.get("HF_TOKEN") or ""
-GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "google/gemma-2-9b-it:featherless-ai")
+
+def get_token() -> str:
+    token = os.environ.get("HF_TOKEN")
+    if not token and settings:
+        token = getattr(settings, "hf_token", None)
+    return token or ""
+
+
+def get_model_name() -> str:
+    model = os.environ.get("GEMMA_MODEL")
+    if not model and settings:
+        model = getattr(settings, "gemma_model", None)
+    return model or "google/gemma-2-9b-it:featherless-ai"
 
 
 def get_hf_client():
-    """Initializes the Hugging Face InferenceClient if HF_TOKEN is configured."""
-    token = os.environ.get("HF_TOKEN") or HF_TOKEN
+    """Initializes the Hugging Face InferenceClient if token is available."""
+    token = get_token()
     if not token:
         return None
     try:
@@ -75,7 +95,7 @@ Summary: {summary[:300]}
 """
 
     try:
-        model_id = os.environ.get("GEMMA_MODEL", GEMMA_MODEL)
+        model_id = get_model_name()
         messages = [{"role": "user", "content": prompt}]
         response = client.chat.completions.create(
             model=model_id,
@@ -123,7 +143,7 @@ Do not include fluff or intros. Return only the 1-sentence summary.
 """
 
     try:
-        model_id = os.environ.get("GEMMA_MODEL", GEMMA_MODEL)
+        model_id = get_model_name()
         messages = [{"role": "user", "content": prompt}]
         response = client.chat.completions.create(
             model=model_id,
@@ -151,6 +171,11 @@ async def gemma_generate_flash_briefing(tickers: List[str], headlines_by_ticker:
     context_lines = []
     for ticker in tickers[:5]:
         headlines = headlines_by_ticker.get(ticker, [])
+        if not headlines:
+            for k, v in headlines_by_ticker.items():
+                if k.lower() == ticker.lower():
+                    headlines = v
+                    break
         if headlines:
             context_lines.append(f"[{ticker}]: " + " | ".join(headlines[:2]))
 
@@ -164,23 +189,27 @@ Based on these latest news headlines across the portfolio:
 
 Generate a bulleted executive flash briefing.
 Return a valid JSON array of objects with keys:
-- "ticker": ticker symbol (e.g. "TSLA")
+- "ticker": company or ticker name matching the items provided (e.g. {tickers[:3]})
 - "bullet": 1 concise, actionable takeaway sentence on that ticker's current catalyst.
 """
 
     try:
-        model_id = os.environ.get("GEMMA_MODEL", GEMMA_MODEL)
+        model_id = get_model_name()
         messages = [{"role": "user", "content": prompt}]
         response = client.chat.completions.create(
             model=model_id,
             messages=messages,
-            max_tokens=300,
+            max_tokens=400,
             temperature=0.2
         )
         content = response.choices[0].message.content.strip()
         parsed = _extract_json(content)
-        if isinstance(parsed, list):
+        if isinstance(parsed, list) and len(parsed) > 0:
             return parsed
+        elif isinstance(parsed, dict):
+            if "briefing" in parsed and isinstance(parsed["briefing"], list):
+                return parsed["briefing"]
+            return [{"ticker": k, "bullet": str(v)} for k, v in parsed.items()]
         return default_briefing
     except Exception as e:
         logger.warning(f"Gemma flash briefing generation failed: {e}")

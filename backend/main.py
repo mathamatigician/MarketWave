@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import asyncio
 import logging
 import time
 from typing import List, Optional, Dict
@@ -620,15 +621,34 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
     # Gather recent headlines by ticker from Firestore
     headlines_by_ticker = {}
     try:
-        articles = database.load_articles()
-        for a in articles:
-            company = a.get("company", "")
-            sym = database.COMPANY_TICKER_MAP.get(company, company)
-            title = a.get("title", "")
-            if sym and title:
-                headlines_by_ticker.setdefault(sym, []).append(title)
-    except Exception:
-        pass
+        if database.db is not None:
+            docs = database.db.collection("articles").limit(50).stream()
+            for doc in docs:
+                a = doc.to_dict()
+                company = a.get("company_name") or a.get("company") or ""
+                sym = database.COMPANY_TICKER_MAP.get(company, company)
+                text = a.get("content") or a.get("title") or ""
+                if text:
+                    if sym:
+                        headlines_by_ticker.setdefault(sym, []).append(text[:250])
+                    if company:
+                        headlines_by_ticker.setdefault(company, []).append(text[:250])
+    except Exception as e:
+        logger.error(f"Error reading articles for briefing: {e}")
+
+    # Fetch live headlines for any ticker that doesn't have stored articles yet
+    for t in tickers[:4]:
+        if not headlines_by_ticker.get(t):
+            sym = database.COMPANY_TICKER_MAP.get(t, t)
+            try:
+                live_items = await asyncio.to_thread(pipeline.fetch_news_items, sym, limit=2)
+                for item in live_items:
+                    title = item.get("title", "")
+                    if title:
+                        headlines_by_ticker.setdefault(t, []).append(title)
+                        headlines_by_ticker.setdefault(sym, []).append(title)
+            except Exception:
+                pass
 
     briefing = await gemma_service.gemma_generate_flash_briefing(tickers, headlines_by_ticker)
     return {
