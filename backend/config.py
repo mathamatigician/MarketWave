@@ -27,6 +27,9 @@ try:
         gemma_model: str = "google/gemma-2-9b-it"
         market_news_poll_seconds: int = 60
         gemma_briefing_debounce_seconds: int = 10
+        news_fetch_timeout_seconds: int = 10
+        news_fetch_max_retries: int = 3
+        ticker_ingest_timeout_seconds: int = 45
         # Hackathon demo guardrail: total registered users (existing + new
         # signups) allowed before /api/signup and first-time Google sign-in
         # both start rejecting new accounts. 14 = 9 already registered as of
@@ -58,6 +61,9 @@ except ImportError:
         gemma_model: str = "google/gemma-2-9b-it"
         market_news_poll_seconds: int = 60
         gemma_briefing_debounce_seconds: int = 10
+        news_fetch_timeout_seconds: int = 10
+        news_fetch_max_retries: int = 3
+        ticker_ingest_timeout_seconds: int = 45
         max_total_users: int = 14
 
         class Config:

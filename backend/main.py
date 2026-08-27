@@ -472,13 +472,9 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
 
 @app.get("/api/pipeline/status")
 def get_pipeline_status():
-    """Returns current status of the background ingestion scheduler."""
+    """Returns comprehensive runtime status of the background ingestion scheduler."""
     scheduler = get_scheduler()
-    return {
-        "scheduler_running": scheduler.is_running,
-        "poll_interval_seconds": scheduler.poll_interval,
-        "in_progress_tickers": list(scheduler._in_progress_tickers)
-    }
+    return scheduler.get_status()
 
 @app.post("/api/pipeline/run")
 def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = None, admin_key: Optional[str] = Query(None)):

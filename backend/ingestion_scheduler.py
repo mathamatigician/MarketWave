@@ -43,6 +43,10 @@ class MarketNewsScheduler:
         self._cycle_lock = asyncio.Lock()
         self._ticker_lock = asyncio.Lock()
         self._in_progress_tickers: Set[str] = set()
+        self._last_cycle_time: Optional[float] = None
+        self._last_cycle_duration: Optional[float] = None
+        self._last_cycle_articles_count: int = 0
+        self._last_error: Optional[str] = None
 
     @property
     def poll_interval(self) -> int:
@@ -66,6 +70,19 @@ class MarketNewsScheduler:
     @property
     def is_running(self) -> bool:
         return self._running and self._task is not None and not self._task.done()
+
+    def get_status(self) -> Dict[str, Any]:
+        """Returns comprehensive runtime status of the scheduler."""
+        return {
+            "scheduler_running": self.is_running,
+            "poll_interval_seconds": self.poll_interval,
+            "in_progress_tickers": list(self._in_progress_tickers),
+            "scheduler_health": "healthy" if self.is_running else "stopped",
+            "last_cycle_timestamp": int(self._last_cycle_time) if self._last_cycle_time else None,
+            "last_cycle_duration_seconds": self._last_cycle_duration,
+            "last_cycle_articles_count": self._last_cycle_articles_count,
+            "last_error": self._last_error
+        }
 
     def is_ticker_in_progress(self, ticker: str) -> bool:
         """Checks if a given ticker or company name is currently being ingested."""
@@ -192,7 +209,7 @@ class MarketNewsScheduler:
 
             # 3. Process each ticker
             for ticker in tickers:
-                if not self._running:
+                if self._task and not self._running:
                     break
 
                 # Acquire ticker lock
@@ -208,21 +225,37 @@ class MarketNewsScheduler:
                         "timestamp": int(time.time())
                     })
 
-                    new_items = await pipeline.ingest_news_for_ticker(
-                        ticker=ticker,
-                        existing_urls=existing_urls,
-                        on_activity=self._emit,
-                        limit=5
+                    ticker_timeout = getattr(settings, "ticker_ingest_timeout_seconds", 45) if settings else 45
+                    new_items = await asyncio.wait_for(
+                        pipeline.ingest_news_for_ticker(
+                            ticker=ticker,
+                            existing_urls=existing_urls,
+                            on_activity=self._emit,
+                            limit=5
+                        ),
+                        timeout=float(ticker_timeout)
                     )
                     count = len(new_items)
                     total_new_articles += count
                     results_by_ticker[ticker] = count
                     logger.info(f"Ticker '{ticker}' ingestion finished: {count} new articles.")
-                except Exception as e:
-                    logger.error(f"Error ingesting news for ticker '{ticker}': {e}", exc_info=True)
+                except asyncio.TimeoutError:
+                    ticker_timeout = getattr(settings, "ticker_ingest_timeout_seconds", 45) if settings else 45
+                    logger.warning(f"Ticker '{ticker}' ingestion timed out after {ticker_timeout}s.")
                     await self._emit({
                         "type": "ingestion_error",
                         "ticker": ticker,
+                        "error_type": "timeout",
+                        "detail": f"Ingestion timed out after {ticker_timeout}s",
+                        "timestamp": int(time.time())
+                    })
+                except Exception as e:
+                    logger.error(f"Error ingesting news for ticker '{ticker}': {e}", exc_info=True)
+                    self._last_error = f"{ticker}: {e}"
+                    await self._emit({
+                        "type": "ingestion_error",
+                        "ticker": ticker,
+                        "error_type": "exception",
                         "detail": str(e),
                         "timestamp": int(time.time())
                     })
@@ -230,11 +263,15 @@ class MarketNewsScheduler:
                     await self.unmark_ticker_in_progress(ticker)
 
             duration = round(time.time() - start_time, 2)
+            self._last_cycle_time = start_time
+            self._last_cycle_duration = duration
+            self._last_cycle_articles_count = total_new_articles
             logger.info(f"Ingestion cycle completed in {duration}s. {total_new_articles} new articles saved.")
             await self._emit({
                 "type": "ingestion_cycle_completed",
                 "tickers": tickers,
                 "new_articles_count": total_new_articles,
+                "duration_seconds": duration,
                 "timestamp": int(time.time())
             })
 

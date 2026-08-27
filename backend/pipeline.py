@@ -77,7 +77,7 @@ def fetch_news_items(ticker: str, limit: int = 5) -> list:
 
 
 def _fetch_news_items_finhub(ticker: str, limit: int) -> list:
-    """Fetches recent news items from Finnhub's /company-news endpoint.
+    """Fetches recent news items from Finnhub's /company-news endpoint with bounded retries.
 
     `ticker` here is this app's company-name space (e.g. "Tesla"), resolved
     to a real market symbol via database.COMPANY_TICKER_MAP -- Finnhub
@@ -88,97 +88,121 @@ def _fetch_news_items_finhub(ticker: str, limit: int) -> list:
     symbol = database.COMPANY_TICKER_MAP.get(ticker, ticker)
     to_date = datetime.now(timezone.utc).date()
     from_date = to_date - timedelta(days=7)
+    token = settings.finhub_api_key if settings else None
+    if not token:
+        logger.warning(f"Finnhub API key not configured for ticker {ticker} ({symbol}).")
+        return []
+
     url = (
         "https://finnhub.io/api/v1/company-news"
         f"?symbol={requests.utils.quote(symbol)}"
         f"&from={from_date.isoformat()}&to={to_date.isoformat()}"
-        f"&token={settings.finhub_api_key}"
+        f"&token={token}"
     )
 
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            print(f"Failed to fetch Finnhub news for {ticker} ({symbol}): HTTP {r.status_code}")
+    timeout = getattr(settings, "news_fetch_timeout_seconds", 10) if settings else 10
+    max_retries = getattr(settings, "news_fetch_max_retries", 3) if settings else 3
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                articles = r.json()
+                if not isinstance(articles, list):
+                    logger.warning(f"Unexpected Finnhub response format for {ticker} ({symbol}): {type(articles)}")
+                    return []
+
+                articles.sort(key=lambda a: a.get('datetime', 0), reverse=True)
+
+                items = []
+                for art in articles[:limit]:
+                    article_url = art.get('url') or ''
+                    if not article_url:
+                        continue
+
+                    unix_ts = art.get('datetime')
+                    try:
+                        dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) if unix_ts else None
+                        date_str = f"{dt.month}/{dt.day}/{dt.year}" if dt else ""
+                    except Exception:
+                        date_str = ""
+
+                    items.append({
+                        'title': art.get('headline') or '',
+                        'google_link': article_url,
+                        'date': date_str
+                    })
+                return items
+            elif r.status_code == 429 or 500 <= r.status_code <= 504:
+                logger.warning(f"Finnhub attempt {attempt}/{max_retries} for {ticker} ({symbol}) received HTTP {r.status_code}.")
+                if attempt < max_retries:
+                    time.sleep(0.5 * (2 ** (attempt - 1)))
+            else:
+                logger.error(f"Failed to fetch Finnhub news for {ticker} ({symbol}): HTTP {r.status_code}")
+                return []
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.warning(f"Finnhub attempt {attempt}/{max_retries} for {ticker} ({symbol}) network error: {e}")
+            if attempt < max_retries:
+                time.sleep(0.5 * (2 ** (attempt - 1)))
+        except Exception as e:
+            logger.error(f"Error fetching Finnhub news for {ticker} ({symbol}): {e}")
             return []
-
-        articles = r.json()
-        if not isinstance(articles, list):
-            print(f"Unexpected Finnhub response shape for {ticker} ({symbol}): {articles}")
-            return []
-
-        # Most recent first, capped at `limit` before anything reaches the
-        # cleaning/scoring agents downstream -- keeps per-run agent-call
-        # cost bounded the same way the previous Google RSS path was.
-        articles.sort(key=lambda a: a.get('datetime', 0), reverse=True)
-
-        items = []
-        for art in articles[:limit]:
-            article_url = art.get('url') or ''
-            if not article_url:
-                continue
-
-            unix_ts = art.get('datetime')
-            try:
-                dt = datetime.fromtimestamp(unix_ts, tz=timezone.utc) if unix_ts else None
-                date_str = f"{dt.month}/{dt.day}/{dt.year}" if dt else ""
-            except Exception:
-                date_str = ""
-
-            items.append({
-                'title': art.get('headline') or '',
-                # Field name kept as 'google_link' for compatibility with
-                # resolve_and_scrape_article's caller (run_pipeline) -- it
-                # holds a real, direct article URL here, not a Google News
-                # redirect. resolve_and_scrape_article's gnewsdecoder step
-                # already falls back to using the URL as-is when it isn't a
-                # decodable Google redirect, so no change needed there.
-                'google_link': article_url,
-                'date': date_str
-            })
-        return items
-    except Exception as e:
-        print(f"Error fetching Finnhub news for {ticker} ({symbol}): {e}")
-        return []
+    return []
 
 
 def _fetch_news_items_google_rss(ticker: str, limit: int = 5) -> list:
-    """Fetches recent news items from Google News RSS feed for a ticker.
+    """Fetches recent news items from Google News RSS feed for a ticker with bounded retries.
 
-    Local-dev fallback only when no FINHUB_API_KEY is configured -- see
-    fetch_news_items's docstring for why this is blocked on Cloud Run.
+    Local-dev fallback only when no FINHUB_API_KEY is configured.
     """
     query = f"{ticker} stock"
     url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=en-US&gl=US&ceid=US:en"
+    timeout = getattr(settings, "news_fetch_timeout_seconds", 10) if settings else 10
+    max_retries = getattr(settings, "news_fetch_max_retries", 3) if settings else 3
 
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            print(f"Failed to fetch Google News RSS for {ticker}: HTTP {r.status_code}")
+    for attempt in range(1, max_retries + 1):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                try:
+                    root = ET.fromstring(r.text)
+                except ET.ParseError as pe:
+                    logger.warning(f"Malformed RSS XML for {ticker}: {pe}")
+                    return []
+
+                items = []
+                for item in root.findall('.//item')[:limit]:
+                    title = item.find('title').text if item.find('title') is not None else ""
+                    link = item.find('link').text if item.find('link') is not None else ""
+                    pub_date_raw = item.find('pubDate').text if item.find('pubDate') is not None else ""
+
+                    try:
+                        dt = parsedate_to_datetime(pub_date_raw)
+                        date_str = f"{dt.month}/{dt.day}/{dt.year}"
+                    except Exception:
+                        date_str = ""
+
+                    items.append({
+                        'title': title,
+                        'google_link': link,
+                        'date': date_str
+                    })
+                return items
+            elif 500 <= r.status_code <= 504:
+                logger.warning(f"Google RSS attempt {attempt}/{max_retries} for {ticker} received HTTP {r.status_code}.")
+                if attempt < max_retries:
+                    time.sleep(0.5 * (2 ** (attempt - 1)))
+            else:
+                logger.warning(f"Failed to fetch Google News RSS for {ticker}: HTTP {r.status_code}")
+                return []
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.warning(f"Google RSS attempt {attempt}/{max_retries} for {ticker} network error: {e}")
+            if attempt < max_retries:
+                time.sleep(0.5 * (2 ** (attempt - 1)))
+        except Exception as e:
+            logger.error(f"Error fetching RSS for {ticker}: {e}")
             return []
-
-        root = ET.fromstring(r.text)
-        items = []
-        for item in root.findall('.//item')[:limit]:
-            title = item.find('title').text if item.find('title') is not None else ""
-            link = item.find('link').text if item.find('link') is not None else ""
-            pub_date_raw = item.find('pubDate').text if item.find('pubDate') is not None else ""
-
-            # Convert date
-            try:
-                dt = parsedate_to_datetime(pub_date_raw)
-                date_str = f"{dt.month}/{dt.day}/{dt.year}"
-            except Exception:
-                date_str = ""
-
-            items.append({
-                'title': title,
-                'google_link': link,
-                'date': date_str
-            })
-        return items
-    except Exception as e:
-        print(f"Error fetching RSS for {ticker}: {e}")
-        return []
+    return []
 
 def resolve_and_scrape_article(google_link: str) -> tuple:
     """Decodes Google News redirect URL and scrapes article body text."""
