@@ -706,19 +706,27 @@ def submit_feedback(req: FeedbackRequest):
 
 # --- Google Gemma Hybrid AI Endpoints ---
 
+def _get_active_gemma_display_name() -> str:
+    raw_model = gemma_service.get_model_name()
+    if "gemma-3" in raw_model:
+        return "Google Gemma 3 (12B)"
+    elif "gemma-2" in raw_model:
+        return "Google Gemma 2 (9B)"
+    return raw_model
+
 @app.post("/api/gemma/triage")
 async def gemma_triage_endpoint(req: GemmaTriageRequest):
-    """Uses Google Gemma 2 to classify headline market impact and relevance score."""
+    """Uses Google Gemma to classify headline market impact and relevance score."""
     result = await gemma_service.gemma_triage_news(req.title, req.summary or "", req.ticker or "")
     return {
         "status": "success",
-        "model": "Google Gemma 2 (9B)",
+        "model": _get_active_gemma_display_name(),
         "triage": result
     }
 
 @app.post("/api/gemma/briefing")
 async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
-    """Generates a 60-second executive flash market briefing using Google Gemma 2."""
+    """Generates a 60-second executive flash market briefing using Google Gemma."""
     tickers = []
     if req.email:
         try:
@@ -767,21 +775,22 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
                 pass
 
     current_ts = int(time.time())
+    active_model = _get_active_gemma_display_name()
     briefing = await gemma_service.gemma_generate_flash_briefing(tickers, headlines_by_ticker)
 
     if briefing is None:
         return {
             "status": "error",
-            "model": "Google Gemma 2 (9B)",
+            "model": active_model,
             "briefing": None,
-            "message": "Gemma 2 (9B) inference unavailable or failed.",
+            "message": f"{active_model} inference unavailable or failed.",
             "timestamp": current_ts
         }
 
     if len(briefing) == 0:
         return {
             "status": "no_data",
-            "model": "Google Gemma 2 (9B)",
+            "model": active_model,
             "briefing": [],
             "message": "No new market catalysts found for active watchlist.",
             "timestamp": current_ts
@@ -789,7 +798,7 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
 
     return {
         "status": "success",
-        "model": "Google Gemma 2 (9B)",
+        "model": active_model,
         "briefing": briefing,
         "timestamp": current_ts
     }

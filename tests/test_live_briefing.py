@@ -131,7 +131,7 @@ class TestLiveBriefing(unittest.IsolatedAsyncioTestCase):
             response = await gemma_briefing_endpoint(req)
 
             self.assertEqual(response["status"], "success")
-            self.assertEqual(response["model"], "Google Gemma 2 (9B)")
+            self.assertIn("Gemma", response["model"])
             self.assertEqual(response["briefing"], mock_briefing_result)
             self.assertIn("timestamp", response)
             self.assertIsInstance(response["timestamp"], int)

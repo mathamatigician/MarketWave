@@ -5,6 +5,7 @@ import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity, type ActivityEvent } from './IngestActivity';
+import { GemmaMarketIntelligence } from './GemmaMarketIntelligence';
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS, API_REQUEST_TIMEOUT_MS } from '../config';
@@ -101,6 +102,7 @@ export function Dashboard({ email }: DashboardProps) {
   const [briefingTimestamp, setBriefingTimestamp] = useState<number | null>(null);
   const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
   const [briefingError, setBriefingError] = useState<string | null>(null);
+  const [briefingModelName, setBriefingModelName] = useState<string>('Google Gemma 3 (12B)');
 
   const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
   const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
@@ -135,6 +137,9 @@ export function Dashboard({ email }: DashboardProps) {
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.model) {
+          setBriefingModelName(data.model);
+        }
         if (data.status === 'success' && Array.isArray(data.briefing) && data.briefing.length > 0) {
           setBriefing(data.briefing);
           setBriefingTimestamp(data.timestamp ? data.timestamp * 1000 : Date.now());
@@ -144,7 +149,7 @@ export function Dashboard({ email }: DashboardProps) {
           setBriefingStatus('live');
           setBriefingError(null);
         } else if (data.status === 'error') {
-          setBriefingError(data.message || "Gemma 2 (9B) synthesis temporarily unavailable.");
+          setBriefingError(data.message || "Gemma synthesis temporarily unavailable.");
           setBriefingStatus('error');
         }
       } else {
@@ -547,7 +552,7 @@ export function Dashboard({ email }: DashboardProps) {
                   <div className="pl-6 text-[11px] text-rose-200/90 font-medium flex flex-wrap items-center gap-2 bg-red-900/20 p-2 rounded border border-red-500/20">
                     <span>💡 <strong>Breaking Catalyst:</strong> {alert.catalyst}</span>
                     <span className="bg-purple-900/50 border border-purple-400/40 text-purple-200 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ml-auto">
-                      ⚡ Google Gemma 2
+                      ⚡ {briefingModelName || 'Google Gemma'}
                     </span>
                   </div>
                 )}
@@ -556,72 +561,12 @@ export function Dashboard({ email }: DashboardProps) {
         </div>
       )}
 
-      {/* ⚡ Gemma 60-Second Executive Flash Briefing Card */}
-      <div className="bg-gradient-to-r from-purple-950/30 to-slate-900/40 border border-purple-500/30 rounded-xl p-4 sm:p-5 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">⚡</span>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold tracking-tight text-white">Gemma 60s Executive Briefing</h3>
-                <span className="bg-purple-500/20 border border-purple-400/30 text-purple-300 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
-                  Google Gemma 2 (9B)
-                </span>
-                {(loadingBriefing || briefingStatus === 'updating') && (
-                  <span className="flex items-center gap-1.5 bg-purple-900/60 border border-purple-400/40 text-purple-200 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
-                    Live Synthesis...
-                  </span>
-                )}
-                {briefingTimestamp && !loadingBriefing && briefingStatus !== 'updating' && (
-                  <span className="text-[10px] font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-700/50">
-                    Updated: {format(new Date(briefingTimestamp), 'HH:mm:ss')}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400">Instant AI market digest synthesized across your active watchlist.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => fetchBriefing(true)}
-            disabled={loadingBriefing}
-            className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold tracking-wide transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-1.5 shrink-0"
-          >
-            <RefreshCcw className={`w-3 h-3 ${loadingBriefing ? 'animate-spin' : ''}`} />
-            {loadingBriefing ? 'Synthesizing...' : 'Generate Flash Briefing'}
-          </button>
-        </div>
-
-        {briefingError && briefing.length > 0 && (
-          <div className="bg-amber-950/40 border border-amber-500/30 rounded-lg p-2.5 my-2 text-amber-200 text-xs flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{briefingError}</span>
-          </div>
-        )}
-
-        {briefing.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-purple-500/20">
-            {briefing.map((item, i) => (
-              <div key={i} className="bg-slate-900/80 border border-purple-500/20 rounded-lg p-3 text-xs flex flex-col gap-1">
-                <span className="font-mono font-bold text-emerald-400 text-[11px] uppercase tracking-wider">{item.ticker}</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed">{item.bullet}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-slate-500 text-[11px] italic mt-1">
-            {loadingBriefing
-              ? 'Synthesizing latest watchlist news with Google Gemma 2...'
-              : 'Click "Generate Flash Briefing" or wait for real-time news ingestion to synthesize watchlist catalysts.'}
-          </p>
-        )}
-      </div>
-
-      {/* Dashboard Header with Real WebSocket Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      {/* Market Overview Header with Real WebSocket Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <label className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-1">Market Overview</label>
+          <label className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-1">
+            Market Overview
+          </label>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 sm:gap-6">
@@ -665,7 +610,7 @@ export function Dashboard({ email }: DashboardProps) {
       </div>
 
       {/* Tabs Selection Header */}
-      <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-6 overflow-x-auto shrink-0 pb-1 scrollbar-none">
+      <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-4 overflow-x-auto shrink-0 pb-1 scrollbar-none">
         <button 
           onClick={() => setDashboardTab('sentiment')}
           className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
@@ -690,29 +635,55 @@ export function Dashboard({ email }: DashboardProps) {
 
       {/* Main Content Areas based on Tab selection */}
       {dashboardTab === 'sentiment' ? (
-        <div className="grid grid-cols-12 gap-6 lg:gap-8 animate-in fade-in duration-300">
-          <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 sm:gap-8">
-            <OverallSentiment overallScore={overallScore} trendLabel={trendLabel} watchlistStocks={stocksData} />
-            <TopStocks 
-              email={email}
-              watchlist={watchlist} 
-              stocksData={stocksData} 
-              alerts={alerts}
-              onWatchlistChange={handleWatchlistChange} 
-              onSelectStock={setSelectedStock} 
-              onRunPipeline={handleRunPipeline}
-              pipelineRunning={pipelineRunning}
-            />
-            <IngestActivity events={activityEvents} />
+        <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+          {/* 1. Core Market Metrics Row (Current Market Mood + Topic Distribution) */}
+          <div className="grid grid-cols-12 gap-6 lg:gap-8">
+            <div className="col-span-12 lg:col-span-6">
+              <OverallSentiment overallScore={overallScore} trendLabel={trendLabel} watchlistStocks={stocksData} />
+            </div>
+
+            <div className="col-span-12 lg:col-span-6 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
+              <SectorHeatmap 
+                heatmapData={heatmapData} 
+                watchlist={watchlist}
+                selectedTicker={selectedHeatmapTicker}
+                onSelectTicker={setSelectedHeatmapTicker}
+              />
+            </div>
           </div>
 
-          <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
-            <SectorHeatmap 
-              heatmapData={heatmapData} 
-              watchlist={watchlist}
-              selectedTicker={selectedHeatmapTicker}
-              onSelectTicker={setSelectedHeatmapTicker}
-            />
+          {/* 2. ⚡ Gemma AI Market Intelligence (Native Analytical Workspace Module) */}
+          <GemmaMarketIntelligence 
+            briefing={briefing}
+            loading={loadingBriefing}
+            briefingStatus={briefingStatus}
+            briefingError={briefingError}
+            briefingTimestamp={briefingTimestamp}
+            modelName={briefingModelName}
+            connectionStatus={connectionStatus}
+            stocksData={stocksData}
+            overallScore={overallScore}
+            trendLabel={trendLabel}
+            onRefresh={() => fetchBriefing(true)}
+          />
+
+          {/* 3. Watchlist Equities Management & Ingest Activity Stream */}
+          <div className="grid grid-cols-12 gap-6 lg:gap-8">
+            <div className="col-span-12 lg:col-span-7 flex flex-col gap-6">
+              <TopStocks 
+                email={email}
+                watchlist={watchlist} 
+                stocksData={stocksData} 
+                alerts={alerts}
+                onWatchlistChange={handleWatchlistChange} 
+                onSelectStock={setSelectedStock} 
+                onRunPipeline={handleRunPipeline}
+                pipelineRunning={pipelineRunning}
+              />
+            </div>
+            <div className="col-span-12 lg:col-span-5">
+              <IngestActivity events={activityEvents} />
+            </div>
           </div>
         </div>
       ) : (
