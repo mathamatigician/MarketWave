@@ -6,14 +6,14 @@ BACKEND_PORT=8000
 FRONTEND_PORT=5173
 
 # Clean up or initialize PID file
-> .globepulse.pids
+> .marketwave.pids
 
 check_port() {
   lsof -i:$1 -t -sTCP:LISTEN >/dev/null 2>&1
 }
 
 echo "============================================="
-echo "🚀 Starting GlobePulse Platform Services..."
+echo "🚀 Starting MarketWave Platform Services..."
 echo "============================================="
 
 # Auto-create .env from .env.example if missing
@@ -37,9 +37,9 @@ if check_port $EMULATOR_PORT; then
 else
   echo "Starting Firestore Emulator..."
   [ -d "/opt/homebrew/opt/openjdk@21/bin" ] && export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"
-  npx -y firebase-tools@latest emulators:start --only firestore --project globepulse-demo > firestore-emulator.log 2>&1 &
+  npx -y firebase-tools@latest emulators:start --only firestore --project marketwave-demo > firestore-emulator.log 2>&1 &
   EMULATOR_PID=$!
-  echo "EMULATOR_PID=$EMULATOR_PID" >> .globepulse.pids
+  echo "EMULATOR_PID=$EMULATOR_PID" >> .marketwave.pids
   echo "👉 Firestore Emulator started (PID: $EMULATOR_PID)"
   
   # Wait for emulator to listen on EMULATOR_PORT before starting backend
@@ -59,7 +59,7 @@ else
   echo "Starting FastAPI Backend..."
   $PYTHON_CMD -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload --reload-dir backend > backend.log 2>&1 &
   BACKEND_PID=$!
-  echo "BACKEND_PID=$BACKEND_PID" >> .globepulse.pids
+  echo "BACKEND_PID=$BACKEND_PID" >> .marketwave.pids
   echo "👉 FastAPI Backend started (PID: $BACKEND_PID)"
 fi
 
@@ -70,7 +70,7 @@ else
   echo "Starting Frontend Dev Server..."
   npx --prefix frontend vite frontend --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
   FRONTEND_PID=$!
-  echo "FRONTEND_PID=$FRONTEND_PID" >> .globepulse.pids
+  echo "FRONTEND_PID=$FRONTEND_PID" >> .marketwave.pids
   echo "👉 Frontend Dev Server started (PID: $FRONTEND_PID)"
 fi
 

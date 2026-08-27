@@ -126,7 +126,7 @@ set/unset to switch:
 
 ```bash
 # --- Local dev (Firestore emulator) — default ---
-FIRESTORE_PROJECT_ID=globepulse-demo
+FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 
 # --- Cloud (real Firestore) — remove the line above, set these instead ---

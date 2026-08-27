@@ -179,7 +179,7 @@ export function Feedback({ user }: { user: UserProps | null }) {
   const getDomainFromEmail = (emailStr: string) => {
     if (!emailStr || !emailStr.includes('@')) return null;
     const domain = emailStr.split('@')[1];
-    if (domain === 'globepulse.com' || domain === 'MarketWaveAI.com' || domain === 'example.com') return null;
+    if (domain === 'marketwave.com' || domain === 'marketwaveai.com' || domain === 'example.com') return null;
     return domain;
   };
 

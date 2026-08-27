@@ -6,7 +6,7 @@
 
 ## Goal & Scope
 
-Make MarketWave reachable on the real internet at `globepulseai.com`, replacing
+Make MarketWave reachable on the real internet at `marketwaveai.com`, replacing
 "runs on a developer's laptop" with a deployed, publicly reachable service —
 end to end: containerize both the FastAPI backend and the React frontend,
 deploy both to Cloud Run, move secrets out of local `.env` files into Secret
@@ -17,14 +17,14 @@ hard-fail in cloud mode) is done — see the linked spec, implemented in PR #15.
 
 ## Current State (baseline)
 
-- **GCP project**: `globepulse-ai` is provisioned — billing linked, Firestore
+- **GCP project**: `marketwave-ai` is provisioned — billing linked, Firestore
   Native database live in `asia-south1`, deny-all `firestore.rules` deployed.
   Nothing else exists in the project yet: no Cloud Run, no Artifact Registry
   images, no Secret Manager secrets, no custom service accounts. (Project ID
-  predates confirming the real domain is `globepulseai.com`, not `.ai` —
+  predates confirming the real domain is `marketwaveai.com`, not `.ai` —
   kept as-is; it's an internal label with no functional dependency on the
   domain name.)
-- **Domain**: `globepulseai.com` is registered at Hostinger and fully
+- **Domain**: `marketwaveai.com` is registered at Hostinger and fully
   delegated (`artemis.dns-parking.com` / `hermes.dns-parking.com`). The apex
   and `www` both currently point at Hostinger's default parking page
   (`2.57.91.91`). No MX or TXT records exist — nothing to preserve.
@@ -40,8 +40,8 @@ hard-fail in cloud mode) is done — see the linked spec, implemented in PR #15.
   `frontend/src/config.ts` derives the backend origin as
   `${window.location.protocol}//${window.location.hostname}:8000` — correct
   only because both currently run on the same machine on port 8000. Under a
-  subdomain split (`api.globepulseai.com` separate from
-  `www.globepulseai.com`) this resolves to the wrong host entirely, and
+  subdomain split (`api.marketwaveai.com` separate from
+  `www.marketwaveai.com`) this resolves to the wrong host entirely, and
   production traffic isn't on port 8000 at all.
   Two components bypass this shared config and hardcode the URL directly:
   `frontend/src/components/SubscriptionModal.tsx` (4 call sites,
@@ -66,26 +66,26 @@ hard-fail in cloud mode) is done — see the linked spec, implemented in PR #15.
 
 ## Architecture
 
-Two independent Cloud Run services in `globepulse-ai`, region `asia-south1`
+Two independent Cloud Run services in `marketwave-ai`, region `asia-south1`
 (same region as Firestore, minimizing latency and matching the
 ₹-priced-Razorpay rationale from Phase 1):
 
 ```
-                              globepulseai.com
-                              www.globepulseai.com
+                              marketwaveai.com
+                              www.marketwaveai.com
                                       │
                                       ▼
                      ┌────────────────────────────────┐
-                     │   Cloud Run: globepulse-frontend │
+                     │   Cloud Run: marketwave-frontend │
                      │   nginx serving the Vite build   │
                      │   (public, no GCP API access)    │
                      └────────────────────────────────┘
                                       │
                                       │ REST + WebSocket
-                                      │ (browser → api.globepulseai.com)
+                                      │ (browser → api.marketwaveai.com)
                                       ▼
                      ┌────────────────────────────────┐
-                     │   Cloud Run: globepulse-backend  │
+                     │   Cloud Run: marketwave-backend  │
                      │   FastAPI/uvicorn                │
                      │   service account:               │
                      │     roles/datastore.user          │
@@ -96,13 +96,13 @@ Two independent Cloud Run services in `globepulse-ai`, region `asia-south1`
                     ┌─────────────┼─────────────┐
                     ▼             ▼             ▼
               Cloud Firestore  Secret Manager  Gemini API
-              (globepulse-ai,  (4 app secrets)
+              (marketwave-ai,  (4 app secrets)
                asia-south1)
 
-                     api.globepulseai.com
+                     api.marketwaveai.com
                               │
                               ▼
-                     (same globepulse-backend service)
+                     (same marketwave-backend service)
 ```
 
 Both services are public (`--allow-unauthenticated`) — the browser calls the
@@ -262,7 +262,7 @@ Add:
 
 to both `Settings` class bodies (same pattern as every other setting in the
 file). In production this gets overridden via Cloud Run env var to
-`https://globepulseai.com,https://www.globepulseai.com`.
+`https://marketwaveai.com,https://www.marketwaveai.com`.
 
 ### 8. `backend/main.py` — read CORS origins from settings
 
@@ -308,28 +308,28 @@ backend/requirements.txt`.
 Documented steps — not all executed as part of writing this spec; the
 implementation plan turns these into concrete, testable tasks.
 
-1. Enable required APIs on `globepulse-ai`: `run.googleapis.com`,
+1. Enable required APIs on `marketwave-ai`: `run.googleapis.com`,
    `artifactregistry.googleapis.com`, `secretmanager.googleapis.com`,
    `iam.googleapis.com`.
 2. Create the backend's dedicated service account:
    ```
-   gcloud iam service-accounts create globepulse-backend \
-     --project=globepulse-ai \
+   gcloud iam service-accounts create marketwave-backend \
+     --project=marketwave-ai \
      --display-name="MarketWave backend runtime"
    ```
 3. Create the 4 secrets (empty shells; the user adds real values themselves,
    not pasted into any AI session):
    ```
    for s in gemini-api-key admin-key razorpay-key-id razorpay-key-secret; do
-     gcloud secrets create "$s" --project=globepulse-ai --replication-policy=automatic
+     gcloud secrets create "$s" --project=marketwave-ai --replication-policy=automatic
    done
    ```
-   Then, for each: `gcloud secrets versions add <name> --project=globepulse-ai --data-file=-`
+   Then, for each: `gcloud secrets versions add <name> --project=marketwave-ai --data-file=-`
    (typed/pasted interactively by the user, not by the agent).
 4. Grant the service account access to each secret and to Firestore:
    ```
-   gcloud projects add-iam-policy-binding globepulse-ai \
-     --member="serviceAccount:globepulse-backend@globepulse-ai.iam.gserviceaccount.com" \
+   gcloud projects add-iam-policy-binding marketwave-ai \
+     --member="serviceAccount:marketwave-backend@marketwave-ai.iam.gserviceaccount.com" \
      --role="roles/datastore.user"
    # + roles/secretmanager.secretAccessor on each of the 4 secrets individually
    ```
@@ -363,18 +363,18 @@ implementation plan turns these into concrete, testable tasks.
    > (previously crashed before binding `$PORT`), and both existing test
    > suites (`test_config.py`, `test_firestore_mode.py`) still pass 8/8.
 5. ✅ **Live as of 2026-08-15** at
-   `https://globepulse-backend-946730643709.asia-south1.run.app` (`/docs`
+   `https://marketwave-backend-946730643709.asia-south1.run.app` (`/docs`
    returns HTTP 200). Deploy the backend from source (Cloud Build handles
    the container build — no local Docker needed). `--source=backend` makes
    `backend/` the build context, so it finds `backend/Dockerfile` as that
    context's `Dockerfile`:
    ```
-   gcloud run deploy globepulse-backend \
+   gcloud run deploy marketwave-backend \
      --source=backend \
      --region=asia-south1 \
-     --project=globepulse-ai \
-     --service-account=globepulse-backend@globepulse-ai.iam.gserviceaccount.com \
-     --set-env-vars="^##^FIRESTORE_PROJECT_ID=globepulse-ai##ALLOWED_ORIGINS=https://globepulseai.com,https://www.globepulseai.com" \
+     --project=marketwave-ai \
+     --service-account=marketwave-backend@marketwave-ai.iam.gserviceaccount.com \
+     --set-env-vars="^##^FIRESTORE_PROJECT_ID=marketwave-ai##ALLOWED_ORIGINS=https://marketwaveai.com,https://www.marketwaveai.com" \
      --allow-unauthenticated
    ```
    > **Two gotchas hit on the real deploy:** (1) run this from a checkout at
@@ -396,22 +396,22 @@ implementation plan turns these into concrete, testable tasks.
    > ADC, unlike a local Docker test with no ADC available). Once real
    > secret values exist, bind them without a full redeploy:
    > ```
-   > gcloud run services update globepulse-backend \
-   >   --region=asia-south1 --project=globepulse-ai \
+   > gcloud run services update marketwave-backend \
+   >   --region=asia-south1 --project=marketwave-ai \
    >   --update-secrets=GEMINI_API_KEY=gemini-api-key:latest,ADMIN_KEY=admin-key:latest,RAZORPAY_KEY_ID=razorpay-key-id:latest,RAZORPAY_KEY_SECRET=razorpay-key-secret:latest
    > ```
    Note: no `FIRESTORE_EMULATOR_HOST` is set, which (per the Phase 1 design)
    puts the deployed backend in cloud mode automatically.
 6. ✅ **Live as of 2026-08-15** at
-   `https://globepulse-frontend-946730643709.asia-south1.run.app` (HTTP 200,
-   bundle confirmed to contain `api.globepulseai.com`). ~~Deploy the
+   `https://marketwave-frontend-946730643709.asia-south1.run.app` (HTTP 200,
+   bundle confirmed to contain `api.marketwaveai.com`). ~~Deploy the
    frontend via `--source=frontend --set-build-env-vars=...`~~ —
    **confirmed broken 2026-08-15: `--set-build-env-vars` is NOT forwarded as
    Docker `--build-arg` for a Dockerfile-based `--source` deploy.** The
    deploy succeeds and looks fine, but the bundle silently ships with the
    `window.location.hostname` fallback instead of the real API URL — a
    broken production frontend with no error anywhere. Verified by grepping
-   the deployed JS bundle for `api.globepulseai.com`: zero matches after a
+   the deployed JS bundle for `api.marketwaveai.com`: zero matches after a
    `--set-build-env-vars` deploy, present after the fallback below. **Use
    the local-build-and-push fallback directly, every time, for this repo:**
    ```
@@ -420,16 +420,16 @@ implementation plan turns these into concrete, testable tasks.
    docker build \
      --platform linux/amd64 \
      --provenance=false \
-     --build-arg VITE_API_URL=https://api.globepulseai.com \
-     --build-arg VITE_WS_URL=wss://api.globepulseai.com \
-     -t asia-south1-docker.pkg.dev/globepulse-ai/cloud-run-source-deploy/globepulse-frontend:manual-fix \
+     --build-arg VITE_API_URL=https://api.marketwaveai.com \
+     --build-arg VITE_WS_URL=wss://api.marketwaveai.com \
+     -t asia-south1-docker.pkg.dev/marketwave-ai/cloud-run-source-deploy/marketwave-frontend:manual-fix \
      --push \
      frontend
 
-   gcloud run deploy globepulse-frontend \
-     --image=asia-south1-docker.pkg.dev/globepulse-ai/cloud-run-source-deploy/globepulse-frontend:manual-fix \
+   gcloud run deploy marketwave-frontend \
+     --image=asia-south1-docker.pkg.dev/marketwave-ai/cloud-run-source-deploy/marketwave-frontend:manual-fix \
      --region=asia-south1 \
-     --project=globepulse-ai \
+     --project=marketwave-ai \
      --port=8080 \
      --allow-unauthenticated
    ```
@@ -446,18 +446,18 @@ implementation plan turns these into concrete, testable tasks.
    for the real domain — a clean `gcloud run deploy` exit code proves
    nothing about whether the build args landed.
 7. Verify domain ownership with Google (required before domain mapping will
-   succeed) via Search Console or `gcloud domains verify globepulseai.com`.
+   succeed) via Search Console or `gcloud domains verify marketwaveai.com`.
 8. Create the domain mappings:
    ```
-   gcloud run domain-mappings create --service=globepulse-backend --domain=api.globepulseai.com --region=asia-south1 --project=globepulse-ai
-   gcloud run domain-mappings create --service=globepulse-frontend --domain=globepulseai.com --region=asia-south1 --project=globepulse-ai
-   gcloud run domain-mappings create --service=globepulse-frontend --domain=www.globepulseai.com --region=asia-south1 --project=globepulse-ai
+   gcloud run domain-mappings create --service=marketwave-backend --domain=api.marketwaveai.com --region=asia-south1 --project=marketwave-ai
+   gcloud run domain-mappings create --service=marketwave-frontend --domain=marketwaveai.com --region=asia-south1 --project=marketwave-ai
+   gcloud run domain-mappings create --service=marketwave-frontend --domain=www.marketwaveai.com --region=asia-south1 --project=marketwave-ai
    ```
    Each command prints the exact DNS records (CNAME for the two subdomains,
    a fixed A/AAAA set for the apex) to add at Hostinger — these are
    generated per-mapping, not knowable in advance, and get handed to the
    user verbatim when this step runs.
-9. Add those records in Hostinger hPanel → Domains → globepulseai.com → DNS
+9. Add those records in Hostinger hPanel → Domains → marketwaveai.com → DNS
    records. No existing MX/TXT records exist to preserve.
 10. Wait for the managed SSL certificate to provision (Cloud Run handles
     this automatically once DNS resolves correctly — typically minutes to a
@@ -472,16 +472,16 @@ implementation plan turns these into concrete, testable tasks.
   the default value).
 - Manual smoke-test checklist after deploying (not automated — hits live
   billed resources):
-  1. `curl https://api.globepulseai.com/api/subscription/plans` returns the
+  1. `curl https://api.marketwaveai.com/api/subscription/plans` returns the
      plans list (confirms the backend is up and Firestore cloud mode works).
-  2. Load `https://globepulseai.com` in a browser, confirm the dashboard
-     renders and network requests go to `api.globepulseai.com`, not
+  2. Load `https://marketwaveai.com` in a browser, confirm the dashboard
+     renders and network requests go to `api.marketwaveai.com`, not
      `localhost`.
   3. Sign up a throwaway account through the deployed frontend, confirm the
      user document appears in the real Firestore console.
   4. Open the agent chat, confirm the WebSocket connects to
-     `wss://api.globepulseai.com/ws/chat` and streams a response.
-  5. Confirm `https://www.globepulseai.com` also loads (both frontend
+     `wss://api.marketwaveai.com/ws/chat` and streams a response.
+  5. Confirm `https://www.marketwaveai.com` also loads (both frontend
      domain mappings).
 
 ## Risks / Notes
@@ -496,7 +496,7 @@ implementation plan turns these into concrete, testable tasks.
 - Secret values are never handled by the agent/AI session — only secret
   *names* and the `gcloud` commands to set them are specified here. The
   user adds real values directly.
-- The `www.globepulseai.com` and `globepulseai.com` apex both map to the
+- The `www.marketwaveai.com` and `marketwaveai.com` apex both map to the
   same frontend service — no separate redirect logic needed, Cloud Run
   domain mappings handle both independently at the DNS level.
 
@@ -510,6 +510,6 @@ implementation plan turns these into concrete, testable tasks.
   admin-key-gated `/api/pipeline/run` endpoint).
 - Autoscaling/concurrency tuning beyond Cloud Run defaults.
 - Monitoring/alerting dashboards beyond Cloud Run's built-in metrics.
-- Granting `SUNILMVVK`/`mathamatigician` any IAM access to `globepulse-ai`
+- Granting `SUNILMVVK`/`mathamatigician` any IAM access to `marketwave-ai`
   (deferred in Phase 1, still deferred here — deploys are performed by the
   project owner).

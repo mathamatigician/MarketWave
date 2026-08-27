@@ -16,7 +16,7 @@ try:
         google_api_key: Optional[str] = None
         finhub_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
@@ -50,7 +50,7 @@ except ImportError:
         google_api_key: Optional[str] = None
         finhub_api_key: Optional[str] = None
         agent_model: str = "gemini-3.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None

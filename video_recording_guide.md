@@ -36,7 +36,7 @@ Follow these guidelines to prepare a high-quality video capture.
    * **Tab 1**: The running React app at `http://localhost:5173`. Start at the **Sign Up / Log In** screen.
    * **Tab 2**: `ARCHITECTURE.md` on GitHub (or a Markdown previewer) showing the Mermaid architecture diagrams. Optionally keep the FastAPI docs at `http://localhost:8000/docs` handy.
 4. **Prepare Account Credentials**:
-   Use the seeded demo account `demo1@globepulse.com` (password: `password123`) or register a fresh account on screen to demonstrate the sign-up / login flow.
+   Use the seeded demo account `demo1@marketwave.com` (password: `password123`) or register a fresh account on screen to demonstrate the sign-up / login flow.
 
 ---
 
@@ -68,7 +68,7 @@ Follow these guidelines to prepare a high-quality video capture.
 
 ### Section 2: Functional Demo — Ingest & Sentiment Analysis (0:45 - 2:00)
 
-**[Visual: Click 'Sign In'. Type `demo1@globepulse.com` and password `password123`. Click the 'Sign In' button. The app loads the Dashboard.]**
+**[Visual: Click 'Sign In'. Type `demo1@marketwave.com` and password `password123`. Click the 'Sign In' button. The app loads the Dashboard.]**
 
 **Presenter (Voiceover):**
 > "We start with our user authentication layer. The React frontend posts to the FastAPI `/api/login` endpoint, which validates a SHA-256 password hash against Firestore — with a local `users.json` fallback — and returns the user's profile and watchlist. The session is kept in the browser's local storage, so a refresh drops you straight back onto the dashboard.

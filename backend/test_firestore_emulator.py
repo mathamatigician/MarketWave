@@ -17,11 +17,11 @@ def test_emulator():
     try:
         # 1. Test Writing to 'users' collection
         print("\nWriting test user document...")
-        user_ref = database.db.collection("users").document("test_emulator@globepulse.com")
+        user_ref = database.db.collection("users").document("test_emulator@marketwave.com")
         user_ref.set({
             "first_name": "Emulator",
             "last_name": "Tester",
-            "email": "test_emulator@globepulse.com",
+            "email": "test_emulator@marketwave.com",
             "watchlist": "Tesla,Apple,Google"
         })
         print("✅ Document written successfully.")

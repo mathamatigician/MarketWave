@@ -27,9 +27,9 @@ from backend.agents.orchestrator import orchestrator_config
 
 # Initialize Logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("GlobePulseBackend")
+logger = logging.getLogger("MarketWaveBackend")
 
-app = FastAPI(title="GlobePulse API Backend")
+app = FastAPI(title="MarketWave API Backend")
 
 @app.on_event("startup")
 def startup_event():
@@ -676,7 +676,7 @@ class FeedbackRequest(BaseModel):
     rating: str
     comment: str
     user_name: Optional[str] = "Anonymous User"
-    user_email: Optional[str] = "anonymous@globepulseai.com"
+    user_email: Optional[str] = "anonymous@marketwaveai.com"
 
 @app.get("/api/feedback")
 def get_feedback():
@@ -697,7 +697,7 @@ def submit_feedback(req: FeedbackRequest):
         "rating": req.rating,
         "comment": comment,
         "user_name": (req.user_name or "").strip() or "Anonymous User",
-        "user_email": (req.user_email or "").strip() or "anonymous@globepulseai.com",
+        "user_email": (req.user_email or "").strip() or "anonymous@marketwaveai.com",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
     database.save_feedback(feedback_item)

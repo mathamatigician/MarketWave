@@ -17,7 +17,7 @@ Today's auth (`backend/main.py`'s `/api/signup` and `/api/login`) is
 deliberately lightweight: no session tokens or JWTs, no per-request auth
 checks on other endpoints (e.g. `/api/watchlist` trusts whatever `email`
 the client sends). Login returns a JSON user object; the frontend stores
-it directly in `localStorage` (`App.tsx`, key `globepulse_user`) and passes
+it directly in `localStorage` (`App.tsx`, key `marketwave_user`) and passes
 it to `onLoginSuccess`. This design does not change that pattern — Google
 Sign-In slots into the exact same `onLoginSuccess` path so the rest of the
 app (session persistence, logout, per-request identification) needs zero
@@ -375,11 +375,11 @@ OAuth consent screen / client creation at the time of this design):
 
 1. Configure the OAuth consent screen in Google Cloud Console
    (APIs & Services → OAuth consent screen): app name, support email,
-   authorized domain `globepulseai.com`.
+   authorized domain `marketwaveai.com`.
 2. Create an OAuth 2.0 Client ID (APIs & Services → Credentials →
    Create Credentials → OAuth client ID → Web application). Authorized
-   JavaScript origins: `https://globepulseai.com`,
-   `https://www.globepulseai.com`, plus `http://localhost:5173` and
+   JavaScript origins: `https://marketwaveai.com`,
+   `https://www.marketwaveai.com`, plus `http://localhost:5173` and
    `http://localhost:5174` for local dev. No redirect URI needed (the GIS
    button flow doesn't redirect).
 3. The resulting Client ID is public. Set it as:

@@ -83,7 +83,7 @@ flowchart TB
 
 A single-page React app (Vite + TypeScript + Tailwind, `lucide-react` icons).
 
-- **`App.tsx`** — top-level view state machine (`home · dashboard · signin · signup · about · contact · faq`), dark/light theme, and session restore from `localStorage` (`globepulse_user`).
+- **`App.tsx`** — top-level view state machine (`home · dashboard · signin · signup · about · contact · faq`), dark/light theme, and session restore from `localStorage` (`marketwave_user`).
 - **`components/AuthForms.tsx`** — Sign In / Sign Up, backed by `/api/login` and `/api/signup`.
 - **`components/Dashboard.tsx`** — authenticated view that composes the widgets below.
 - **`components/Watchlist.tsx`** — reads/writes the user's watchlist via `/api/watchlist`.
@@ -178,7 +178,7 @@ structure via `response_schema=TopicSentimentSchema`; if Gemini is unavailable t
 falls back to a neutral default so ingestion never hard-fails.
 
 > **Seeding.** On startup, `database.seed_demo_users()` seeds two demo accounts
-> (`demo1@/demo2@globepulse.com`, password `password123`) and a set of mock articles with
+> (`demo1@/demo2@marketwave.com`, password `password123`) and a set of mock articles with
 > realistic sentiment, so the dashboard is populated without running the live scraper.
 > `articles.csv` remains in the repo as a legacy static snapshot of this dataset.
 

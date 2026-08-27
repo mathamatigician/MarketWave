@@ -109,7 +109,7 @@ Open `.env` in your editor and set at least these two values:
 ```bash
 GEMINI_API_KEY="paste-your-gemini-key-here"
 AGENT_MODEL=gemini-2.5-flash
-FIRESTORE_PROJECT_ID=globepulse-demo
+FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 ADMIN_KEY="choose-any-strong-string"       # gates the /api/pipeline/run endpoint
 ```
@@ -201,7 +201,7 @@ Open these in your browser:
 
 Then log in with a seeded demo account to confirm the full stack works:
 
-- **Email:** `demo1@globepulse.com`
+- **Email:** `demo1@marketwave.com`
 - **Password:** `password123`
 
 You should land on the dashboard with a sentiment heatmap and a price/sentiment chart, and the floating **MarketWave AI** button should open a chat that streams a response.

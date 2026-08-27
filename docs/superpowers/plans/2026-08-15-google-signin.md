@@ -42,7 +42,7 @@ In `backend/config.py`, add `google_client_id: str = ""` to **both** `Settings` 
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
@@ -59,7 +59,7 @@ Change it to:
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
@@ -77,7 +77,7 @@ The second occurrence (inside the `except ImportError:` block, `pydantic` v1 fal
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
@@ -95,7 +95,7 @@ Change it to:
         gemini_api_key: Optional[str] = None
         google_api_key: Optional[str] = None
         agent_model: str = "gemini-2.5-flash"
-        firestore_project_id: str = "globepulse-demo"
+        firestore_project_id: str = "marketwave-demo"
         firestore_emulator_host: Optional[str] = None
         allowed_origins: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000"
         admin_key: Optional[str] = None
@@ -868,13 +868,13 @@ docker build \
   --build-arg VITE_API_URL=https://api.example.com \
   --build-arg VITE_WS_URL=wss://api.example.com \
   --build-arg VITE_GOOGLE_CLIENT_ID=test-client-id-12345 \
-  -t globepulse-frontend-signin-test .
-docker run --rm -d -p 8085:8080 --name gp-frontend-signin-test globepulse-frontend-signin-test
+  -t marketwave-frontend-signin-test .
+docker run --rm -d -p 8085:8080 --name gp-frontend-signin-test marketwave-frontend-signin-test
 sleep 2
 JS_FILE=$(curl -s http://localhost:8085/ | grep -oE '/assets/index-[^"]+\.js' | head -1)
 curl -s "http://localhost:8085${JS_FILE}" | grep -c "test-client-id-12345"
 docker stop gp-frontend-signin-test
-docker rmi globepulse-frontend-signin-test
+docker rmi marketwave-frontend-signin-test
 ```
 
 Expected: the `grep -c` line prints `1` or more (the test Client ID string is present in the built bundle), proving the build arg reached the bundle. If it prints `0`, stop and investigate before continuing — don't proceed with a build arg that isn't actually wired through.

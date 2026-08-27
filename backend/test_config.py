@@ -32,13 +32,13 @@ class TestGetAllowedOrigins(unittest.TestCase):
         with patch.object(
             config.settings,
             "allowed_origins",
-            "https://globepulseai.com, https://www.globepulseai.com",
+            "https://marketwaveai.com, https://www.marketwaveai.com",
         ):
             origins = config.get_allowed_origins()
 
         self.assertEqual(origins, [
-            "https://globepulseai.com",
-            "https://www.globepulseai.com",
+            "https://marketwaveai.com",
+            "https://www.marketwaveai.com",
         ])
 
     def test_ignores_empty_entries(self):
@@ -55,7 +55,7 @@ class TestGetLanOriginRegex(unittest.TestCase):
     were being accepted as valid CORS origins against the live backend."""
 
     def test_returns_none_when_running_on_cloud_run(self):
-        with patch.dict(os.environ, {"K_SERVICE": "globepulse-backend"}):
+        with patch.dict(os.environ, {"K_SERVICE": "marketwave-backend"}):
             self.assertIsNone(config.get_lan_origin_regex())
 
     def test_returns_regex_string_when_not_on_cloud_run(self):
@@ -95,9 +95,9 @@ class TestGetLanOriginRegex(unittest.TestCase):
                 self.assertFalse(self._match(origin))
 
     def test_does_not_match_production_domain(self):
-        # globepulseai.com is trusted solely via get_allowed_origins();
+        # marketwaveai.com is trusted solely via get_allowed_origins();
         # this regex must never also match it.
-        self.assertFalse(self._match("https://globepulseai.com"))
+        self.assertFalse(self._match("https://marketwaveai.com"))
 
 
 if __name__ == "__main__":

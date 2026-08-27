@@ -108,13 +108,13 @@ class TestGetAllowedOrigins(unittest.TestCase):
         with patch.object(
             config.settings,
             "allowed_origins",
-            "https://globepulseai.com, https://www.globepulseai.com",
+            "https://marketwaveai.com, https://www.marketwaveai.com",
         ):
             origins = config.get_allowed_origins()
 
         self.assertEqual(origins, [
-            "https://globepulseai.com",
-            "https://www.globepulseai.com",
+            "https://marketwaveai.com",
+            "https://www.marketwaveai.com",
         ])
 
     def test_ignores_empty_entries(self):
@@ -355,8 +355,8 @@ CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
 
 - [ ] **Step 3: Verify the image builds**
 
-Run: `cd backend && docker build -t globepulse-backend-test .`
-Expected: exits 0, ends with `Successfully tagged globepulse-backend-test:latest` (or BuildKit's equivalent final `naming to ... done` line).
+Run: `cd backend && docker build -t marketwave-backend-test .`
+Expected: exits 0, ends with `Successfully tagged marketwave-backend-test:latest` (or BuildKit's equivalent final `naming to ... done` line).
 
 Note: a local `docker run` smoke test is intentionally **not** part of this
 task. The backend's top-level imports (`google.antigravity`, the
@@ -430,9 +430,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 Run:
 ```bash
 cd frontend && docker build \
-  --build-arg VITE_API_URL=https://api.globepulseai.com \
-  --build-arg VITE_WS_URL=wss://api.globepulseai.com \
-  -t globepulse-frontend-test .
+  --build-arg VITE_API_URL=https://api.marketwaveai.com \
+  --build-arg VITE_WS_URL=wss://api.marketwaveai.com \
+  -t marketwave-frontend-test .
 ```
 Expected: exits 0, ends with a successful tag/naming line.
 
@@ -443,10 +443,10 @@ files makes no network calls, no credential lookups, no risk of hanging.
 
 Run:
 ```bash
-docker run -d --name globepulse-frontend-smoketest -p 18080:8080 globepulse-frontend-test
+docker run -d --name marketwave-frontend-smoketest -p 18080:8080 marketwave-frontend-test
 sleep 2
 curl -sf http://localhost:18080/ | grep -o "<title>[^<]*</title>"
-docker stop globepulse-frontend-smoketest && docker rm globepulse-frontend-smoketest
+docker stop marketwave-frontend-smoketest && docker rm marketwave-frontend-smoketest
 ```
 Expected: the `curl` prints the page's `<title>` tag (confirms `index.html`
 is being served, not a 404 or nginx default page), then both cleanup
@@ -473,6 +473,6 @@ services, domain verification, and the `gcloud run domain-mappings create`
 calls that generate the real DNS records for Hostinger — is the spec's
 "Provisioning & Deployment Runbook" section. Those are one-shot
 infrastructure operations, not code with a TDD cycle, so they're executed
-directly against the real `globepulse-ai` project rather than turned into
+directly against the real `marketwave-ai` project rather than turned into
 plan tasks here, the same way Phase 1's GCP project provisioning was
 handled after its own implementation plan finished.

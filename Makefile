@@ -27,7 +27,7 @@ UVICORN = $(if $(filter-out .,$(BIN)),$(BIN)/uvicorn,uvicorn)
 # Default target: show help instructions
 help:
 	@echo "======================================================================="
-	@echo "                       GlobePulse Makefile                             "
+	@echo "                       MarketWave Makefile                             "
 	@echo "======================================================================="
 	@echo "Virtual Environment Config:"
 	@echo "  Detected Bin Directory: $(BIN)"

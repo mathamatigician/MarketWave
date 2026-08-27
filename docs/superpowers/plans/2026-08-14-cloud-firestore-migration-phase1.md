@@ -360,7 +360,7 @@ Replace the current single-mode block:
 ```bash
 GEMINI_API_KEY="your gemini key"
 AGENT_MODEL=gemini-2.5-flash
-FIRESTORE_PROJECT_ID=globepulse-demo
+FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 ADMIN_KEY="your_secure_admin_key_here"
 ```
@@ -373,7 +373,7 @@ AGENT_MODEL=gemini-2.5-flash
 ADMIN_KEY="your_secure_admin_key_here"
 
 # --- Firestore: local dev (emulator) — default, matches today's setup ---
-FIRESTORE_PROJECT_ID=globepulse-demo
+FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 
 # --- Firestore: cloud (real Cloud Firestore) — remove the line above, set these instead ---
@@ -417,7 +417,7 @@ git commit -m "feat(firestore): hard-fail on Firestore errors in cloud mode inst
 Find the `.env` block showing:
 
 ```
-FIRESTORE_PROJECT_ID=globepulse-demo
+FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 ```
 

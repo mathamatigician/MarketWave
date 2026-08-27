@@ -246,10 +246,10 @@ def seed_demo_users():
         pass_hash = hashlib.sha256("password123".encode('utf-8')).hexdigest()
         
         demo_users = {
-            "demo1@globepulse.com": {
+            "demo1@marketwave.com": {
                 "first_name": "John",
                 "last_name": "Doe",
-                "email": "demo1@globepulse.com",
+                "email": "demo1@marketwave.com",
                 "phone": "+1 555-0100",
                 "password_hash": pass_hash,
                 "watchlist": "Tesla,Apple,Google",
@@ -260,10 +260,10 @@ def seed_demo_users():
                     "badge": "PRO"
                 }
             },
-            "demo2@globepulse.com": {
+            "demo2@marketwave.com": {
                 "first_name": "Jane",
                 "last_name": "Smith",
-                "email": "demo2@globepulse.com",
+                "email": "demo2@marketwave.com",
                 "phone": "+1 555-0200",
                 "password_hash": pass_hash,
                 "watchlist": "Microsoft,Nvidia,Amazon",

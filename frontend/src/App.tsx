@@ -40,7 +40,7 @@ export default function App() {
   // Load user session from localStorage on startup
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem('globepulse_user');
+      const storedUser = localStorage.getItem('marketwave_user') || localStorage.getItem('marketwave_user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
         setView('dashboard');
@@ -63,7 +63,7 @@ export default function App() {
 
   const handleLoginSuccess = (loggedInUser: UserInfo) => {
     setUser(loggedInUser);
-    localStorage.setItem('globepulse_user', JSON.stringify(loggedInUser));
+    localStorage.setItem('marketwave_user', JSON.stringify(loggedInUser));
     setView('dashboard');
     setIsMobileMenuOpen(false);
   };
@@ -72,13 +72,14 @@ export default function App() {
     if (user) {
       const updatedUser = { ...user, subscription: newSub };
       setUser(updatedUser);
-      localStorage.setItem('globepulse_user', JSON.stringify(updatedUser));
+      localStorage.setItem('marketwave_user', JSON.stringify(updatedUser));
     }
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('globepulse_user');
+    localStorage.removeItem('marketwave_user');
+    localStorage.removeItem('marketwave_user');
     setView('home');
     setIsAgentOpen(false);
     setIsMobileMenuOpen(false);
@@ -386,7 +387,7 @@ export default function App() {
         <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center dark:bg-white/2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#00FF94] animate-pulse"></span>
-            <span className="text-xs font-black uppercase tracking-widest dark:text-white">GLOBEPULSE<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></span>
+            <span className="text-xs font-black uppercase tracking-widest dark:text-white">MARKETWAVE<span className="text-[#00FF94] dark:text-[#00FF94]">AI</span></span>
           </div>
           <button
             onClick={() => setIsAgentOpen(false)}

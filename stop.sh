@@ -6,12 +6,12 @@ BACKEND_PORT=8000
 FRONTEND_PORT=5173
 
 echo "============================================="
-echo "🛑 Stopping GlobePulse Platform Services..."
+echo "🛑 Stopping MarketWave Platform Services..."
 echo "============================================="
 
-if [ -f .globepulse.pids ]; then
+if [ -f .marketwave.pids ]; then
   # Load saved process IDs
-  source .globepulse.pids
+  source .marketwave.pids
   
   if [ ! -z "$EMULATOR_PID" ]; then
     if kill -0 $EMULATOR_PID 2>/dev/null; then
@@ -34,9 +34,9 @@ if [ -f .globepulse.pids ]; then
     fi
   fi
   
-  rm .globepulse.pids
+  rm .marketwave.pids
 else
-  echo "⚠️  No PID registry (.globepulse.pids) found."
+  echo "⚠️  No PID registry (.marketwave.pids) found."
 fi
 
 # Fallback cleanup check on designated ports
@@ -50,5 +50,5 @@ for port in $EMULATOR_PORT $BACKEND_PORT $FRONTEND_PORT 4000 4400 4500 9150; do
 done
 
 echo "============================================="
-echo "✅ All GlobePulse services stopped."
+echo "✅ All MarketWave services stopped."
 echo "============================================="

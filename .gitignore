@@ -25,7 +25,8 @@ gcp-key.json
 
 # Local data & logs
 *.log
-.globepulse.pids
+.marketwave.pids
+.marketwave.pids
 .claude/
 users.json
 orders.json
