@@ -23,8 +23,10 @@ class TestConsistencyRefresh(unittest.TestCase):
         """Verify multiple ticker history fetches operate concurrently and independently."""
         async def run_concurrent():
             tickers = ["TSLA", "AAPL", "GOOG"]
-            tasks = [get_stock_history_api(ticker=t, period="5d") for t in tickers]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            with patch("backend.main.functions.get_stock_history", return_value=[{"time": "2026-08-27", "value": 250.0}]), \
+                 patch("backend.main.database.db", None):
+                tasks = [get_stock_history_api(ticker=t, period="5d") for t in tickers]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
             return results
 
         results = asyncio.run(run_concurrent())
