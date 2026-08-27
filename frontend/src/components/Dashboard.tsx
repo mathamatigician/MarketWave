@@ -563,10 +563,7 @@ export function Dashboard({ email }: DashboardProps) {
             <span className="text-xl">⚡</span>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold tracking-tight text-white">Gemma 60s Executive Briefing</h3>
-                <span className="bg-purple-500/20 border border-purple-400/30 text-purple-300 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
-                  Google Gemma 2 (9B)
-                </span>
+                <h3 className="text-sm font-bold tracking-tight text-white">Executive Briefing</h3>
                 {(loadingBriefing || briefingStatus === 'updating') && (
                   <span className="flex items-center gap-1.5 bg-purple-900/60 border border-purple-400/40 text-purple-200 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold animate-pulse">
                     <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
