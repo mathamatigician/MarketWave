@@ -1,0 +1,21 @@
+{
+  "name": "marketwave",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MarketWave - Real-Time AI Financial Market Intelligence Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "preview": "npm --prefix frontend run preview"
+  },
+  "keywords": [
+    "marketwave",
+    "financial-intelligence",
+    "gemma",
+    "real-time",
+    "sentiment-analysis"
+  ],
+  "author": "",
+  "license": "ISC"
+}
