@@ -573,7 +573,7 @@ export function Dashboard({ email }: DashboardProps) {
               <>
                 <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#00FF94] shadow-[0_0_8px_rgba(16,185,129,0.5)] dark:shadow-[0_0_8px_#00FF94] animate-pulse"></div>
                 <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-emerald-600 dark:text-[#00FF94] font-semibold">
-                  LIVE (Firestore Stream)
+                  LIVE
                 </span>
               </>
             ) : connectionStatus === 'RECONNECTING' ? (
