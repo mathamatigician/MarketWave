@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { getSentimentColor, formatPrice } from '../lib/utils';
+import { getSentimentColor, formatPrice, getArticleSentimentScore, formatArticleSentiment } from '../lib/utils';
 import { RefreshCw, AlertCircle, Globe, Calendar, Tag } from 'lucide-react';
 import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { API_URL } from '../config';
@@ -8,13 +8,14 @@ interface RecentArticle {
   url: string;
   content: string;
   date: string;
-  sentiment: Record<string, number | null>;
+  sentiment: Record<string, any> | null;
 }
 
 interface StockPriceSentimentTabProps {
   watchlist: string[];
   activeTicker: string;
   onTickerChange: (ticker: string) => void;
+  lastSyncTimestamp?: number | null;
 }
 
 const COMPANY_TICKER_MAP: Record<string, string> = {
@@ -34,7 +35,8 @@ const COMPANY_TICKER_MAP: Record<string, string> = {
 export function StockPriceSentimentTab({
   watchlist,
   activeTicker,
-  onTickerChange
+  onTickerChange,
+  lastSyncTimestamp
 }: StockPriceSentimentTabProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function StockPriceSentimentTab({
 
   useEffect(() => {
     fetchDetail();
-  }, [activeTicker]);
+  }, [activeTicker, lastSyncTimestamp]);
 
   // Combine price series (date, Close) and sentiment series (date, score) for the composed chart
   const chartData = useMemo(() => {
@@ -309,18 +311,17 @@ export function StockPriceSentimentTab({
                     yAxisId="left"
                     type="monotone" 
                     dataKey="close" 
-                    stroke="#4facfe" 
-                    strokeWidth={1.5}
-                    fillOpacity={0.05} 
-                    fill="#4facfe" 
-                    name="Price"
-                    connectNulls={true}
+                    stroke="#00FF94" 
+                    strokeWidth={2}
+                    fillOpacity={0.1} 
+                    fill="#00FF94" 
+                    name="Close Price"
                   />
                   <Bar 
                     yAxisId="right"
                     dataKey="sentiment" 
-                    name="Daily Sentiment" 
-                    barSize={6}
+                    barSize={12}
+                    name="Daily Sentiment"
                   >
                     {chartData.map((entry, index) => {
                       const val = entry.sentiment;
@@ -345,7 +346,9 @@ export function StockPriceSentimentTab({
             ) : (
               <div className="space-y-4">
                 {recentArticles.map((article, i) => {
-                  const overallSent = article.sentiment?.overall_sentiment ?? 0.0;
+                  const score = getArticleSentimentScore(article.sentiment);
+                  const { scoreText, labelText, colorClass } = formatArticleSentiment(score);
+
                   return (
                     <div 
                       key={i} 
@@ -361,9 +364,14 @@ export function StockPriceSentimentTab({
                           <Globe className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate max-w-[400px]">Open Article Source</span>
                         </a>
-                        <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${getSentimentColor(overallSent)} dark:bg-white/5 bg-slate-200`}>
-                          Score: {overallSent >= 0 ? '+' : ''}{overallSent.toFixed(2)}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${colorClass} dark:bg-white/5 bg-slate-200`}>
+                            {scoreText}
+                          </span>
+                          <span className={`text-[10px] font-mono font-bold uppercase ${colorClass}`}>
+                            {labelText}
+                          </span>
+                        </div>
                       </div>
 
                       <p className="text-xs leading-relaxed dark:text-white/70 text-slate-600 font-mono">
@@ -377,12 +385,15 @@ export function StockPriceSentimentTab({
                         </span>
                         
                         {/* Topic Sentiment Badges */}
-                        {Object.entries(article.sentiment || {}).map(([topic, score]) => {
-                          if (topic === 'overall_sentiment' || score === null || Math.abs(score) < 0.1) return null;
+                        {article.sentiment && typeof article.sentiment === 'object' && Object.entries(article.sentiment).map(([topic, val]) => {
+                          if (['overall_sentiment', 'Overall sentiment', 'overallSentiment', 'score'].includes(topic)) return null;
+                          if (val === null || val === undefined || typeof val !== 'number' || Math.abs(val) < 0.1) return null;
+                          const topicColor = val > 0.15 ? 'text-emerald-500 dark:text-[#00FF94]' : val < -0.15 ? 'text-rose-500 dark:text-[#FF3E3E]' : 'text-slate-600 dark:text-slate-300';
                           return (
-                            <span key={topic} className="flex items-center gap-1 dark:bg-white/10 bg-slate-200 px-1.5 py-0.5 rounded text-[9px] text-slate-800 dark:text-slate-300">
+                            <span key={topic} className="flex items-center gap-1 dark:bg-white/10 bg-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono text-slate-800 dark:text-slate-300">
                               <Tag className="w-2.5 h-2.5" />
-                              {topic}: {score >= 0 ? '+' : ''}{score.toFixed(1)}
+                              <span>{topic.replace(/_/g, ' ')}:</span>
+                              <span className={topicColor}>{val >= 0 ? `+${val.toFixed(1)}` : val.toFixed(1)}</span>
                             </span>
                           );
                         })}

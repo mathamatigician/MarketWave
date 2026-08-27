@@ -721,6 +721,7 @@ export function Dashboard({ email }: DashboardProps) {
             watchlist={watchlist}
             activeTicker={selectedChartTicker}
             onTickerChange={setSelectedChartTicker}
+            lastSyncTimestamp={lastSyncTimestamp}
           />
         </div>
       )}

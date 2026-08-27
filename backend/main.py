@@ -467,9 +467,15 @@ async def get_stock_history_api(ticker: str = Query(...), period: str = Query("3
         try:
             allowed = {ticker, resolved_ticker}
             for name, tick in COMPANY_TICKER_MAP.items():
-                if tick == resolved_ticker or name == ticker:
+                if tick == resolved_ticker or name == ticker or tick == ticker or name == resolved_ticker:
                     allowed.add(name)
                     allowed.add(tick)
+            if "GOOG" in allowed or "GOOGL" in allowed or "Google" in allowed:
+                allowed.update(["Google", "GOOG", "GOOGL", "Alphabet"])
+            if "TSLA" in allowed or "Tesla" in allowed:
+                allowed.update(["Tesla", "TSLA"])
+            if "AAPL" in allowed or "Apple" in allowed:
+                allowed.update(["Apple", "AAPL"])
                     
             if database.db is not None:
                 docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
@@ -491,13 +497,38 @@ async def get_stock_history_api(ticker: str = Query(...), period: str = Query("3
                     date_df = functions.transform_sentiment(df)
                     sentiment_series = functions.transform_date_sentiment(date_df)
                     
-                sorted_articles = sorted(raw_articles, key=lambda x: x.get("date", ""), reverse=True)
-                recent_articles = [{
-                    "url": a.get("url"),
-                    "content": a.get("content")[:180] + "..." if len(a.get("content", "")) > 180 else a.get("content", ""),
-                    "date": a.get("date"),
-                    "sentiment": a.get("sentiment", {})
-                } for a in sorted_articles[:3]]
+                def _parse_article_date(d_str):
+                    if not d_str:
+                        return pd.Timestamp.min
+                    try:
+                        return pd.to_datetime(d_str)
+                    except Exception:
+                        return pd.Timestamp.min
+
+                sorted_articles = sorted(raw_articles, key=lambda x: _parse_article_date(x.get("date", "")), reverse=True)
+                
+                recent_articles = []
+                for a in sorted_articles[:10]:
+                    raw_s = a.get("sentiment")
+                    if isinstance(raw_s, str):
+                        try:
+                            s_dict = json.loads(raw_s)
+                        except Exception:
+                            try:
+                                import ast
+                                s_dict = ast.literal_eval(raw_s)
+                            except Exception:
+                                s_dict = {}
+                    elif isinstance(raw_s, dict):
+                        s_dict = raw_s
+                    else:
+                        s_dict = {}
+                    recent_articles.append({
+                        "url": a.get("url"),
+                        "content": a.get("content")[:180] + "..." if len(a.get("content", "")) > 180 else a.get("content", ""),
+                        "date": a.get("date"),
+                        "sentiment": s_dict
+                    })
         except Exception as e:
             logger.error(f"Error parsing sentiment series from Firestore for chart ({ticker}): {e}")
                 
