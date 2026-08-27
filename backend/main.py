@@ -222,29 +222,55 @@ def google_auth(req: GoogleAuthRequest):
     }
 
 @app.get("/api/watchlist")
-def get_watchlist(email: str = Query(...)):
-    users = database.load_users()
+async def get_watchlist(email: str = Query(...)):
+    start_time = time.time()
     email_key = _sanitize_email(email)
-    if email_key not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    watchlist_str = users[email_key].get("watchlist", "")
-    watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
-    return {
-        "watchlist": watchlist,
-        "all_options": list(COMPANY_TICKER_MAP.keys())
-    }
+    logger.info(f"REQUEST START: GET /api/watchlist (email={email_key})")
+    try:
+        users = await asyncio.to_thread(database.load_users)
+        if email_key not in users:
+            duration_ms = round((time.time() - start_time) * 1000, 2)
+            logger.warning(f"REQUEST END: GET /api/watchlist - User not found (email={email_key}) in {duration_ms}ms")
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        watchlist_str = users[email_key].get("watchlist", "")
+        watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"REQUEST END: GET /api/watchlist (email={email_key}, count={len(watchlist)}) in {duration_ms}ms")
+        return {
+            "watchlist": watchlist,
+            "all_options": list(COMPANY_TICKER_MAP.keys())
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"REQUEST ERROR: GET /api/watchlist (email={email_key}): {e} in {duration_ms}ms")
+        raise HTTPException(status_code=500, detail="Internal server error loading watchlist")
 
 @app.post("/api/watchlist")
-def update_watchlist(req: WatchlistRequest):
-    users = database.load_users()
+async def update_watchlist(req: WatchlistRequest):
+    start_time = time.time()
     email_key = _sanitize_email(req.email)
-    if email_key not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    users[email_key]["watchlist"] = ",".join(req.tickers)
-    database.save_users(users)
-    return {"message": "Watchlist updated successfully", "watchlist": req.tickers}
+    logger.info(f"REQUEST START: POST /api/watchlist (email={email_key})")
+    try:
+        users = await asyncio.to_thread(database.load_users)
+        if email_key not in users:
+            duration_ms = round((time.time() - start_time) * 1000, 2)
+            logger.warning(f"REQUEST END: POST /api/watchlist - User not found (email={email_key}) in {duration_ms}ms")
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        users[email_key]["watchlist"] = ",".join(req.tickers)
+        await asyncio.to_thread(database.save_users, users)
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"REQUEST END: POST /api/watchlist (email={email_key}, count={len(req.tickers)}) in {duration_ms}ms")
+        return {"message": "Watchlist updated successfully", "watchlist": req.tickers}
+    except HTTPException:
+        raise
+    except Exception as e:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"REQUEST ERROR: POST /api/watchlist (email={email_key}): {e} in {duration_ms}ms")
+        raise HTTPException(status_code=500, detail="Internal server error updating watchlist")
 
 # --- Subscription & Payment Gateway Routes ---
 
@@ -348,126 +374,152 @@ def verify_payment(req: VerifyPaymentRequest):
 
 
 @app.get("/api/sentiment/heatmap")
-def get_heatmap(email: str = Query(...), ticker: Optional[str] = Query(None)):
-    users = database.load_users()
+async def get_heatmap(email: str = Query(...), ticker: Optional[str] = Query(None)):
+    start_time = time.time()
     email_key = _sanitize_email(email)
-    if email_key not in users:
-        raise HTTPException(status_code=404, detail="User not found")
+    logger.info(f"REQUEST START: GET /api/sentiment/heatmap (email={email_key}, ticker={ticker})")
+
+    def _fetch_heatmap_sync():
+        users = database.load_users()
+        if email_key not in users:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        watchlist_str = users[email_key].get("watchlist", "")
+        watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
         
-    watchlist_str = users[email_key].get("watchlist", "")
-    watchlist = [t.strip() for t in watchlist_str.split(",") if t.strip()]
-    
-    # Filter by specific ticker if provided and not 'ALL'.
-    # An unmatched ticker leaves the watchlist empty, which keeps the response
-    # scoped to the user's own watchlist (falls through to the `not allowed` guard).
-    if ticker and ticker.strip().upper() != "ALL":
-        target = ticker.strip().upper()
-        watchlist = [t for t in watchlist if t.upper() == target]
+        # Filter by specific ticker if provided and not 'ALL'.
+        if ticker and ticker.strip().upper() != "ALL":
+            target = ticker.strip().upper()
+            watchlist = [t for t in watchlist if t.upper() == target]
 
-    # Compile allowed companies & tickers
-    allowed = set()
-    for item in watchlist:
-        allowed.add(item)
-        mapped = COMPANY_TICKER_MAP.get(item)
-        if mapped:
-            allowed.add(mapped)
-        for name, tick in COMPANY_TICKER_MAP.items():
-            if tick == item:
-                allowed.add(name)
-                
-    if not allowed:
-        return []
+        # Compile allowed companies & tickers
+        allowed = set()
+        for item in watchlist:
+            allowed.add(item)
+            mapped = COMPANY_TICKER_MAP.get(item)
+            if mapped:
+                allowed.add(mapped)
+            for name, tick in COMPANY_TICKER_MAP.items():
+                if tick == item:
+                    allowed.add(name)
+                    
+        if not allowed:
+            return []
 
-    sentiments_list = []
+        sentiments_list = []
+        if database.db is not None:
+            try:
+                # Stream matching articles from Firestore
+                docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
+                for doc in docs:
+                    data = doc.to_dict()
+                    sentiment_map = data.get("sentiment")
+                    if sentiment_map:
+                        sentiments_list.append(sentiment_map)
+            except Exception as e:
+                logger.error(f"Error querying heatmap from Firestore: {e}")
+                return []
+            
+        if not sentiments_list:
+            return []
+            
+        agg_df = functions.aggregate_sentiment(sentiments_list)
+        import math
+        records = agg_df.to_dict(orient="records")
+        cleaned_records = []
+        for r in records:
+            cleaned_r = {}
+            for k, v in r.items():
+                if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    cleaned_r[k] = None
+                else:
+                    cleaned_r[k] = v
+            cleaned_records.append(cleaned_r)
+        return cleaned_records
+
     try:
-        # Stream matching articles from Firestore
-        docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
-        for doc in docs:
-            data = doc.to_dict()
-            sentiment_map = data.get("sentiment")
-            if sentiment_map:
-                sentiments_list.append(sentiment_map)
+        result = await asyncio.to_thread(_fetch_heatmap_sync)
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"REQUEST END: GET /api/sentiment/heatmap (email={email_key}) in {duration_ms}ms")
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error querying heatmap from Firestore: {e}")
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"REQUEST ERROR: GET /api/sentiment/heatmap (email={email_key}): {e} in {duration_ms}ms")
         return []
-        
-    if not sentiments_list:
-        return []
-        
-    agg_df = functions.aggregate_sentiment(sentiments_list)
-    # Convert dataframe to JSON response list and sanitize NaN/inf values
-    import math
-    records = agg_df.to_dict(orient="records")
-    cleaned_records = []
-    for r in records:
-        cleaned_r = {}
-        for k, v in r.items():
-            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                cleaned_r[k] = None
-            else:
-                cleaned_r[k] = v
-        cleaned_records.append(cleaned_r)
-    return cleaned_records
 
 @app.get("/api/stock/history")
-def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
-    # 1. Fetch stock historical price series
-    try:
-        # Resolve company name to ticker if necessary
+async def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
+    start_time = time.time()
+    logger.info(f"REQUEST START: GET /api/stock/history (ticker={ticker}, period={period})")
+
+    def _fetch_stock_history_sync():
         resolved_ticker = COMPANY_TICKER_MAP.get(ticker, ticker)
-        price_series = functions.get_stock_history(resolved_ticker, period, interval='1d')
-    except Exception as e:
-        logger.error(f"Error fetching stock history: {e}")
-        price_series = []
-        
-    # 2. Get Daily Sentiment Trend from Firestore
-    sentiment_series = []
-    recent_articles = []
+        try:
+            price_series = functions.get_stock_history(resolved_ticker, period, interval='1d')
+        except Exception as e:
+            logger.error(f"Error fetching stock history for {ticker} ({resolved_ticker}): {e}")
+            price_series = []
+            
+        sentiment_series = []
+        recent_articles = []
+        try:
+            allowed = {ticker, resolved_ticker}
+            for name, tick in COMPANY_TICKER_MAP.items():
+                if tick == resolved_ticker or name == ticker:
+                    allowed.add(name)
+                    allowed.add(tick)
+                    
+            if database.db is not None:
+                docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
+                rows = []
+                raw_articles = []
+                for doc in docs:
+                    data = doc.to_dict()
+                    sentiment_map = data.get("sentiment")
+                    date_val = data.get("date")
+                    if sentiment_map and date_val:
+                        rows.append({
+                            "date": date_val,
+                            "sentiment": str(sentiment_map)
+                        })
+                        raw_articles.append(data)
+                        
+                if rows:
+                    df = pd.DataFrame(rows)
+                    date_df = functions.transform_sentiment(df)
+                    sentiment_series = functions.transform_date_sentiment(date_df)
+                    
+                sorted_articles = sorted(raw_articles, key=lambda x: x.get("date", ""), reverse=True)
+                recent_articles = [{
+                    "url": a.get("url"),
+                    "content": a.get("content")[:180] + "..." if len(a.get("content", "")) > 180 else a.get("content", ""),
+                    "date": a.get("date"),
+                    "sentiment": a.get("sentiment", {})
+                } for a in sorted_articles[:3]]
+        except Exception as e:
+            logger.error(f"Error parsing sentiment series from Firestore for chart ({ticker}): {e}")
+                
+        return {
+            "price_series": price_series,
+            "sentiment_series": sentiment_series,
+            "recent_articles": recent_articles
+        }
+
     try:
-        # Filter articles for ticker name/symbol
-        allowed = {ticker, resolved_ticker}
-        for name, tick in COMPANY_TICKER_MAP.items():
-            if tick == resolved_ticker or name == ticker:
-                allowed.add(name)
-                allowed.add(tick)
-                
-        # Stream matching articles from Firestore
-        docs = database.db.collection("articles").where("company_name", "in", list(allowed)).stream()
-        rows = []
-        raw_articles = []
-        for doc in docs:
-            data = doc.to_dict()
-            sentiment_map = data.get("sentiment")
-            date_val = data.get("date")
-            if sentiment_map and date_val:
-                # pass dict as string to match functions.transform_sentiment's eval call
-                rows.append({
-                    "date": date_val,
-                    "sentiment": str(sentiment_map)
-                })
-                raw_articles.append(data)
-                
-        if rows:
-            df = pd.DataFrame(rows)
-            date_df = functions.transform_sentiment(df)
-            sentiment_series = functions.transform_date_sentiment(date_df)
-            
-        # Get the 3 most recent articles
-        sorted_articles = sorted(raw_articles, key=lambda x: x.get("date", ""), reverse=True)
-        recent_articles = [{
-            "url": a.get("url"),
-            "content": a.get("content")[:180] + "..." if len(a.get("content", "")) > 180 else a.get("content", ""),
-            "date": a.get("date"),
-            "sentiment": a.get("sentiment", {})
-        } for a in sorted_articles[:3]]
+        result = await asyncio.to_thread(_fetch_stock_history_sync)
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"REQUEST END: GET /api/stock/history (ticker={ticker}) in {duration_ms}ms")
+        return result
     except Exception as e:
-        logger.error(f"Error parsing sentiment series from Firestore for chart: {e}")
-            
-    return {
-        "price_series": price_series,
-        "sentiment_series": sentiment_series,
-        "recent_articles": recent_articles
-    }
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"REQUEST ERROR: GET /api/stock/history (ticker={ticker}): {e} in {duration_ms}ms")
+        return {
+            "price_series": [],
+            "sentiment_series": [],
+            "recent_articles": []
+        }
 
 
 @app.get("/api/pipeline/status")
@@ -527,49 +579,62 @@ def load_local_alerts():
     return []
 
 @app.get("/api/alerts")
-def get_alerts():
-    alerts = []
-    try:
-        if database.db is not None:
-            # Fetch up to 20 recent alerts from Firestore
-            docs = database.db.collection("alerts").order_by("timestamp", direction="DESCENDING").limit(20).stream()
-            for doc in docs:
-                alerts.append(doc.to_dict())
-    except Exception as e:
-        logger.error(f"Error fetching alerts from Firestore: {e}")
-        
-    if not alerts:
+async def get_alerts():
+    start_time = time.time()
+    logger.info("REQUEST START: GET /api/alerts")
+
+    def _fetch_alerts_sync():
+        alerts_list = []
         try:
-            alerts = load_local_alerts()
-            def get_sort_key(x):
-                ts = x.get('timestamp')
-                if ts is None:
-                    return 0.0
-                if isinstance(ts, (int, float)):
-                    return float(ts)
-                if hasattr(ts, 'timestamp'):
-                    try:
-                        return float(ts.timestamp())
-                    except Exception:
-                        pass
-                if hasattr(ts, 'seconds'):
-                    return float(ts.seconds)
-                if isinstance(ts, str):
-                    try:
-                        return float(ts)
-                    except ValueError:
-                        pass
-                    try:
-                        import datetime
-                        return float(datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp())
-                    except Exception:
-                        pass
-                return 0.0
-            alerts = sorted(alerts, key=get_sort_key, reverse=True)[:20]
+            if database.db is not None:
+                # Fetch up to 20 recent alerts from Firestore
+                docs = database.db.collection("alerts").order_by("timestamp", direction="DESCENDING").limit(20).stream()
+                for doc in docs:
+                    alerts_list.append(doc.to_dict())
         except Exception as e:
-            logger.error(f"Error loading local alerts: {e}")
+            logger.error(f"Error fetching alerts from Firestore: {e}")
             
-    return alerts
+        if not alerts_list:
+            try:
+                alerts_list = load_local_alerts()
+                def get_sort_key(x):
+                    ts = x.get('timestamp')
+                    if ts is None:
+                        return 0.0
+                    if isinstance(ts, (int, float)):
+                        return float(ts)
+                    if hasattr(ts, 'timestamp'):
+                        try:
+                            return float(ts.timestamp())
+                        except Exception:
+                            pass
+                    if hasattr(ts, 'seconds'):
+                        return float(ts.seconds)
+                    if isinstance(ts, str):
+                        try:
+                            return float(ts)
+                        except ValueError:
+                            pass
+                        try:
+                            import datetime
+                            return float(datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp())
+                        except Exception:
+                            pass
+                    return 0.0
+                alerts_list = sorted(alerts_list, key=get_sort_key, reverse=True)[:20]
+            except Exception as e:
+                logger.error(f"Error loading local alerts: {e}")
+        return alerts_list
+
+    try:
+        alerts = await asyncio.to_thread(_fetch_alerts_sync)
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.info(f"REQUEST END: GET /api/alerts (count={len(alerts)}) in {duration_ms}ms")
+        return alerts
+    except Exception as e:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"REQUEST ERROR: GET /api/alerts: {e} in {duration_ms}ms")
+        return []
 
 
 # --- Feedback Routes ---

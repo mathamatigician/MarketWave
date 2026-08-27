@@ -5,9 +5,9 @@ import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity, type ActivityEvent } from './IngestActivity';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS } from '../config';
+import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS, API_REQUEST_TIMEOUT_MS } from '../config';
 
 interface DashboardProps {
   email: string;
@@ -62,6 +62,21 @@ const parseStockSummary = (ticker: string, hist: any): Stock => {
   };
 };
 
+/** Helper for bounded HTTP requests using AbortController */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = API_REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function Dashboard({ email }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [stocksData, setStocksData] = useState<Stock[]>([]);
@@ -70,11 +85,12 @@ export function Dashboard({ email }: DashboardProps) {
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
   const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts'>('sentiment');
   
-  // Real-time Stream & Connection State (R1, R2, R3, R10)
+  // Real-time Stream & Connection State
   const [connectionStatus, setConnectionStatus] = useState<'LIVE' | 'RECONNECTING' | 'OFFLINE'>('OFFLINE');
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number | null>(null);
@@ -103,7 +119,6 @@ export function Dashboard({ email }: DashboardProps) {
 
   // Gemma Flash Briefing Fetcher
   const fetchBriefing = useCallback(async (_isManual = false) => {
-    // Prevent overlapping simultaneous requests (R7)
     if (isBriefingInProgressRef.current) return;
     const currentWl = watchlistRef.current;
     if (!currentWl || currentWl.length === 0) return;
@@ -113,7 +128,7 @@ export function Dashboard({ email }: DashboardProps) {
     setBriefingStatus('updating');
 
     try {
-      const res = await fetch(`${API_URL}/api/gemma/briefing`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/gemma/briefing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, tickers: currentWl })
@@ -126,11 +141,9 @@ export function Dashboard({ email }: DashboardProps) {
           setBriefingStatus('live');
           setBriefingError(null);
         } else if (data.status === 'no_data') {
-          // If no new/relevant articles, preserve previous valid briefing if present (R14, R15)
           setBriefingStatus('live');
           setBriefingError(null);
         } else if (data.status === 'error') {
-          // Non-destructive error state: preserves previous valid briefing (R14)
           setBriefingError(data.message || "Gemma 2 (9B) synthesis temporarily unavailable.");
           setBriefingStatus('error');
         }
@@ -138,7 +151,7 @@ export function Dashboard({ email }: DashboardProps) {
         setBriefingError(`Gemma synthesis returned HTTP ${res.status}`);
         setBriefingStatus('error');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to generate Gemma briefing", err);
       setBriefingError("Gemma inference temporarily unavailable. Showing latest cached briefing.");
       setBriefingStatus('error');
@@ -148,7 +161,7 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, [email]);
 
-  // Debounced auto-trigger on real-time article events (R7, R8, R9)
+  // Debounced auto-trigger on real-time article events
   const triggerDebouncedBriefing = useCallback(() => {
     if (watchlistRef.current.length === 0) return;
     setBriefingStatus('updating');
@@ -168,7 +181,7 @@ export function Dashboard({ email }: DashboardProps) {
       const hmUrl = ticker && ticker !== 'ALL'
         ? `${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}&ticker=${encodeURIComponent(ticker)}`
         : `${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}`;
-      const hmRes = await fetch(hmUrl);
+      const hmRes = await fetchWithTimeout(hmUrl);
       if (hmRes.ok) {
         const hmData = await hmRes.json();
         setHeatmapData(hmData || []);
@@ -181,7 +194,7 @@ export function Dashboard({ email }: DashboardProps) {
   // Dedicated Alerts Fetcher
   const fetchAlerts = useCallback(async () => {
     try {
-      const alertsRes = await fetch(`${API_URL}/api/alerts`);
+      const alertsRes = await fetchWithTimeout(`${API_URL}/api/alerts`);
       if (alertsRes.ok) {
         const alData = await alertsRes.json();
         setAlerts(alData || []);
@@ -191,10 +204,10 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, []);
 
-  // Targeted Single Stock Refresh (R5)
+  // Targeted Single Stock Refresh
   const refreshSingleStock = useCallback(async (ticker: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
+      const res = await fetchWithTimeout(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
       if (res.ok) {
         const hist = await res.json();
         const updated = parseStockSummary(ticker, hist);
@@ -214,7 +227,17 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, []);
 
-  // Single WebSocket connection lifecycle with exponential backoff (R1, R2, R3, R4, R5, R9)
+  // Stable refs for WebSocket callbacks to decouple socket lifecycle from state changes
+  const fetchAlertsRef = useRef(fetchAlerts);
+  fetchAlertsRef.current = fetchAlerts;
+  const fetchHeatmapRef = useRef(fetchHeatmap);
+  fetchHeatmapRef.current = fetchHeatmap;
+  const refreshSingleStockRef = useRef(refreshSingleStock);
+  refreshSingleStockRef.current = refreshSingleStock;
+  const triggerDebouncedBriefingRef = useRef(triggerDebouncedBriefing);
+  triggerDebouncedBriefingRef.current = triggerDebouncedBriefing;
+
+  // Single WebSocket connection lifecycle with bounded exponential backoff
   const connectWebSocket = useCallback(() => {
     if (isUnmountedRef.current) return;
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
@@ -241,10 +264,10 @@ export function Dashboard({ email }: DashboardProps) {
         try {
           const data: ActivityEvent = JSON.parse(event.data);
           
-          // 1. Append to activity events for IngestActivity (R9)
+          // 1. Append to activity events for IngestActivity
           setActivityEvents(prev => [...prev, data].slice(-200));
 
-          // 2. Immediate Targeted Ticker Updates (R4, R5)
+          // 2. Immediate Targeted Ticker Updates
           const eventTicker = data.ticker?.trim();
           const currentWatchlist = watchlistRef.current;
 
@@ -256,19 +279,18 @@ export function Dashboard({ email }: DashboardProps) {
                 w => w.toLowerCase() === eventTicker.toLowerCase()
               );
               if (matchedTicker) {
-                // Immediate targeted refresh of this specific ticker (R5)
-                refreshSingleStock(matchedTicker);
-                fetchAlerts();
-                fetchHeatmap();
-                triggerDebouncedBriefing();
+                refreshSingleStockRef.current(matchedTicker);
+                fetchAlertsRef.current();
+                fetchHeatmapRef.current();
+                triggerDebouncedBriefingRef.current();
               }
             }
           } else if (data.type === 'ingestion_cycle_completed') {
             setLastSyncTimestamp(Date.now());
             if ((data.new_articles_count ?? 0) > 0) {
-              fetchAlerts();
-              fetchHeatmap();
-              triggerDebouncedBriefing();
+              fetchAlertsRef.current();
+              fetchHeatmapRef.current();
+              triggerDebouncedBriefingRef.current();
             }
           }
         } catch (e) {
@@ -303,36 +325,65 @@ export function Dashboard({ email }: DashboardProps) {
         reconnectTimerRef.current = setTimeout(connectWebSocket, delay);
       }
     }
-  }, [refreshSingleStock, fetchAlerts, fetchHeatmap, triggerDebouncedBriefing]);
+  }, []);
 
   // Fetch watchlist, alerts, heatmap, and Yahoo Finance details on initial load or manual refresh
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
     try {
-      // 1. Fetch Watchlist
-      const wlRes = await fetch(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`);
-      if (!wlRes.ok) throw new Error("Failed to load watchlist");
-      const wlData = await wlRes.json();
-      const wl = wlData.watchlist || [];
-      setWatchlist(wl);
+      // 1. Fetch Watchlist with bounded timeout
+      let wl: string[] = [];
+      try {
+        const wlRes = await fetchWithTimeout(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`);
+        if (!wlRes.ok) {
+          throw new Error(`Failed to load watchlist (HTTP ${wlRes.status})`);
+        }
+        const wlData = await wlRes.json();
+        wl = wlData.watchlist || [];
+        setWatchlist(wl);
+        setWatchlistError(null);
+      } catch (err: any) {
+        console.error("Watchlist fetch error:", err);
+        setWatchlistError(err.name === 'AbortError' ? 'Watchlist request timed out. Retrying...' : 'Datastore temporarily unavailable.');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
-      // 2. Fetch Alerts
-      await fetchAlerts();
+      // Unblock shell rendering immediately once minimum required state is known
+      setLoading(false);
 
-      // 3. Fetch Stock history summaries
-      const stockSummaries: Stock[] = [];
-      for (const ticker of wl) {
-        try {
-          const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
-          if (res.ok) {
-            const hist = await res.json();
-            stockSummaries.push(parseStockSummary(ticker, hist));
+      // 2. Independently fetch Alerts
+      fetchAlerts();
+
+      // 3. Concurrently fetch Stock history summaries
+      if (wl.length > 0) {
+        const stockPromises = wl.map(async (ticker) => {
+          try {
+            const res = await fetchWithTimeout(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
+            if (res.ok) {
+              const hist = await res.json();
+              return parseStockSummary(ticker, hist);
+            }
+          } catch (err) {
+            console.error("Error fetching summary for " + ticker, err);
           }
-        } catch (err) {
-          console.error("Error fetching summary for " + ticker, err);
+          return null;
+        });
+
+        const settled = await Promise.allSettled(stockPromises);
+        const stockSummaries: Stock[] = [];
+        for (const item of settled) {
+          if (item.status === 'fulfilled' && item.value !== null) {
+            stockSummaries.push(item.value);
+          }
+        }
+        if (stockSummaries.length > 0) {
+          setStocksData(stockSummaries);
         }
       }
-      setStocksData(stockSummaries);
       setLastSyncTimestamp(Date.now());
     } catch (e) {
       console.error("Error fetching dashboard data:", e);
@@ -359,12 +410,12 @@ export function Dashboard({ email }: DashboardProps) {
     fetchHeatmap();
   }, [fetchHeatmap, selectedHeatmapTicker]);
 
-  // Primary Event-Driven WebSocket connection lifecycle (R1, R2, R6)
+  // Primary Event-Driven WebSocket connection lifecycle
   useEffect(() => {
     isUnmountedRef.current = false;
     connectWebSocket();
 
-    // Fallback low-frequency sync (5 minutes) for network resilience (R6)
+    // Fallback low-frequency sync (5 minutes) for network resilience
     const fallbackInterval = setInterval(() => {
       fetchData(true);
     }, 300000);
@@ -387,7 +438,7 @@ export function Dashboard({ email }: DashboardProps) {
   // Handle Watchlist Updates (Star / Add Ticker)
   const handleWatchlistChange = async (newWatchlist: string[]) => {
     try {
-      const res = await fetch(`${API_URL}/api/watchlist`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/watchlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, tickers: newWatchlist })
@@ -406,7 +457,7 @@ export function Dashboard({ email }: DashboardProps) {
     try {
       setPipelineRunning(true);
       for (const ticker of watchlist) {
-        const res = await fetch(`${API_URL}/api/pipeline/run?ticker=${encodeURIComponent(ticker)}`, {
+        const res = await fetchWithTimeout(`${API_URL}/api/pipeline/run?ticker=${encodeURIComponent(ticker)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -437,10 +488,11 @@ export function Dashboard({ email }: DashboardProps) {
     return 'Neutral';
   }, [overallScore]);
 
-  if (loading && stocksData.length === 0) {
+  // Initial datastore access screen only when truly loading without errors or existing data
+  if (loading && !watchlistError && stocksData.length === 0 && watchlist.length === 0) {
     return (
       <div className="flex h-[calc(100vh-160px)] items-center justify-center flex-col gap-4 text-slate-400 dark:text-slate-500">
-        <img src="/favicon.svg" alt="MarketWave Logo" className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+        <img src="/favicon.svg" alt="MarketWave Logo" className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 animate-pulse" />
         <p className="font-mono text-sm uppercase tracking-widest">Accessing Firestore datastore...</p>
       </div>
     );
@@ -448,6 +500,27 @@ export function Dashboard({ email }: DashboardProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Explicit Datastore Error Banner with Retry */}
+      {watchlistError && (
+        <div className="bg-red-950/40 border border-red-500/40 rounded-xl p-5 text-center flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-left">
+            <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0" />
+            <div>
+              <h3 className="font-mono font-bold text-xs sm:text-sm text-rose-200 uppercase tracking-wider">DATA SOURCE UNAVAILABLE</h3>
+              <p className="text-xs text-slate-400">{watchlistError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchData(false)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shrink-0"
+          >
+            <RefreshCcw className="w-3.5 h-3.5" />
+            Retry Connection
+          </button>
+        </div>
+      )}
+
       {/* Active Alerts Banner with Gemma Catalyst */}
       {alerts.length > 0 && alerts.some(alert => watchlist.includes(alert.ticker)) && (
         <div className="space-y-3">
@@ -543,7 +616,7 @@ export function Dashboard({ email }: DashboardProps) {
         )}
       </div>
 
-      {/* Dashboard Header with Real WebSocket Status (R3, R10) */}
+      {/* Dashboard Header with Real WebSocket Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <label className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-1">Market Overview</label>
