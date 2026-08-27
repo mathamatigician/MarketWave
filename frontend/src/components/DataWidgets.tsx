@@ -216,7 +216,7 @@ export function TopStocks({
       if (activeTab === 'watchlist' && !watchlist.includes(stock.ticker)) {
         return false;
       }
-      if (activeTab === 'bullish' && stock.sentimentScore < 0.15) {
+      if (activeTab === 'bullish' && (stock.sentimentScore === null || stock.sentimentScore < 0.15)) {
         return false;
       }
 
@@ -390,7 +390,10 @@ export function TopStocks({
                 const isPositive = stock.changePercent >= 0;
                 const isFavorited = watchlist.includes(stock.ticker);
                 const score = stock.sentimentScore;
-                const formattedScore = score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+                const hasScore = typeof score === 'number' && !isNaN(score);
+                const formattedScore = hasScore 
+                  ? (score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2))
+                  : 'PENDING';
                 
                 return (
                   <tr 
@@ -434,7 +437,7 @@ export function TopStocks({
                     </td>
 
                     <td className="p-4 text-right">
-                      <span className={`inline-flex items-center justify-center font-mono text-[12px] font-bold px-2 py-0.5 rounded-md ${getSentimentColor(score)} dark:bg-white/5 bg-black/5`}>
+                      <span className={`inline-flex items-center justify-center font-mono text-[11px] sm:text-[12px] font-bold px-2 py-0.5 rounded-md ${hasScore ? getSentimentColor(score) : 'text-slate-400 dark:text-white/40'} dark:bg-white/5 bg-black/5`}>
                         {formattedScore}
                       </span>
                     </td>

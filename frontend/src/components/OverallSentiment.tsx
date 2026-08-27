@@ -2,16 +2,17 @@ import { getSentimentColor } from '../lib/utils';
 import type { Stock } from '../types';
 
 interface OverallSentimentProps {
-  overallScore: number;
+  overallScore: number | null;
   trendLabel: string;
   watchlistStocks: Stock[];
 }
 
 export function OverallSentiment({ overallScore, trendLabel, watchlistStocks }: OverallSentimentProps) {
-  // Format overall score as a signed string (e.g. +0.45 or -0.12)
-  const formattedScore = overallScore >= 0 
-    ? `+${overallScore.toFixed(2)}` 
-    : overallScore.toFixed(2);
+  const hasScore = typeof overallScore === 'number' && !isNaN(overallScore);
+  // Format overall score as a signed string (e.g. +0.45 or -0.12) or '--' when pending
+  const formattedScore = hasScore 
+    ? (overallScore >= 0 ? `+${overallScore.toFixed(2)}` : overallScore.toFixed(2))
+    : '--';
 
   return (
     <div className="flex flex-col gap-8">
@@ -22,11 +23,11 @@ export function OverallSentiment({ overallScore, trendLabel, watchlistStocks }: 
             {formattedScore}
           </h2>
           <div className="flex flex-col">
-            <span className={`text-2xl md:text-3xl font-black italic uppercase leading-none ${getSentimentColor(overallScore)}`}>
+            <span className={`text-2xl md:text-3xl font-black italic uppercase leading-none ${hasScore ? getSentimentColor(overallScore) : 'text-slate-400 dark:text-white/40'}`}>
               {trendLabel}
             </span>
             <span className="text-[11px] font-mono dark:text-white/40 text-slate-500 mt-2 uppercase">
-              Confidence: {Math.abs(overallScore) > 0.4 ? 'High' : 'Medium'}
+              {hasScore ? `Confidence: ${Math.abs(overallScore) > 0.4 ? 'High' : 'Medium'}` : 'Signal: Data Pending'}
             </span>
           </div>
         </div>
@@ -46,20 +47,19 @@ export function OverallSentiment({ overallScore, trendLabel, watchlistStocks }: 
           <div className="h-32 w-full flex items-end gap-3 pt-2">
             {watchlistStocks.map((stock) => {
               const score = stock.sentimentScore;
-              // Map -1.0 to 1.0 into 0% to 100% height (abs height from center or just relative height)
-              // For a clean presentation, let's render standard bars where height is percentage of absolute score:
-              const barHeightPct = Math.max(10, Math.round(Math.abs(score) * 100));
+              const hasStockScore = typeof score === 'number' && !isNaN(score);
+              const barHeightPct = hasStockScore ? Math.max(10, Math.round(Math.abs(score) * 100)) : 6;
               
               return (
                 <div key={stock.ticker} className="flex-1 flex flex-col justify-end h-full group relative items-center">
                   {/* Tooltip */}
                   <div className="absolute bottom-full mb-2 hidden group-hover:block z-10 dark:bg-slate-900 bg-slate-800 text-white text-[10px] font-mono p-2 rounded whitespace-nowrap shadow-md">
-                    {stock.name}: {score >= 0 ? '+' : ''}{score.toFixed(2)}
+                    {stock.name}: {hasStockScore ? `${score >= 0 ? '+' : ''}${score.toFixed(2)}` : 'Pending ingestion / No Signal'}
                   </div>
                   
                   {/* Bar */}
                   <div 
-                    className={`w-full ${getSentimentColor(score, 'bg')} rounded-t-sm transition-all duration-700 ease-out hover:opacity-85`} 
+                    className={`w-full ${hasStockScore ? getSentimentColor(score, 'bg') : 'bg-slate-300 dark:bg-white/10 border-dashed border border-slate-400/30'} rounded-t-sm transition-all duration-700 ease-out hover:opacity-85`} 
                     style={{ height: `${barHeightPct}%` }}
                   />
                   

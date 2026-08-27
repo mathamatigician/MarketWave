@@ -1,7 +1,7 @@
 export interface Stock {
   ticker: string;
   name: string;
-  sentimentScore: number; // -1.0 to +1.0
+  sentimentScore: number | null; // -1.0 to +1.0 or null if no sentiment data
   price: number;
   changePercent: number;
   currency?: string;

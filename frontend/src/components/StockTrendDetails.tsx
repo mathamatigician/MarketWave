@@ -103,7 +103,7 @@ export function StockTrendDetails({
     });
   }, [priceSeries, sentimentSeries]);
 
-  const scoreColor = getSentimentColor(stock.sentimentScore);
+  const scoreColor = stock.sentimentScore !== null ? getSentimentColor(stock.sentimentScore) : 'text-slate-400 dark:text-white/40';
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
@@ -152,10 +152,10 @@ export function StockTrendDetails({
                   <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Sentiment Score</span>
                   <div className="flex items-baseline gap-2">
                     <span className={`text-4xl font-extrabold italic ${scoreColor}`}>
-                      {stock.sentimentScore >= 0 ? `+${stock.sentimentScore.toFixed(2)}` : stock.sentimentScore.toFixed(2)}
+                      {stock.sentimentScore !== null ? (stock.sentimentScore >= 0 ? `+${stock.sentimentScore.toFixed(2)}` : stock.sentimentScore.toFixed(2)) : '--'}
                     </span>
                     <span className={`text-[10px] font-bold uppercase ${scoreColor}`}>
-                      {stock.sentimentScore > 0.15 ? 'Bullish' : stock.sentimentScore < -0.15 ? 'Bearish' : 'Neutral'}
+                      {stock.sentimentScore !== null ? (stock.sentimentScore > 0.15 ? 'Bullish' : stock.sentimentScore < -0.15 ? 'Bearish' : 'Neutral') : 'Data Pending'}
                     </span>
                   </div>
                 </div>
@@ -173,7 +173,8 @@ export function StockTrendDetails({
                 <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                   <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Algorithmic Rating</span>
                   <span className="text-base font-extrabold uppercase text-slate-800 dark:text-white/80 block mt-1.5">
-                    {stock.sentimentScore >= 0.4 ? 'Strong Outperform' : 
+                    {stock.sentimentScore === null ? 'No Signal / Pending' :
+                     stock.sentimentScore >= 0.4 ? 'Strong Outperform' : 
                      stock.sentimentScore >= 0.15 ? 'Moderate Outperform' : 
                      stock.sentimentScore >= -0.15 ? 'Hold / Neutral' : 
                      stock.sentimentScore >= -0.4 ? 'Moderate Underperform' : 'Strong Underperform'}

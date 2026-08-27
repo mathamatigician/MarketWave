@@ -43,7 +43,7 @@ const parseStockSummary = (ticker: string, hist: any): Stock => {
     }
   }
 
-  let sentimentScore = 0.0;
+  let sentimentScore: number | null = null;
   if (sentiments.length > 0) {
     const latest = sentiments[sentiments.length - 1];
     const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
@@ -474,13 +474,15 @@ export function Dashboard({ email }: DashboardProps) {
 
   // Compute overall score (average of watchlist sentiments)
   const overallScore = useMemo(() => {
-    if (stocksData.length === 0) return 0.0;
-    const sum = stocksData.reduce((acc, curr) => acc + curr.sentimentScore, 0);
-    return sum / stocksData.length;
+    const scoredStocks = stocksData.filter(s => typeof s.sentimentScore === 'number' && !isNaN(s.sentimentScore));
+    if (scoredStocks.length === 0) return null;
+    const sum = scoredStocks.reduce((acc, curr) => acc + (curr.sentimentScore as number), 0);
+    return sum / scoredStocks.length;
   }, [stocksData]);
 
   // Compute trend label
   const trendLabel = useMemo(() => {
+    if (overallScore === null) return 'NO SIGNAL';
     if (overallScore > 0.4) return 'Strong Bullish';
     if (overallScore > 0.15) return 'Bullish';
     if (overallScore < -0.4) return 'Strong Bearish';

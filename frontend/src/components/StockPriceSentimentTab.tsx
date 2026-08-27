@@ -151,7 +151,7 @@ export function StockPriceSentimentTab({
   }, [sentimentSeries]);
 
   const scoreVal = useMemo(() => {
-    if (sentimentSeries.length === 0) return 0.0;
+    if (sentimentSeries.length === 0) return null;
     const latest = sentimentSeries[sentimentSeries.length - 1];
     const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
     const isPositive = latest.color ? latest.color.includes('0, 150') : true;
@@ -226,11 +226,11 @@ export function StockPriceSentimentTab({
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Sentiment Score</span>
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-3xl sm:text-4xl font-extrabold italic ${scoreColor}`}>
-                    {scoreVal >= 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2)}
+                  <span className={`text-3xl sm:text-4xl font-extrabold italic ${scoreVal !== null ? scoreColor : 'text-slate-400 dark:text-white/40'}`}>
+                    {scoreVal !== null ? (scoreVal >= 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2)) : '--'}
                   </span>
-                  <span className={`text-[10px] font-bold uppercase ${scoreColor}`}>
-                    {scoreVal > 0.15 ? 'Bullish' : scoreVal < -0.15 ? 'Bearish' : 'Neutral'}
+                  <span className={`text-[10px] font-bold uppercase ${scoreVal !== null ? scoreColor : 'text-slate-400 dark:text-white/40'}`}>
+                    {scoreVal !== null ? (scoreVal > 0.15 ? 'Bullish' : scoreVal < -0.15 ? 'Bearish' : 'Neutral') : 'Data Pending'}
                   </span>
                 </div>
               </div>
@@ -250,7 +250,8 @@ export function StockPriceSentimentTab({
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Algorithmic Rating</span>
                 <span className="text-sm sm:text-base font-extrabold uppercase text-slate-800 dark:text-white/80 block mt-1.5">
-                  {scoreVal >= 0.4 ? 'Strong Outperform' : 
+                  {scoreVal === null ? 'No Signal / Pending' :
+                   scoreVal >= 0.4 ? 'Strong Outperform' : 
                    scoreVal >= 0.15 ? 'Moderate Outperform' : 
                    scoreVal >= -0.15 ? 'Hold / Neutral' : 
                    scoreVal >= -0.4 ? 'Moderate Underperform' : 'Strong Underperform'}
