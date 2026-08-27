@@ -89,7 +89,7 @@ export function Dashboard({ email }: DashboardProps) {
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
   const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts'>('sentiment');
+  const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts' | 'gemma'>('sentiment');
   
   // Real-time Stream & Connection State
   const [connectionStatus, setConnectionStatus] = useState<'LIVE' | 'RECONNECTING' | 'OFFLINE'>('OFFLINE');
@@ -401,6 +401,7 @@ export function Dashboard({ email }: DashboardProps) {
   // Initial load
   useEffect(() => {
     fetchData();
+    fetchBriefing();
   }, [email]);
 
   // Sync selected chart ticker
@@ -450,6 +451,7 @@ export function Dashboard({ email }: DashboardProps) {
       });
       if (res.ok) {
         fetchData(true);
+        fetchBriefing();
       }
     } catch (e) {
       console.error("Failed to update watchlist", e);
@@ -609,8 +611,8 @@ export function Dashboard({ email }: DashboardProps) {
         </div>
       </div>
 
-      {/* Tabs Selection Header */}
-      <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-4 overflow-x-auto shrink-0 pb-1 scrollbar-none">
+      {/* Tabs Selection Header with 3 Peer Options */}
+      <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-6 overflow-x-auto shrink-0 pb-1 scrollbar-none">
         <button 
           onClick={() => setDashboardTab('sentiment')}
           className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
@@ -631,28 +633,57 @@ export function Dashboard({ email }: DashboardProps) {
         >
           📈 Stock Price vs Sentiments
         </button>
+        <button 
+          onClick={() => setDashboardTab('gemma')}
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap flex items-center gap-1.5 ${
+            dashboardTab === 'gemma' 
+              ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
+              : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <span className={dashboardTab === 'gemma' ? 'text-emerald-500 dark:text-[#00FF94]' : 'text-indigo-400'}>⚡</span>
+          <span>Gemma AI</span>
+        </button>
       </div>
 
       {/* Main Content Areas based on Tab selection */}
       {dashboardTab === 'sentiment' ? (
-        <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-          {/* 1. Core Market Metrics Row (Current Market Mood + Topic Distribution) */}
-          <div className="grid grid-cols-12 gap-6 lg:gap-8">
-            <div className="col-span-12 lg:col-span-6">
-              <OverallSentiment overallScore={overallScore} trendLabel={trendLabel} watchlistStocks={stocksData} />
-            </div>
-
-            <div className="col-span-12 lg:col-span-6 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
-              <SectorHeatmap 
-                heatmapData={heatmapData} 
-                watchlist={watchlist}
-                selectedTicker={selectedHeatmapTicker}
-                onSelectTicker={setSelectedHeatmapTicker}
-              />
-            </div>
+        <div className="grid grid-cols-12 gap-6 lg:gap-8 animate-in fade-in duration-300">
+          <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 sm:gap-8">
+            <OverallSentiment overallScore={overallScore} trendLabel={trendLabel} watchlistStocks={stocksData} />
+            <TopStocks 
+              email={email}
+              watchlist={watchlist} 
+              stocksData={stocksData} 
+              alerts={alerts}
+              onWatchlistChange={handleWatchlistChange} 
+              onSelectStock={setSelectedStock} 
+              onRunPipeline={handleRunPipeline}
+              pipelineRunning={pipelineRunning}
+            />
+            <IngestActivity events={activityEvents} />
           </div>
 
-          {/* 2. ⚡ Gemma AI Market Intelligence (Native Analytical Workspace Module) */}
+          <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
+            <SectorHeatmap 
+              heatmapData={heatmapData} 
+              watchlist={watchlist}
+              selectedTicker={selectedHeatmapTicker}
+              onSelectTicker={setSelectedHeatmapTicker}
+            />
+          </div>
+        </div>
+      ) : dashboardTab === 'charts' ? (
+        <div className="animate-in fade-in duration-300">
+          <StockPriceSentimentTab 
+            watchlist={watchlist}
+            activeTicker={selectedChartTicker}
+            onTickerChange={setSelectedChartTicker}
+            lastSyncTimestamp={lastSyncTimestamp}
+          />
+        </div>
+      ) : (
+        <div className="animate-in fade-in duration-300">
           <GemmaMarketIntelligence 
             briefing={briefing}
             loading={loadingBriefing}
@@ -665,34 +696,6 @@ export function Dashboard({ email }: DashboardProps) {
             overallScore={overallScore}
             trendLabel={trendLabel}
             onRefresh={() => fetchBriefing(true)}
-          />
-
-          {/* 3. Watchlist Equities Management & Ingest Activity Stream */}
-          <div className="grid grid-cols-12 gap-6 lg:gap-8">
-            <div className="col-span-12 lg:col-span-7 flex flex-col gap-6">
-              <TopStocks 
-                email={email}
-                watchlist={watchlist} 
-                stocksData={stocksData} 
-                alerts={alerts}
-                onWatchlistChange={handleWatchlistChange} 
-                onSelectStock={setSelectedStock} 
-                onRunPipeline={handleRunPipeline}
-                pipelineRunning={pipelineRunning}
-              />
-            </div>
-            <div className="col-span-12 lg:col-span-5">
-              <IngestActivity events={activityEvents} />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="animate-in fade-in duration-300">
-          <StockPriceSentimentTab 
-            watchlist={watchlist}
-            activeTicker={selectedChartTicker}
-            onTickerChange={setSelectedChartTicker}
-            lastSyncTimestamp={lastSyncTimestamp}
           />
         </div>
       )}
