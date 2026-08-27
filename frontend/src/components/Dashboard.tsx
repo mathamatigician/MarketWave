@@ -4,7 +4,7 @@ import { OverallSentiment } from './OverallSentiment';
 import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
-import { IngestActivity } from './IngestActivity';
+import { IngestActivity, type ActivityEvent } from './IngestActivity';
 import { RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS } from '../config';
@@ -27,6 +27,41 @@ const formatAlertDate = (timestamp: any) => {
   return String(timestamp);
 };
 
+const parseStockSummary = (ticker: string, hist: any): Stock => {
+  const prices = hist?.price_series || [];
+  const sentiments = hist?.sentiment_series || [];
+
+  let price = 150.0;
+  let changePercent = 0.0;
+  if (prices.length > 0) {
+    const latest = prices[prices.length - 1];
+    price = latest.value !== undefined ? latest.value : 150.0;
+    if (prices.length > 1) {
+      const prev = prices[prices.length - 2];
+      const prevVal = prev.value || 1.0;
+      changePercent = ((price - prevVal) / prevVal) * 100.0;
+    }
+  }
+
+  let sentimentScore = 0.0;
+  if (sentiments.length > 0) {
+    const latest = sentiments[sentiments.length - 1];
+    const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
+    const isPositive = latest.color ? latest.color.includes('0, 150') : true;
+    sentimentScore = isPositive ? (val / 100.0) : -(val / 100.0);
+  }
+
+  return {
+    ticker,
+    name: `${ticker} Corp.`,
+    sentimentScore,
+    price,
+    changePercent,
+    region: ticker.endsWith('.NS') || ticker.endsWith('.BO') ? 'IN' : 'US',
+    currency: ticker.endsWith('.NS') || ticker.endsWith('.BO') ? 'INR' : 'USD'
+  };
+};
+
 export function Dashboard({ email }: DashboardProps) {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [stocksData, setStocksData] = useState<Stock[]>([]);
@@ -39,6 +74,11 @@ export function Dashboard({ email }: DashboardProps) {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts'>('sentiment');
   
+  // Real-time Stream & Connection State (R1, R2, R3, R10)
+  const [connectionStatus, setConnectionStatus] = useState<'LIVE' | 'RECONNECTING' | 'OFFLINE'>('OFFLINE');
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number | null>(null);
+
   // Real-time Gemma Flash Briefing State
   const [briefing, setBriefing] = useState<{ ticker: string; bullet: string }[]>([]);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
@@ -46,13 +86,27 @@ export function Dashboard({ email }: DashboardProps) {
   const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
   const [briefingError, setBriefingError] = useState<string | null>(null);
 
+  const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
+  const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
+
   const isBriefingInProgressRef = useRef<boolean>(false);
   const briefingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptRef = useRef<number>(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUnmountedRef = useRef<boolean>(false);
+  
+  const watchlistRef = useRef<string[]>([]);
+  watchlistRef.current = watchlist;
+  const selectedHeatmapTickerRef = useRef<string>('ALL');
+  selectedHeatmapTickerRef.current = selectedHeatmapTicker;
 
+  // Gemma Flash Briefing Fetcher
   const fetchBriefing = useCallback(async (_isManual = false) => {
     // Prevent overlapping simultaneous requests (R7)
     if (isBriefingInProgressRef.current) return;
-    if (!watchlist || watchlist.length === 0) return;
+    const currentWl = watchlistRef.current;
+    if (!currentWl || currentWl.length === 0) return;
 
     isBriefingInProgressRef.current = true;
     setLoadingBriefing(true);
@@ -62,7 +116,7 @@ export function Dashboard({ email }: DashboardProps) {
       const res = await fetch(`${API_URL}/api/gemma/briefing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, tickers: watchlist })
+        body: JSON.stringify({ email, tickers: currentWl })
       });
       if (res.ok) {
         const data = await res.json();
@@ -92,11 +146,11 @@ export function Dashboard({ email }: DashboardProps) {
       isBriefingInProgressRef.current = false;
       setLoadingBriefing(false);
     }
-  }, [email, watchlist]);
+  }, [email]);
 
   // Debounced auto-trigger on real-time article events (R7, R8, R9)
   const triggerDebouncedBriefing = useCallback(() => {
-    if (watchlist.length === 0) return;
+    if (watchlistRef.current.length === 0) return;
     setBriefingStatus('updating');
     if (briefingDebounceTimerRef.current) {
       clearTimeout(briefingDebounceTimerRef.current);
@@ -105,68 +159,14 @@ export function Dashboard({ email }: DashboardProps) {
     briefingDebounceTimerRef.current = setTimeout(() => {
       fetchBriefing(false);
     }, debounceMs);
-  }, [watchlist, fetchBriefing]);
-
-  // Listen to /ws/ingest WebSocket for real-time article ingestion events
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let isUnmounted = false;
-
-    const connectIngestWs = () => {
-      try {
-        ws = new WebSocket(`${WS_URL}/ws/ingest`);
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (
-              data.type === 'article_processed' ||
-              data.type === 'new_article' ||
-              (data.type === 'ingestion_cycle_completed' && (data.new_articles_count ?? 0) > 0)
-            ) {
-              const eventTicker = data.ticker?.toLowerCase();
-              const isRelevant = !eventTicker || watchlist.some(w => w.toLowerCase() === eventTicker);
-              if (isRelevant) {
-                triggerDebouncedBriefing();
-              }
-            }
-          } catch (e) {
-            // Ignore malformed messages
-          }
-        };
-        ws.onclose = () => {
-          if (!isUnmounted) {
-            setTimeout(connectIngestWs, 5000);
-          }
-        };
-      } catch (e) {
-        console.error("Dashboard WS connect failed", e);
-      }
-    };
-
-    connectIngestWs();
-
-    return () => {
-      isUnmounted = true;
-      if (ws) ws.close();
-      if (briefingDebounceTimerRef.current) {
-        clearTimeout(briefingDebounceTimerRef.current);
-      }
-    };
-  }, [watchlist, triggerDebouncedBriefing]);
-  const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
-  const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
-
-  useEffect(() => {
-    if (watchlist.length > 0 && !selectedChartTicker) {
-      setSelectedChartTicker(watchlist[0]);
-    }
-  }, [watchlist, selectedChartTicker]);
+  }, [fetchBriefing]);
 
   // Dedicated Heatmap Fetcher
   const fetchHeatmap = useCallback(async () => {
     try {
-      const hmUrl = selectedHeatmapTicker && selectedHeatmapTicker !== 'ALL'
-        ? `${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}&ticker=${encodeURIComponent(selectedHeatmapTicker)}`
+      const ticker = selectedHeatmapTickerRef.current;
+      const hmUrl = ticker && ticker !== 'ALL'
+        ? `${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}&ticker=${encodeURIComponent(ticker)}`
         : `${API_URL}/api/sentiment/heatmap?email=${encodeURIComponent(email)}`;
       const hmRes = await fetch(hmUrl);
       if (hmRes.ok) {
@@ -176,9 +176,136 @@ export function Dashboard({ email }: DashboardProps) {
     } catch (e) {
       console.error("Failed to fetch heatmap", e);
     }
-  }, [email, selectedHeatmapTicker]);
+  }, [email]);
 
-  // Fetch watchlist, alerts, heatmap, and Yahoo Finance details
+  // Dedicated Alerts Fetcher
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const alertsRes = await fetch(`${API_URL}/api/alerts`);
+      if (alertsRes.ok) {
+        const alData = await alertsRes.json();
+        setAlerts(alData || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch alerts", e);
+    }
+  }, []);
+
+  // Targeted Single Stock Refresh (R5)
+  const refreshSingleStock = useCallback(async (ticker: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
+      if (res.ok) {
+        const hist = await res.json();
+        const updated = parseStockSummary(ticker, hist);
+        setStocksData(prev => {
+          const idx = prev.findIndex(s => s.ticker.toLowerCase() === ticker.toLowerCase());
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          }
+          return [...prev, updated];
+        });
+        setLastSyncTimestamp(Date.now());
+      }
+    } catch (e) {
+      console.error(`Failed to refresh stock ${ticker}:`, e);
+    }
+  }, []);
+
+  // Single WebSocket connection lifecycle with exponential backoff (R1, R2, R3, R4, R5, R9)
+  const connectWebSocket = useCallback(() => {
+    if (isUnmountedRef.current) return;
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    try {
+      const ws = new WebSocket(`${WS_URL}/ws/ingest`);
+
+      ws.onopen = () => {
+        if (isUnmountedRef.current) {
+          ws.close();
+          return;
+        }
+        setConnectionStatus('LIVE');
+        reconnectAttemptRef.current = 0;
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data: ActivityEvent = JSON.parse(event.data);
+          
+          // 1. Append to activity events for IngestActivity (R9)
+          setActivityEvents(prev => [...prev, data].slice(-200));
+
+          // 2. Immediate Targeted Ticker Updates (R4, R5)
+          const eventTicker = data.ticker?.trim();
+          const currentWatchlist = watchlistRef.current;
+
+          if (data.type === 'article_processed' || data.type === 'new_article') {
+            setLastSyncTimestamp(Date.now());
+
+            if (eventTicker) {
+              const matchedTicker = currentWatchlist.find(
+                w => w.toLowerCase() === eventTicker.toLowerCase()
+              );
+              if (matchedTicker) {
+                // Immediate targeted refresh of this specific ticker (R5)
+                refreshSingleStock(matchedTicker);
+                fetchAlerts();
+                fetchHeatmap();
+                triggerDebouncedBriefing();
+              }
+            }
+          } else if (data.type === 'ingestion_cycle_completed') {
+            setLastSyncTimestamp(Date.now());
+            if ((data.new_articles_count ?? 0) > 0) {
+              fetchAlerts();
+              fetchHeatmap();
+              triggerDebouncedBriefing();
+            }
+          }
+        } catch (e) {
+          // ignore malformed message
+        }
+      };
+
+      ws.onclose = () => {
+        if (isUnmountedRef.current) return;
+        if (reconnectAttemptRef.current > 5) {
+          setConnectionStatus('OFFLINE');
+        } else {
+          setConnectionStatus('RECONNECTING');
+        }
+
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptRef.current), 15000);
+        reconnectAttemptRef.current += 1;
+        reconnectTimerRef.current = setTimeout(connectWebSocket, delay);
+      };
+
+      ws.onerror = () => {
+        if (isUnmountedRef.current) return;
+        setConnectionStatus('RECONNECTING');
+      };
+
+      socketRef.current = ws;
+    } catch (e) {
+      if (!isUnmountedRef.current) {
+        setConnectionStatus('OFFLINE');
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptRef.current), 15000);
+        reconnectAttemptRef.current += 1;
+        reconnectTimerRef.current = setTimeout(connectWebSocket, delay);
+      }
+    }
+  }, [refreshSingleStock, fetchAlerts, fetchHeatmap, triggerDebouncedBriefing]);
+
+  // Fetch watchlist, alerts, heatmap, and Yahoo Finance details on initial load or manual refresh
   const fetchData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
@@ -190,84 +317,72 @@ export function Dashboard({ email }: DashboardProps) {
       setWatchlist(wl);
 
       // 2. Fetch Alerts
-      const alertsRes = await fetch(`${API_URL}/api/alerts`);
-      if (alertsRes.ok) {
-        const alData = await alertsRes.json();
-        setAlerts(alData || []);
-      }
+      await fetchAlerts();
 
-      // 3. Heatmap is owned by its own polling effect (keyed on the selected
-      //    ticker), so it is deliberately not fetched here.
-
-      // 4. Fetch Stock history summaries
+      // 3. Fetch Stock history summaries
       const stockSummaries: Stock[] = [];
       for (const ticker of wl) {
         try {
           const res = await fetch(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
           if (res.ok) {
             const hist = await res.json();
-            const prices = hist.price_series || [];
-            const sentiments = hist.sentiment_series || [];
-            
-            let price = 150.0;
-            let changePercent = 0.0;
-            if (prices.length > 0) {
-              const latest = prices[prices.length - 1];
-              price = latest.value !== undefined ? latest.value : 150.0;
-              
-              if (prices.length > 1) {
-                const prev = prices[prices.length - 2];
-                const prevVal = prev.value || 1.0;
-                changePercent = ((price - prevVal) / prevVal) * 100.0;
-              }
-            }
-
-            let sentimentScore = 0.0;
-            if (sentiments.length > 0) {
-              const latest = sentiments[sentiments.length - 1];
-              const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
-              const isPositive = latest.color ? latest.color.includes('0, 150') : true;
-              sentimentScore = isPositive ? (val / 100.0) : -(val / 100.0);
-            }
-
-            stockSummaries.push({
-              ticker,
-              name: `${ticker} Corp.`,
-              sentimentScore,
-              price,
-              changePercent,
-              region: ticker.endsWith('.NS') || ticker.endsWith('.BO') ? 'IN' : 'US',
-              currency: ticker.endsWith('.NS') || ticker.endsWith('.BO') ? 'INR' : 'USD'
-            });
+            stockSummaries.push(parseStockSummary(ticker, hist));
           }
         } catch (err) {
           console.error("Error fetching summary for " + ticker, err);
         }
       }
       setStocksData(stockSummaries);
+      setLastSyncTimestamp(Date.now());
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching dashboard data:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // Full dashboard polling every 60 seconds
+  // Initial load
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => fetchData(true), 60000);
-    return () => clearInterval(interval);
   }, [email]);
 
-  // Heatmap load + 60s poll. Keyed on fetchHeatmap, which is memoized on the
-  // selected ticker, so the interval re-binds whenever the filter changes and
-  // always refreshes the currently selected ticker.
+  // Sync selected chart ticker
+  useEffect(() => {
+    if (watchlist.length > 0 && !selectedChartTicker) {
+      setSelectedChartTicker(watchlist[0]);
+    }
+  }, [watchlist, selectedChartTicker]);
+
+  // Heatmap load when filter changes
   useEffect(() => {
     fetchHeatmap();
-    const heatmapInterval = setInterval(fetchHeatmap, 60000);
-    return () => clearInterval(heatmapInterval);
-  }, [fetchHeatmap]);
+  }, [fetchHeatmap, selectedHeatmapTicker]);
+
+  // Primary Event-Driven WebSocket connection lifecycle (R1, R2, R6)
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    connectWebSocket();
+
+    // Fallback low-frequency sync (5 minutes) for network resilience (R6)
+    const fallbackInterval = setInterval(() => {
+      fetchData(true);
+    }, 300000);
+
+    return () => {
+      isUnmountedRef.current = true;
+      clearInterval(fallbackInterval);
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      if (briefingDebounceTimerRef.current) {
+        clearTimeout(briefingDebounceTimerRef.current);
+      }
+    };
+  }, [connectWebSocket]);
 
   // Handle Watchlist Updates (Star / Add Ticker)
   const handleWatchlistChange = async (newWatchlist: string[]) => {
@@ -285,11 +400,7 @@ export function Dashboard({ email }: DashboardProps) {
     }
   };
 
-  // Trigger Pipeline Ingestion for every ticker in this user's watchlist.
-  // Sequentially awaited (not concurrent) to keep behavior predictable and
-  // avoid bursting Gemini rate limits across a multi-ticker watchlist at
-  // once. No more blocking alert() -- the IngestActivity panel now shows
-  // real, live progress instead.
+  // Trigger Pipeline Ingestion for every ticker in this user's watchlist
   const handleRunPipeline = async () => {
     if (watchlist.length === 0) return;
     try {
@@ -432,7 +543,7 @@ export function Dashboard({ email }: DashboardProps) {
         )}
       </div>
 
-      {/* Dashboard Header */}
+      {/* Dashboard Header with Real WebSocket Status (R3, R10) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <label className="text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] dark:text-white/40 text-slate-500 block mb-1">Market Overview</label>
@@ -440,20 +551,38 @@ export function Dashboard({ email }: DashboardProps) {
         
         <div className="flex flex-wrap items-center gap-3 sm:gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#00FF94] shadow-[0_0_8px_rgba(16,185,129,0.5)] dark:shadow-[0_0_8px_#00FF94]"></div>
-            <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest dark:text-white/60 text-slate-600">
-              Live Stream (Firestore)
-            </span>
+            {connectionStatus === 'LIVE' ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#00FF94] shadow-[0_0_8px_rgba(16,185,129,0.5)] dark:shadow-[0_0_8px_#00FF94] animate-pulse"></div>
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-emerald-600 dark:text-[#00FF94] font-semibold">
+                  LIVE (Firestore Stream)
+                </span>
+              </>
+            ) : connectionStatus === 'RECONNECTING' ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-ping"></div>
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-amber-500 font-semibold">
+                  RECONNECTING...
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-rose-400 font-semibold">
+                  OFFLINE
+                </span>
+              </>
+            )}
           </div>
           <span className="text-[10px] sm:text-[11px] font-mono dark:text-white/40 text-slate-500 uppercase tracking-widest">
-            Sync: {format(new Date(), 'HH:mm:ss')}
+            Sync: {lastSyncTimestamp ? format(new Date(lastSyncTimestamp), 'HH:mm:ss') : '--:--:--'}
           </span>
           <button 
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
             className="p-1 rounded-md dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50"
-            title="Refresh Data"
+            title="Manual Refresh"
           >
             <RefreshCcw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -499,7 +628,7 @@ export function Dashboard({ email }: DashboardProps) {
               onRunPipeline={handleRunPipeline}
               pipelineRunning={pipelineRunning}
             />
-            <IngestActivity />
+            <IngestActivity events={activityEvents} />
           </div>
 
           <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">

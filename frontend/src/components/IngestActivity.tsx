@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, ChevronDown, ChevronUp } from 'lucide-react';
 import { WS_URL } from '../config';
 
-interface ActivityEvent {
+export interface ActivityEvent {
   type: 'start' | 'activity' | 'done' | 'error' | 'ingestion_cycle_started' | 'checking_ticker' | 'new_article' | 'article_processed' | 'no_new_articles' | 'ingestion_cycle_completed' | 'ingestion_error';
   agent?: string;
   ticker?: string;
@@ -20,14 +20,35 @@ interface ActivityEvent {
   timestamp?: number;
 }
 
-export const IngestActivity: React.FC = () => {
-  const [events, setEvents] = useState<ActivityEvent[]>([]);
+export interface IngestActivityProps {
+  events?: ActivityEvent[];
+}
+
+export const IngestActivity: React.FC<IngestActivityProps> = ({ events: externalEvents }) => {
+  const [internalEvents, setInternalEvents] = useState<ActivityEvent[]>([]);
   const [showActivity, setShowActivity] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const logRef = useRef<HTMLPreElement | null>(null);
   const isUnmountingRef = useRef(false);
+  const reconnectAttemptRef = useRef(0);
+
+  const displayEvents = externalEvents !== undefined ? externalEvents : internalEvents;
 
   useEffect(() => {
+    // If events are passed from parent (Dashboard), don't create duplicate socket (R9)
+    if (externalEvents !== undefined) {
+      if (externalEvents.length > 0) {
+        const latest = externalEvents[externalEvents.length - 1];
+        if (latest.type === 'start' || latest.type === 'ingestion_cycle_started' || latest.type === 'new_article') {
+          setShowActivity(true);
+        }
+      }
+      if (logRef.current) {
+        logRef.current.scrollTop = logRef.current.scrollHeight;
+      }
+      return;
+    }
+
     isUnmountingRef.current = false;
     connectWebSocket();
     return () => {
@@ -36,45 +57,44 @@ export const IngestActivity: React.FC = () => {
         socketRef.current.close();
       }
     };
-  }, []);
+  }, [externalEvents]);
 
   const connectWebSocket = () => {
-    const ws = new WebSocket(`${WS_URL}/ws/ingest`);
+    if (externalEvents !== undefined) return;
+    try {
+      const ws = new WebSocket(`${WS_URL}/ws/ingest`);
 
-    ws.onopen = () => {
-      console.log('Connected to ingest activity WebSocket');
-    };
+      ws.onopen = () => {
+        reconnectAttemptRef.current = 0;
+      };
 
-    ws.onmessage = (event) => {
-      const data: ActivityEvent = JSON.parse(event.data);
+      ws.onmessage = (event) => {
+        try {
+          const data: ActivityEvent = JSON.parse(event.data);
+          if (data.type === 'start' || data.type === 'ingestion_cycle_started' || data.type === 'new_article') {
+            setShowActivity(true);
+          }
+          setInternalEvents((prev) => [...prev, data].slice(-200));
 
-      if (data.type === 'start' || data.type === 'ingestion_cycle_started' || data.type === 'new_article') {
-        setShowActivity(true);
-      }
+          if (logRef.current) {
+            logRef.current.scrollTop = logRef.current.scrollHeight;
+          }
+        } catch (err) {
+          // ignore parse errors
+        }
+      };
 
-      // Cap the rolling log instead of clearing it on every ticker's
-      // 'start' event -- a multi-ticker run fires one 'start' per ticker,
-      // and clearing here would wipe out earlier tickers' activity lines,
-      // leaving only the last ticker's output visible.
-      setEvents((prev) => [...prev, data].slice(-200));
+      ws.onclose = () => {
+        if (isUnmountingRef.current) return;
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttemptRef.current), 15000);
+        reconnectAttemptRef.current += 1;
+        setTimeout(connectWebSocket, delay);
+      };
 
-      if (logRef.current) {
-        logRef.current.scrollTop = logRef.current.scrollHeight;
-      }
-    };
-
-    ws.onclose = () => {
-      // Don't reconnect if the close was triggered by our own cleanup
-      // (component unmount, e.g. a dashboard tab switch) -- IngestActivity
-      // mounts/unmounts repeatedly, unlike AgentChat which mounts once for
-      // the app's lifetime, so scheduling a reconnect here unconditionally
-      // would leak one permanent orphaned WebSocket per unmount.
-      if (isUnmountingRef.current) return;
-      console.log('Ingest activity WebSocket disconnected. Reconnecting...');
-      setTimeout(connectWebSocket, 3000);
-    };
-
-    socketRef.current = ws;
+      socketRef.current = ws;
+    } catch (e) {
+      // ignore
+    }
   };
 
   const formatEvent = (e: ActivityEvent): string => {
@@ -108,8 +128,8 @@ export const IngestActivity: React.FC = () => {
           ref={logRef}
           className="p-3 m-0 max-h-[160px] overflow-y-auto text-[10px] font-mono text-purple-300 leading-normal whitespace-pre-wrap select-text bg-[#07080b]"
         >
-          {events.length > 0
-            ? events.map(formatEvent).join('\n')
+          {displayEvents.length > 0
+            ? displayEvents.map(formatEvent).join('\n')
             : 'No activity yet — click "Run Pipeline" to see ResearchAgent and SentimentAnalyst work in real time.'}
         </pre>
       )}
