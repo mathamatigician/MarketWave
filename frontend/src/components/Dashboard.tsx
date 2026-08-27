@@ -5,7 +5,7 @@ import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity, type ActivityEvent } from './IngestActivity';
-import { GemmaMarketIntelligence } from './GemmaMarketIntelligence';
+import { MarketIntelligence } from './MarketIntelligence';
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS, API_REQUEST_TIMEOUT_MS } from '../config';
@@ -89,20 +89,19 @@ export function Dashboard({ email }: DashboardProps) {
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
   const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts' | 'gemma'>('sentiment');
+  const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts' | 'intelligence'>('sentiment');
   
   // Real-time Stream & Connection State
   const [connectionStatus, setConnectionStatus] = useState<'LIVE' | 'RECONNECTING' | 'OFFLINE'>('OFFLINE');
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number | null>(null);
 
-  // Real-time Gemma Flash Briefing State
+  // Real-time Market Intelligence Briefing State
   const [briefing, setBriefing] = useState<{ ticker: string; bullet: string }[]>([]);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
   const [briefingTimestamp, setBriefingTimestamp] = useState<number | null>(null);
   const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
   const [briefingError, setBriefingError] = useState<string | null>(null);
-  const [briefingModelName, setBriefingModelName] = useState<string>('Google Gemma 3 (12B)');
 
   const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
   const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
@@ -119,7 +118,7 @@ export function Dashboard({ email }: DashboardProps) {
   const selectedHeatmapTickerRef = useRef<string>('ALL');
   selectedHeatmapTickerRef.current = selectedHeatmapTicker;
 
-  // Gemma Flash Briefing Fetcher
+  // Real-time Market Intelligence Fetcher
   const fetchBriefing = useCallback(async (_isManual = false) => {
     if (isBriefingInProgressRef.current) return;
     const currentWl = watchlistRef.current;
@@ -137,9 +136,6 @@ export function Dashboard({ email }: DashboardProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.model) {
-          setBriefingModelName(data.model);
-        }
         if (data.status === 'success' && Array.isArray(data.briefing) && data.briefing.length > 0) {
           setBriefing(data.briefing);
           setBriefingTimestamp(data.timestamp ? data.timestamp * 1000 : Date.now());
@@ -149,16 +145,16 @@ export function Dashboard({ email }: DashboardProps) {
           setBriefingStatus('live');
           setBriefingError(null);
         } else if (data.status === 'error') {
-          setBriefingError(data.message || "Gemma synthesis temporarily unavailable.");
+          setBriefingError(data.message || "Analysis temporarily unavailable.");
           setBriefingStatus('error');
         }
       } else {
-        setBriefingError(`Gemma synthesis returned HTTP ${res.status}`);
+        setBriefingError(`Analysis returned HTTP ${res.status}`);
         setBriefingStatus('error');
       }
     } catch (err: any) {
-      console.error("Failed to generate Gemma briefing", err);
-      setBriefingError("Gemma inference temporarily unavailable. Showing latest cached briefing.");
+      console.error("Failed to generate market intelligence", err);
+      setBriefingError("Analysis temporarily unavailable. Showing latest cached intelligence.");
       setBriefingStatus('error');
     } finally {
       isBriefingInProgressRef.current = false;
@@ -522,7 +518,7 @@ export function Dashboard({ email }: DashboardProps) {
           <button
             type="button"
             onClick={() => fetchData(false)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shrink-0"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 cursor-pointer"
           >
             <RefreshCcw className="w-3.5 h-3.5" />
             Retry Connection
@@ -530,7 +526,7 @@ export function Dashboard({ email }: DashboardProps) {
         </div>
       )}
 
-      {/* Active Alerts Banner with Gemma Catalyst */}
+      {/* Active Alerts Banner */}
       {alerts.length > 0 && alerts.some(alert => watchlist.includes(alert.ticker)) && (
         <div className="space-y-3">
           {alerts
@@ -552,9 +548,9 @@ export function Dashboard({ email }: DashboardProps) {
                 </div>
                 {alert.catalyst && (
                   <div className="pl-6 text-[11px] text-rose-200/90 font-medium flex flex-wrap items-center gap-2 bg-red-900/20 p-2 rounded border border-red-500/20">
-                    <span>💡 <strong>Breaking Catalyst:</strong> {alert.catalyst}</span>
-                    <span className="bg-purple-900/50 border border-purple-400/40 text-purple-200 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ml-auto">
-                      ⚡ {briefingModelName || 'Google Gemma'}
+                    <span>💡 <strong>Market Catalyst:</strong> {alert.catalyst}</span>
+                    <span className="bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ml-auto font-semibold">
+                      ● Live Signal Verified
                     </span>
                   </div>
                 )}
@@ -603,7 +599,7 @@ export function Dashboard({ email }: DashboardProps) {
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="p-1 rounded-md dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50"
+            className="p-1 rounded-md dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50 cursor-pointer"
             title="Manual Refresh"
           >
             <RefreshCcw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -615,7 +611,7 @@ export function Dashboard({ email }: DashboardProps) {
       <div className="flex border-b dark:border-white/10 border-slate-200 gap-3 sm:gap-6 mb-6 overflow-x-auto shrink-0 pb-1 scrollbar-none">
         <button 
           onClick={() => setDashboardTab('sentiment')}
-          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap cursor-pointer ${
             dashboardTab === 'sentiment' 
               ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
               : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -625,7 +621,7 @@ export function Dashboard({ email }: DashboardProps) {
         </button>
         <button 
           onClick={() => setDashboardTab('charts')}
-          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap ${
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap cursor-pointer ${
             dashboardTab === 'charts' 
               ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
               : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -634,15 +630,15 @@ export function Dashboard({ email }: DashboardProps) {
           📈 Stock Price vs Sentiments
         </button>
         <button 
-          onClick={() => setDashboardTab('gemma')}
-          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap flex items-center gap-1.5 ${
-            dashboardTab === 'gemma' 
+          onClick={() => setDashboardTab('intelligence')}
+          className={`text-[11px] sm:text-xs font-black uppercase tracking-widest pb-3 transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            dashboardTab === 'intelligence' 
               ? 'dark:text-white text-slate-900 border-b-2 dark:border-[#00FF94] border-emerald-500 font-bold' 
               : 'dark:text-white/40 text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <span className={dashboardTab === 'gemma' ? 'text-emerald-500 dark:text-[#00FF94]' : 'text-indigo-400'}>⚡</span>
-          <span>Gemma AI</span>
+          <span className={dashboardTab === 'intelligence' ? 'text-emerald-500 dark:text-[#00FF94]' : 'text-slate-400'}>⚡</span>
+          <span>Market Intelligence</span>
         </button>
       </div>
 
@@ -684,13 +680,12 @@ export function Dashboard({ email }: DashboardProps) {
         </div>
       ) : (
         <div className="animate-in fade-in duration-300">
-          <GemmaMarketIntelligence 
+          <MarketIntelligence 
             briefing={briefing}
             loading={loadingBriefing}
             briefingStatus={briefingStatus}
             briefingError={briefingError}
             briefingTimestamp={briefingTimestamp}
-            modelName={briefingModelName}
             connectionStatus={connectionStatus}
             stocksData={stocksData}
             overallScore={overallScore}
