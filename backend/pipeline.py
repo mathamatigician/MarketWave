@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import time
+import logging
 import re
 import asyncio
 import argparse
@@ -13,16 +15,20 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
 from typing import Optional, Callable, Awaitable
 
-# Add path for backend module imports. Must be the repo root (not just
-# backend/), matching backend/agents/triggers.py's pattern -- the
-# `from backend.agents.orchestrator import ...` imports below need
-# `backend` importable as a package, which requires the repo root (parent
-# of backend/) on sys.path, not backend/ itself.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import database
+logger = logging.getLogger("NewsPipeline")
 
+# Add path for backend module imports.
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
-from config import settings
+try:
+    from backend import database, gemma_service
+    from backend.config import settings
+except ImportError:
+    import database
+    import gemma_service
+    from config import settings
 GEMINI_API_KEY = settings.gemini_api_key or settings.google_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 # Define structured output schema for Topic Sentiment
@@ -446,136 +452,262 @@ def _save_new_articles_sync(new_articles: list) -> None:
     batch.commit()
 
 
-async def run_pipeline(ticker_arg: Optional[str] = None, on_activity: Optional[Callable[[dict], Awaitable[None]]] = None):
-    """Orchestrates the entire scraping and sentiment ingestion pipeline."""
+async def process_single_article(
+    item: dict,
+    ticker: str,
+    existing_urls: set,
+    on_activity: Optional[Callable[[dict], Awaitable[None]]] = None,
+    idx: int = 1,
+    total: int = 1
+) -> Optional[dict]:
+    """Processes a single raw news item: resolves redirect, checks deduplication,
+    runs Gemma triage, cleans text with ResearchAgent, scores sentiment with
+    SentimentAnalyst, and emits real-time WebSocket events.
+    """
     async def emit(event: dict):
         if on_activity:
             try:
                 await on_activity(event)
             except Exception as e:
-                print(f"on_activity callback failed (non-fatal): {e}")
+                logger.warning(f"on_activity callback failed (non-fatal): {e}")
 
-    # 1. Load existing URLs from Firestore to prevent duplicate scraping
+    google_link = item.get('google_link') or ''
+    title = item.get('title') or ''
+    date = item.get('date') or ''
+
+    # 1. Quick check on raw link
+    if google_link and google_link in existing_urls:
+        return None
+
+    # 2. Resolve original URL and scrape body text
+    real_url, text = await asyncio.to_thread(resolve_and_scrape_article, google_link)
+
+    # 3. Deduplicate by resolved original URL
+    if not real_url or real_url in existing_urls:
+        return None
+
+    # Emit new_article event (R12, R13)
+    await emit({
+        "type": "new_article",
+        "ticker": ticker,
+        "article_title": title,
+        "url": real_url,
+        "timestamp": int(time.time())
+    })
+
+    if not text:
+        logger.info(f"Scraping returned no text body for '{title[:40]}'. Using article title as fallback.")
+        text = title
+
+    # 4. Fast Frontline Triage via Google Gemma 2
+    impact = "MEDIUM"
+    try:
+        triage_res = await gemma_service.gemma_triage_news(title, text[:300] if text else title, ticker)
+        impact = triage_res.get("market_impact", "MEDIUM")
+        await emit({
+            "type": "activity",
+            "agent": "GemmaTriage",
+            "ticker": ticker,
+            "status": "triaged",
+            "detail": f"Gemma Impact: {impact} — {triage_res.get('reason', '')[:50]}",
+            "impact": impact
+        })
+    except Exception as e:
+        logger.debug(f"Gemma triage skipped: {e}")
+
+    # 5. Clean text via ResearchAgent
+    await emit({
+        "type": "activity",
+        "agent": "ResearchAgent",
+        "ticker": ticker,
+        "status": "cleaning",
+        "detail": f"Cleaning article {idx}/{total}: \"{title[:60]}\""
+    })
+    cleaned_text = await clean_article_with_agent(text, ticker, on_activity=emit)
+
+    # 6. Generate sentiment scores via SentimentAnalyst
+    await emit({
+        "type": "activity",
+        "agent": "SentimentAnalyst",
+        "ticker": ticker,
+        "status": "scoring",
+        "detail": f"Scoring article {idx}/{total}"
+    })
+    sentiment_json_str = await analyze_sentiment(cleaned_text, ticker, on_activity=emit)
+    try:
+        sentiment_for_event = json.loads(sentiment_json_str)
+        overall = sentiment_for_event.get("overall_sentiment") if isinstance(sentiment_for_event, dict) else None
+    except Exception:
+        overall = 0.0
+
+    # Emit article_processed event (R12, R13)
+    await emit({
+        "type": "article_processed",
+        "ticker": ticker,
+        "article_title": title,
+        "url": real_url,
+        "overall_sentiment": overall,
+        "market_impact": impact,
+        "status": "processed",
+        "timestamp": int(time.time())
+    })
+    await emit({
+        "type": "activity",
+        "agent": "SentimentAnalyst",
+        "ticker": ticker,
+        "status": "scored",
+        "detail": f"overall_sentiment: {overall}",
+        "article_title": title[:60]
+    })
+
+    # Mark as processed to prevent duplicates in current session
+    if google_link:
+        existing_urls.add(google_link)
+    existing_urls.add(real_url)
+
+    return {
+        'url': real_url,
+        'content': cleaned_text[:1500],
+        'company_name': ticker,
+        'date': date,
+        'Sentiment': sentiment_json_str
+    }
+
+
+async def ingest_news_for_ticker(
+    ticker: str,
+    existing_urls: set,
+    on_activity: Optional[Callable[[dict], Awaitable[None]]] = None,
+    limit: int = 5
+) -> list:
+    """Fetches and ingests any newly discovered articles for a single ticker.
+    Saves newly processed articles to Firestore immediately and emits WebSocket events.
+    """
+    async def emit(event: dict):
+        if on_activity:
+            try:
+                await on_activity(event)
+            except Exception as e:
+                logger.warning(f"on_activity callback failed (non-fatal): {e}")
+
+    await emit({"type": "checking_ticker", "ticker": ticker, "timestamp": int(time.time())})
+    await emit({"type": "start", "ticker": ticker})
+
+    news_source = "Finnhub" if settings.finhub_api_key else "Google News RSS"
+    await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "fetching", "detail": f"Querying {news_source}..."})
+
+    try:
+        items = await asyncio.to_thread(fetch_news_items, ticker, limit=limit)
+    except Exception as e:
+        logger.error(f"Failed to fetch news items for {ticker}: {e}")
+        await emit({"type": "ingestion_error", "ticker": ticker, "detail": f"Failed to fetch news: {e}", "timestamp": int(time.time())})
+        await emit({"type": "error", "ticker": ticker, "detail": f"Failed to fetch news: {e}"})
+        return []
+
+    if not items:
+        logger.info(f"No news items returned for {ticker}.")
+        await emit({"type": "no_new_articles", "ticker": ticker, "timestamp": int(time.time())})
+        await emit({"type": "done", "ticker": ticker, "new_articles": 0, "skipped_duplicates": 0})
+        return []
+
+    await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "found", "detail": f"Found {len(items)} recent articles", "total_items": len(items)})
+
+    new_articles = []
+    skipped_duplicates = 0
+
+    for idx, item in enumerate(items, start=1):
+        google_link = item.get('google_link') or ''
+        if google_link in existing_urls:
+            skipped_duplicates += 1
+            continue
+
+        article = await process_single_article(
+            item=item,
+            ticker=ticker,
+            existing_urls=existing_urls,
+            on_activity=on_activity,
+            idx=idx,
+            total=len(items)
+        )
+        if article:
+            new_articles.append(article)
+        else:
+            skipped_duplicates += 1
+
+    if new_articles:
+        try:
+            await asyncio.to_thread(_save_new_articles_sync, new_articles)
+            logger.info(f"Successfully saved {len(new_articles)} new articles for {ticker} to Firestore.")
+            await emit({"type": "activity", "agent": "System", "ticker": ticker, "status": "saved", "detail": f"Saved {len(new_articles)} new articles to Firestore"})
+        except Exception as e:
+            logger.error(f"Error saving new articles to Firestore for {ticker}: {e}")
+            await emit({"type": "ingestion_error", "ticker": ticker, "detail": f"Failed to save articles: {e}", "timestamp": int(time.time())})
+            await emit({"type": "error", "ticker": ticker, "detail": f"Failed to save articles: {e}"})
+    else:
+        await emit({"type": "no_new_articles", "ticker": ticker, "timestamp": int(time.time())})
+
+    await emit({"type": "done", "ticker": ticker, "new_articles": len(new_articles), "skipped_duplicates": skipped_duplicates})
+    return new_articles
+
+
+async def run_pipeline(ticker_arg: Optional[str] = None, on_activity: Optional[Callable[[dict], Awaitable[None]]] = None):
+    """Orchestrates the entire scraping and sentiment ingestion pipeline for manual or scoped runs."""
+    async def emit(event: dict):
+        if on_activity:
+            try:
+                await on_activity(event)
+            except Exception as e:
+                logger.warning(f"on_activity callback failed (non-fatal): {e}")
+
     existing_urls = set()
     try:
         existing_urls = await asyncio.to_thread(_load_existing_urls_sync)
-        print(f"Loaded {len(existing_urls)} existing URLs from Firestore articles collection.")
+        logger.info(f"Loaded {len(existing_urls)} existing URLs from Firestore articles collection.")
     except Exception as e:
-        print(f"Could not load existing URLs from Firestore: {e}")
+        logger.error(f"Could not load existing URLs from Firestore: {e}")
 
-    # Everything below is a safety net around the *existing* logic: if
-    # anything here raises before reaching one of the emit({"type": "done"/
-    # "error", ...}) calls below, the frontend's IngestActivity panel would
-    # otherwise be left showing "in progress" forever with no terminal
-    # event. This does not change when the existing per-ticker "done"
-    # events or the save-block's own "error" event fire -- it only catches
-    # what would otherwise propagate uncaught.
     try:
-        # 2. Determine tickers to scrape
         if ticker_arg:
             tickers = [ticker_arg]
         else:
             tickers = load_all_watchlist_tickers()
 
-        print(f"Running ingestion pipeline for tickers: {tickers}")
+        logger.info(f"Running manual/scoped ingestion pipeline for tickers: {tickers}")
+        await emit({
+            "type": "ingestion_cycle_started",
+            "tickers": tickers,
+            "timestamp": int(time.time())
+        })
 
-        new_articles = []
-        skipped_duplicates = 0
-
+        all_new_articles = []
         for ticker in tickers:
-            print(f"\n--- Fetching news for {ticker} ---")
-            await emit({"type": "start", "ticker": ticker})
-            news_source = "Finnhub" if settings.finhub_api_key else "Google News RSS"
-            await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "fetching", "detail": f"Querying {news_source}..."})
-            items = await asyncio.to_thread(fetch_news_items, ticker, limit=5)
-            print(f"Found {len(items)} recent news items in RSS feed.")
-            await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "found", "detail": f"Found {len(items)} recent articles", "total_items": len(items)})
+            ticker_new = await ingest_news_for_ticker(
+                ticker=ticker,
+                existing_urls=existing_urls,
+                on_activity=on_activity,
+                limit=5
+            )
+            all_new_articles.extend(ticker_new)
 
-            ticker_new_articles = 0
+        await emit({
+            "type": "ingestion_cycle_completed",
+            "tickers": tickers,
+            "new_articles_count": len(all_new_articles),
+            "timestamp": int(time.time())
+        })
 
-            for idx, item in enumerate(items, start=1):
-                google_link = item['google_link']
-                title = item['title']
-                date = item['date']
-
-                # Quick check on Google link
-                if google_link in existing_urls:
-                    print(f"Skipping duplicate Google News link: {title[:50]}...")
-                    skipped_duplicates += 1
-                    continue
-
-                print(f"Processing: {title[:50]}...")
-
-                # Resolve original URL and scrape body text
-                real_url, text = await asyncio.to_thread(resolve_and_scrape_article, google_link)
-
-                # Deduplicate by resolved original URL
-                if real_url in existing_urls:
-                    print(f"Skipping duplicate resolved link: {real_url[:50]}...")
-                    skipped_duplicates += 1
-                    continue
-
-                if not text:
-                    # If scraping failed, default to title + excerpt/description if text is empty
-                    print("Scraping returned no text body. Using article title as fallback.")
-                    text = title
-
-                # Fast Frontline Triage via Google Gemma 2
-                try:
-                    import gemma_service
-                    triage_res = await gemma_service.gemma_triage_news(title, text[:300], ticker)
-                    impact = triage_res.get("market_impact", "MEDIUM")
-                    await emit({"type": "activity", "agent": "GemmaTriage", "ticker": ticker, "status": "triaged", "detail": f"Gemma Impact: {impact} — {triage_res.get('reason', '')[:50]}", "impact": impact})
-                except Exception:
-                    pass
-
-                # Clean text via ResearchAgent (falls back to regex clean internally
-                # on failure, and emits its own "fallback" activity event when it does)
-                await emit({"type": "activity", "agent": "ResearchAgent", "ticker": ticker, "status": "cleaning", "detail": f"Cleaning article {idx}/{len(items)}: \"{title[:60]}\""})
-                cleaned_text = await clean_article_with_agent(text, ticker, on_activity=emit)
-
-                # Generate sentiment scores via SentimentAnalyst (same fallback +
-                # self-emitted "fallback" event pattern as cleaning, above)
-                await emit({"type": "activity", "agent": "SentimentAnalyst", "ticker": ticker, "status": "scoring", "detail": f"Scoring article {idx}/{len(items)}"})
-                sentiment_json_str = await analyze_sentiment(cleaned_text, ticker, on_activity=emit)
-                sentiment_for_event = json.loads(sentiment_json_str)
-                overall = sentiment_for_event.get("overall_sentiment") if isinstance(sentiment_for_event, dict) else None
-                await emit({"type": "activity", "agent": "SentimentAnalyst", "ticker": ticker, "status": "scored", "detail": f"overall_sentiment: {overall}", "article_title": title[:60]})
-
-                # Add to list
-                new_articles.append({
-                    'url': real_url,
-                    'content': cleaned_text[:1500],  # Truncate content to keep database size reasonable
-                    'company_name': ticker,
-                    'date': date,
-                    'Sentiment': sentiment_json_str
-                })
-                ticker_new_articles += 1
-
-                # Mark as processed to prevent processing in same run
-                existing_urls.add(google_link)
-                existing_urls.add(real_url)
-
-            await emit({"type": "done", "ticker": ticker, "new_articles": ticker_new_articles, "skipped_duplicates": skipped_duplicates})
-
-        # 3. Save to Firestore
-        if new_articles:
-            try:
-                await asyncio.to_thread(_save_new_articles_sync, new_articles)
-                print(f"\nSuccessfully ingested and saved {len(new_articles)} new articles to Firestore!")
-                await emit({"type": "activity", "agent": "System", "ticker": ticker_arg or "ALL", "status": "saved", "detail": f"Saved {len(new_articles)} new articles to Firestore"})
-            except Exception as e:
-                print(f"Error saving new articles to Firestore: {e}")
-                await emit({"type": "error", "ticker": ticker_arg or "ALL", "detail": f"Failed to save articles: {e}"})
+        if all_new_articles:
+            logger.info(f"Pipeline completed: {len(all_new_articles)} new articles ingested.")
         else:
-            print("\nNo new articles to ingest.")
+            logger.info("Pipeline completed: no new articles to ingest.")
+
     except Exception as e:
-        print(f"Unhandled exception in run_pipeline: {e}")
+        logger.error(f"Unhandled exception in run_pipeline: {e}", exc_info=True)
+        await emit({"type": "ingestion_error", "ticker": ticker_arg or "ALL", "detail": f"Pipeline run failed: {e}", "timestamp": int(time.time())})
         await emit({"type": "error", "ticker": ticker_arg or "ALL", "detail": f"Pipeline run failed: {e}"})
 
-if __name__ == "__main__":
-    import asyncio
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GlobePulse Stock News Scraper & Ingestion Pipeline")
     parser.add_argument("--ticker", type=str, help="Specific ticker symbol to run ingestion for (optional)")
     args = parser.parse_args()

@@ -20,6 +20,7 @@ import subscription
 import config
 from config import settings
 import gemma_service
+from ingestion_scheduler import get_scheduler
 import google_auth as google_auth_module
 from google.antigravity import Agent, LocalAgentConfig
 from backend.agents.orchestrator import orchestrator_config
@@ -34,6 +35,14 @@ app = FastAPI(title="GlobePulse API Backend")
 def startup_event():
     database.seed_demo_users()
     database.seed_demo_feedback()
+    # Start persistent background market news ingestion scheduler (R1, R14, R15)
+    scheduler = get_scheduler(broadcast_func=broadcast_ingest_activity)
+    scheduler.start(broadcast_func=broadcast_ingest_activity)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    scheduler = get_scheduler()
+    await scheduler.stop()
 
 # Setup CORS to allow React Frontend (including mobile LAN IPs during local
 # dev only -- see config.get_lan_origin_regex(), never applied on Cloud Run).
@@ -460,6 +469,17 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
         "recent_articles": recent_articles
     }
 
+
+@app.get("/api/pipeline/status")
+def get_pipeline_status():
+    """Returns current status of the background ingestion scheduler."""
+    scheduler = get_scheduler()
+    return {
+        "scheduler_running": scheduler.is_running,
+        "poll_interval_seconds": scheduler.poll_interval,
+        "in_progress_tickers": list(scheduler._in_progress_tickers)
+    }
+
 @app.post("/api/pipeline/run")
 def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = None, admin_key: Optional[str] = Query(None)):
     all_watchlists = database.load_all_watchlist_tickers()
@@ -467,6 +487,10 @@ def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = 
     if ticker and ticker not in valid_watchlist_entries:
         # Unrecognized ticker string: only tickers on user watchlists get the fast path
         ticker = None
+
+    scheduler = get_scheduler()
+    if ticker and scheduler.is_ticker_in_progress(ticker):
+        raise HTTPException(status_code=409, detail=f"Ingestion for '{ticker}' is currently in progress. Please wait.")
 
     if ticker:
         # Scoped, single-ticker run: bounded cost (~5 articles), no

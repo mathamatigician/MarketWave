@@ -56,9 +56,10 @@ class TestAgenticFlow(unittest.TestCase):
     @patch('backend.agents.triggers.pipeline.fetch_news_items')
     @patch('backend.agents.triggers.pipeline.resolve_and_scrape_article')
     @patch('backend.agents.triggers.pipeline.score_sentiment_with_agent', new_callable=AsyncMock)
+    @patch('backend.gemma_service.gemma_generate_catalyst_bullet', new_callable=AsyncMock)
     @patch('backend.agents.triggers.database.db')
     @patch('backend.agents.triggers.get_alerts_file_path')
-    def test_watchdog_trigger(self, mock_alerts_path, mock_db, mock_score, mock_scrape, mock_fetch, mock_load_tickers):
+    def test_watchdog_trigger(self, mock_alerts_path, mock_db, mock_gemma, mock_score, mock_scrape, mock_fetch, mock_load_tickers):
         # Setup temp alerts file path
         mock_alerts_path.return_value = 'test_alerts.json'
 
@@ -67,6 +68,7 @@ class TestAgenticFlow(unittest.TestCase):
         mock_fetch.return_value = [{'google_link': 'http://gnews.com/1', 'title': 'Negative News'}]
         mock_scrape.return_value = ('http://site.com/1', 'Bad news content')
         mock_score.return_value = {'overall_sentiment': -0.8}
+        mock_gemma.return_value = 'Negative catalyst bullet summary.'
         
         # Run watchdog trigger (using asyncio since check_watchlist_sentiment is async)
         import asyncio

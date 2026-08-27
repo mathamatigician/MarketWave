@@ -3,15 +3,21 @@ import { Terminal, ChevronDown, ChevronUp } from 'lucide-react';
 import { WS_URL } from '../config';
 
 interface ActivityEvent {
-  type: 'start' | 'activity' | 'done' | 'error';
+  type: 'start' | 'activity' | 'done' | 'error' | 'ingestion_cycle_started' | 'checking_ticker' | 'new_article' | 'article_processed' | 'no_new_articles' | 'ingestion_cycle_completed' | 'ingestion_error';
   agent?: string;
   ticker?: string;
+  tickers?: string[];
   status?: string;
   detail?: string;
   article_title?: string;
+  url?: string;
+  overall_sentiment?: number;
+  market_impact?: string;
   total_items?: number;
   new_articles?: number;
+  new_articles_count?: number;
   skipped_duplicates?: number;
+  timestamp?: number;
 }
 
 export const IngestActivity: React.FC = () => {
@@ -42,7 +48,7 @@ export const IngestActivity: React.FC = () => {
     ws.onmessage = (event) => {
       const data: ActivityEvent = JSON.parse(event.data);
 
-      if (data.type === 'start') {
+      if (data.type === 'start' || data.type === 'ingestion_cycle_started' || data.type === 'new_article') {
         setShowActivity(true);
       }
 
@@ -72,10 +78,16 @@ export const IngestActivity: React.FC = () => {
   };
 
   const formatEvent = (e: ActivityEvent): string => {
+    if (e.type === 'ingestion_cycle_started') return `🔄 [Live Watchdog] Ingestion cycle started for: ${e.tickers?.join(', ') || 'portfolio'}`;
+    if (e.type === 'checking_ticker') return `🔎 Checking live news for ${e.ticker}...`;
+    if (e.type === 'new_article') return `📰 New market-moving news discovered (${e.ticker}): "${e.article_title || ''}"`;
+    if (e.type === 'article_processed') return `✨ Processed (${e.ticker}): "${e.article_title || ''}" · Sentiment: ${e.overall_sentiment ?? 'N/A'} · Gemma Impact: ${e.market_impact || 'MEDIUM'}`;
+    if (e.type === 'no_new_articles') return `✓ No new articles found for ${e.ticker}`;
+    if (e.type === 'ingestion_cycle_completed') return `🏁 Ingestion cycle complete: ${e.new_articles_count ?? 0} new articles ingested to Firestore`;
+    if (e.type === 'ingestion_error' || e.type === 'error') return `✗ Error (${e.ticker || 'System'}): ${e.detail}`;
     if (e.type === 'start') return `▸ Starting ingestion for ${e.ticker}...`;
     if (e.type === 'done') return `✓ Done: ${e.ticker} — ${e.new_articles ?? 0} new articles, ${e.skipped_duplicates ?? 0} skipped`;
-    if (e.type === 'error') return `✗ Error (${e.ticker}): ${e.detail}`;
-    return `${e.agent} · ${e.ticker} · ${e.status}: ${e.detail}`;
+    return `${e.agent || 'System'} · ${e.ticker || 'General'} · ${e.status || 'info'}: ${e.detail || ''}`;
   };
 
   return (

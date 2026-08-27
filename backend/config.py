@@ -25,6 +25,7 @@ try:
         google_client_id: str = ""
         hf_token: Optional[str] = None
         gemma_model: str = "google/gemma-2-9b-it"
+        market_news_poll_seconds: int = 60
         # Hackathon demo guardrail: total registered users (existing + new
         # signups) allowed before /api/signup and first-time Google sign-in
         # both start rejecting new accounts. 14 = 9 already registered as of
@@ -52,6 +53,9 @@ except ImportError:
         razorpay_key_id: Optional[str] = None
         razorpay_key_secret: Optional[str] = None
         google_client_id: str = ""
+        hf_token: Optional[str] = None
+        gemma_model: str = "google/gemma-2-9b-it"
+        market_news_poll_seconds: int = 60
         max_total_users: int = 14
 
         class Config:
