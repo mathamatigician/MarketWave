@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getSentimentColor, formatPrice, getArticleSentimentScore, formatArticleSentiment } from '../lib/utils';
 import { RefreshCw, AlertCircle, Globe, Calendar, Tag } from 'lucide-react';
-import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { API_URL } from '../config';
 
 interface RecentArticle {
@@ -18,6 +18,16 @@ interface StockPriceSentimentTabProps {
   lastSyncTimestamp?: number | null;
 }
 
+interface ChartDataPoint {
+  date: string;
+  displayDate: string;
+  fullDate: string;
+  close: number | null;
+  sentiment: number | null;
+  article_count: number;
+  articles: RecentArticle[];
+}
+
 const COMPANY_TICKER_MAP: Record<string, string> = {
   "Tesla": "TSLA",
   "Apple": "AAPL",
@@ -30,6 +40,100 @@ const COMPANY_TICKER_MAP: Record<string, string> = {
   "Reliance Industries": "RELIANCE.NS",
   "Tata Motors": "TATAMOTORS.NS",
   "Infosys": "INFY.NS"
+};
+
+function normalizeDateStr(d: string | undefined): string | null {
+  if (!d) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const parts = d.split('/');
+  if (parts.length === 3) {
+    const month = parts[0].padStart(2, '0');
+    const day = parts[1].padStart(2, '0');
+    const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  try {
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+const CustomChartTooltip = ({ active, payload, currency }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const data: ChartDataPoint = payload[0]?.payload;
+  if (!data) return null;
+
+  const priceVal = data.close;
+  const sentimentVal = data.sentiment;
+  const articleCount = data.article_count || 0;
+  const dateStr = data.fullDate || data.displayDate || data.date;
+
+  const hasSentiment = sentimentVal !== null && sentimentVal !== undefined && !isNaN(sentimentVal);
+  const formattedSentiment = hasSentiment ? (sentimentVal >= 0 ? `+${sentimentVal.toFixed(2)}` : sentimentVal.toFixed(2)) : '--';
+  const signalLabel = hasSentiment 
+    ? (sentimentVal > 0.5 ? 'Strong Bullish' : sentimentVal > 0.15 ? 'Bullish' : sentimentVal < -0.5 ? 'Strong Bearish' : sentimentVal < -0.15 ? 'Bearish' : 'Neutral')
+    : 'No Signal';
+  const signalColor = hasSentiment
+    ? (sentimentVal > 0.15 ? 'text-[#00FF94]' : sentimentVal < -0.15 ? 'text-[#FF3E3E]' : 'text-slate-300 dark:text-white/80')
+    : 'text-slate-500';
+
+  return (
+    <div className="bg-slate-900/95 border border-slate-700/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono min-w-[220px] max-w-[320px] space-y-2 text-slate-200 pointer-events-none">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+        <span className="font-bold text-white">{dateStr}</span>
+        {articleCount > 0 && (
+          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+            {articleCount} {articleCount === 1 ? 'article' : 'articles'}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div>
+          <span className="text-slate-400 block text-[10px] uppercase">Stock Price</span>
+          <span className="font-bold text-white text-sm">
+            {priceVal !== null && priceVal !== undefined ? formatPrice(priceVal, currency) : '--'}
+          </span>
+        </div>
+        <div>
+          <span className="text-slate-400 block text-[10px] uppercase">Daily Sentiment</span>
+          <span className={`font-bold text-sm ${signalColor}`}>
+            {formattedSentiment}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px]">
+        <span className="text-slate-400 uppercase">Market Signal:</span>
+        <span className={`font-bold uppercase ${signalColor}`}>{signalLabel}</span>
+      </div>
+
+      {data.articles && data.articles.length > 0 && (
+        <div className="pt-1.5 border-t border-slate-800 text-[10px] space-y-1">
+          <span className="text-slate-400 uppercase block font-bold">Key Catalysts:</span>
+          {data.articles.slice(0, 2).map((art, idx) => {
+            const artScore = getArticleSentimentScore(art.sentiment);
+            const artScoreStr = artScore !== null ? (artScore >= 0 ? `+${artScore.toFixed(2)}` : artScore.toFixed(2)) : '';
+            return (
+              <div key={idx} className="truncate text-slate-300 flex items-center justify-between gap-2">
+                <span className="truncate">• {art.content}</span>
+                {artScoreStr && (
+                  <span className={`shrink-0 font-bold ${artScore && artScore > 0.15 ? 'text-[#00FF94]' : artScore && artScore < -0.15 ? 'text-[#FF3E3E]' : 'text-slate-400'}`}>
+                    {artScoreStr}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export function StockPriceSentimentTab({
@@ -89,76 +193,135 @@ export function StockPriceSentimentTab({
     fetchDetail();
   }, [activeTicker, lastSyncTimestamp]);
 
-  // Combine price series (date, Close) and sentiment series (date, score) for the composed chart
-  const chartData = useMemo(() => {
-    const dataMap: Record<string, { date: string; close: number | null; sentiment: number | null }> = {};
-    
-    // Fill price series
-    priceSeries.forEach(p => {
-      const dateKey = p.time || p.date;
-      if (dateKey) {
-        dataMap[dateKey] = {
-          date: dateKey,
-          close: p.value !== undefined ? p.value : (p.close || p.Close || null),
-          sentiment: null
-        };
+  const currency = activeTicker.endsWith('.NS') || activeTicker.endsWith('.BO') ? 'INR' : 'USD';
+
+  // Construct unified date-aligned dataset
+  const chartData: ChartDataPoint[] = useMemo(() => {
+    // 1. Group articles by normalized date
+    const articlesByDate = new Map<string, RecentArticle[]>();
+    recentArticles.forEach(art => {
+      const normDate = normalizeDateStr(art.date);
+      if (normDate) {
+        const list = articlesByDate.get(normDate) || [];
+        list.push(art);
+        articlesByDate.set(normDate, list);
       }
     });
 
-    // Fill sentiment series
+    // 2. Map sentiment_series by normalized date
+    const sentimentSeriesByDate = new Map<string, { score: number; count: number }>();
     sentimentSeries.forEach(s => {
-      const dateKey = s.time || s.date;
-      if (dateKey) {
-        const val = s.value !== undefined ? s.value : (s.score || 0.0);
-        const isPositive = s.color ? s.color.includes('0, 150') : true;
-        const score = isPositive ? (val / 100.0) : -(val / 100.0);
-
-        if (dataMap[dateKey]) {
-          dataMap[dateKey].sentiment = score;
-        } else {
-          dataMap[dateKey] = {
-            date: dateKey,
-            close: null,
-            sentiment: score
-          };
+      const normDate = normalizeDateStr(s.time || s.date);
+      if (normDate) {
+        let score: number | null = null;
+        if (s.score !== undefined && s.score !== null) {
+          score = Number(s.score);
+        } else if (s.value !== undefined) {
+          const isPositive = s.color ? s.color.includes('0, 150') : true;
+          score = isPositive ? (s.value / 100.0) : -(s.value / 100.0);
+        }
+        if (score !== null && !isNaN(score)) {
+          sentimentSeriesByDate.set(normDate, { score: Number(score.toFixed(2)), count: s.article_count || 1 });
         }
       }
     });
 
-    // Convert back to sorted array
-    const sorted = Object.values(dataMap).sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    // 3. Collect all unique dates in chronological order
+    const allDates = new Set<string>();
+    priceSeries.forEach(p => {
+      const norm = normalizeDateStr(p.time || p.date);
+      if (norm) allDates.add(norm);
+    });
+    sentimentSeries.forEach(s => {
+      const norm = normalizeDateStr(s.time || s.date);
+      if (norm) allDates.add(norm);
+    });
+    recentArticles.forEach(a => {
+      const norm = normalizeDateStr(a.date);
+      if (norm) allDates.add(norm);
     });
 
-    // Forward fill price for non-trading dates (weekends/holidays) that have sentiment
+    const sortedDates = Array.from(allDates).sort();
+
+    // 4. Build unified data points
     let lastKnownClose: number | null = null;
-    return sorted.map(item => {
-      if (item.close !== null && item.close !== undefined) {
-        lastKnownClose = item.close;
-        return item;
+
+    return sortedDates.map(dateKey => {
+      const priceItem = priceSeries.find(p => normalizeDateStr(p.time || p.date) === dateKey);
+      let close: number | null = null;
+      if (priceItem && priceItem.value !== undefined && priceItem.value !== null) {
+        close = priceItem.value;
+        lastKnownClose = priceItem.value;
       } else if (lastKnownClose !== null) {
-        return { ...item, close: lastKnownClose };
+        close = lastKnownClose;
       }
-      return item;
+
+      let sentiment: number | null = null;
+      let article_count = 0;
+      const articlesOnDate = articlesByDate.get(dateKey) || [];
+
+      // Calculate arithmetic mean of real article scores if available
+      const validScores: number[] = [];
+      articlesOnDate.forEach(art => {
+        const sc = getArticleSentimentScore(art.sentiment);
+        if (sc !== null && typeof sc === 'number' && !isNaN(sc)) {
+          validScores.push(sc);
+        }
+      });
+
+      if (validScores.length > 0) {
+        const sum = validScores.reduce((acc, curr) => acc + curr, 0);
+        sentiment = Number((sum / validScores.length).toFixed(2));
+        article_count = articlesOnDate.length;
+      } else if (sentimentSeriesByDate.has(dateKey)) {
+        const seriesEntry = sentimentSeriesByDate.get(dateKey)!;
+        sentiment = seriesEntry.score;
+        article_count = seriesEntry.count;
+      } else {
+        // Critical: Do NOT forward-fill missing sentiment
+        sentiment = null;
+        article_count = 0;
+      }
+
+      const parts = dateKey.split('-');
+      let displayDate = dateKey;
+      let fullDate = dateKey;
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(dateObj.getTime())) {
+          const monthName = dateObj.toLocaleString('en-US', { month: 'short' });
+          const dayNum = dateObj.getDate();
+          displayDate = `${dayNum} ${monthName}`;
+          fullDate = `${dayNum} ${monthName} ${parts[0]}`;
+        }
+      }
+
+      return {
+        date: dateKey,
+        displayDate,
+        fullDate,
+        close,
+        sentiment,
+        article_count,
+        articles: articlesOnDate
+      };
     });
-  }, [priceSeries, sentimentSeries]);
+  }, [priceSeries, sentimentSeries, recentArticles]);
+
+  const hasAnySentimentData = useMemo(() => {
+    return chartData.some(d => d.sentiment !== null);
+  }, [chartData]);
+
+  // Aggregate high-level latest sentiment score
+  const scoreVal = useMemo(() => {
+    const scoredPoints = chartData.filter(d => d.sentiment !== null);
+    if (scoredPoints.length === 0) return null;
+    return scoredPoints[scoredPoints.length - 1].sentiment;
+  }, [chartData]);
 
   const scoreColor = useMemo(() => {
-    if (sentimentSeries.length === 0) return 'text-slate-400';
-    const latest = sentimentSeries[sentimentSeries.length - 1];
-    const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
-    const isPositive = latest.color ? latest.color.includes('0, 150') : true;
-    const score = isPositive ? (val / 100.0) : -(val / 100.0);
-    return getSentimentColor(score);
-  }, [sentimentSeries]);
-
-  const scoreVal = useMemo(() => {
-    if (sentimentSeries.length === 0) return null;
-    const latest = sentimentSeries[sentimentSeries.length - 1];
-    const val = latest.value !== undefined ? latest.value : (latest.score || 0.0);
-    const isPositive = latest.color ? latest.color.includes('0, 150') : true;
-    return isPositive ? (val / 100.0) : -(val / 100.0);
-  }, [sentimentSeries]);
+    return getSentimentColor(scoreVal);
+  }, [scoreVal]);
 
   if (watchlist.length === 0) {
     return (
@@ -241,7 +404,7 @@ export function StockPriceSentimentTab({
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Current Price</span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-                    {formatPrice(tickerDetails.price, activeTicker.endsWith('.NS') || activeTicker.endsWith('.BO') ? 'INR' : 'USD')}
+                    {formatPrice(tickerDetails.price, currency)}
                   </span>
                   <span className={`text-xs font-mono font-bold ${tickerDetails.changePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {tickerDetails.changePercent >= 0 ? '+' : ''}{tickerDetails.changePercent.toFixed(2)}%
@@ -263,72 +426,144 @@ export function StockPriceSentimentTab({
           )}
 
           {/* Composed Price and Sentiment Overlay Chart */}
-          <div className="p-4 sm:p-6 bg-slate-50 dark:bg-[#121214] rounded-lg border border-slate-100 dark:border-white/5">
-            <span className="text-[11px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-4 font-bold font-mono">
-              Price Overlay & Sentiment Trajectory (Past 30 Days)
-            </span>
-            <div className="h-80 w-full">
+          <div className="p-4 sm:p-6 bg-slate-50 dark:bg-[#121214] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-white/5 pb-3">
+              <div>
+                <span className="text-[11px] uppercase tracking-widest text-slate-800 dark:text-white/90 block font-bold font-mono">
+                  Price Movement vs Normalized Market Sentiment
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-white/40 font-mono">
+                  Daily Closing Price Overlay with Centered [-1.0, +1.0] Sentiment Impact
+                </span>
+              </div>
+
+              {/* Visual Legend */}
+              <div className="flex items-center gap-3 text-[10px] font-mono">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-0.5 bg-[#38bdf8] rounded-full inline-block"></span>
+                  <span className="text-slate-600 dark:text-white/70">Price Line</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-[#00FF94] rounded-sm inline-block"></span>
+                  <span className="text-slate-600 dark:text-white/70">Bullish (&gt;0)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-[#FF3E3E] rounded-sm inline-block"></span>
+                  <span className="text-slate-600 dark:text-white/70">Bearish (&lt;0)</span>
+                </div>
+              </div>
+            </div>
+
+            {!hasAnySentimentData && (
+              <div className="p-2 text-center text-[11px] font-mono text-slate-400 dark:text-white/40 bg-slate-100/50 dark:bg-white/5 rounded-lg">
+                Notice: Historical sentiment signal pending for some dates. Price tracking active.
+              </div>
+            )}
+
+            <div className="h-80 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: -5, left: -20, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  
                   <XAxis 
-                    dataKey="date" 
-                    stroke="#888888" 
-                    fontSize={9} 
+                    dataKey="displayDate" 
+                    stroke="#64748b" 
+                    fontSize={10} 
                     tickLine={false} 
-                    axisLine={false} 
+                    axisLine={{ stroke: '#334155' }} 
+                    dy={5}
                   />
+                  
+                  {/* Left Y-Axis: Stock Price */}
                   <YAxis 
                     yAxisId="left"
                     domain={['auto', 'auto']}
-                    stroke="#888888" 
-                    fontSize={9} 
+                    stroke="#64748b" 
+                    fontSize={10} 
                     tickLine={false} 
-                    axisLine={false} 
-                    label={{ value: 'Price', angle: -90, position: 'insideLeft', style: { fill: '#888888', fontSize: 9 } }}
+                    axisLine={false}
+                    tickFormatter={(val) => `$${val.toFixed(0)}`}
+                    label={{ 
+                      value: `Price (${currency})`, 
+                      angle: -90, 
+                      position: 'insideLeft', 
+                      style: { fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' },
+                      offset: 15
+                    }}
                   />
+                  
+                  {/* Right Y-Axis: Normalized Sentiment [-1.0, +1.0] */}
                   <YAxis 
                     yAxisId="right"
                     orientation="right"
-                    domain={[-3.0, 3.0]} 
-                    stroke="#888888" 
-                    fontSize={9} 
+                    domain={[-1.0, 1.0]} 
+                    stroke="#64748b" 
+                    fontSize={10} 
                     tickLine={false} 
                     axisLine={false} 
                     ticks={[-1.0, -0.5, 0.0, 0.5, 1.0]}
-                    label={{ value: 'Sentiment', angle: 90, position: 'insideRight', style: { fill: '#888888', fontSize: 9 } }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                      border: 'none', 
-                      borderRadius: '8px',
-                      color: '#fff',
-                      fontSize: '11px',
-                      fontFamily: 'monospace'
+                    tickFormatter={(val) => val === 0 ? '0.00' : val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`}
+                    label={{ 
+                      value: 'Sentiment Score', 
+                      angle: 90, 
+                      position: 'insideRight', 
+                      style: { fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace' },
+                      offset: 15
                     }}
                   />
-                  <Area 
-                    yAxisId="left"
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="#00FF94" 
-                    strokeWidth={2}
-                    fillOpacity={0.1} 
-                    fill="#00FF94" 
-                    name="Close Price"
+                  
+                  {/* Zero Reference Line for Sentiment */}
+                  <ReferenceLine 
+                    yAxisId="right" 
+                    y={0} 
+                    stroke="#64748b" 
+                    strokeDasharray="3 3" 
+                    strokeWidth={1}
                   />
+                  
+                  {/* Bullish threshold (+0.15) & Bearish threshold (-0.15) */}
+                  <ReferenceLine yAxisId="right" y={0.15} stroke="#00FF94" strokeDasharray="1 4" strokeOpacity={0.4} />
+                  <ReferenceLine yAxisId="right" y={-0.15} stroke="#FF3E3E" strokeDasharray="1 4" strokeOpacity={0.4} />
+                  
+                  <Tooltip content={<CustomChartTooltip currency={currency} />} />
+                  
+                  {/* Sentiment Vertical Bars centered on 0 */}
                   <Bar 
                     yAxisId="right"
                     dataKey="sentiment" 
-                    barSize={12}
+                    barSize={14}
                     name="Daily Sentiment"
                   >
                     {chartData.map((entry, index) => {
                       const val = entry.sentiment;
-                      const color = val !== null && val > 0.15 ? '#00FF94' : val !== null && val < -0.15 ? '#FF3E3E' : '#64748b';
-                      return <Cell key={`cell-${index}`} fill={color} />;
+                      const color = val === null 
+                        ? 'transparent' 
+                        : val > 0.15 
+                          ? '#00FF94' 
+                          : val < -0.15 
+                            ? '#FF3E3E' 
+                            : '#94a3b8';
+                      return <Cell key={`sentiment-cell-${index}`} fill={color} opacity={0.85} />;
                     })}
                   </Bar>
+                  
+                  {/* Clean Price Line with subtle area fill */}
+                  <Area 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="close" 
+                    stroke="#38bdf8" 
+                    strokeWidth={2.5}
+                    fill="url(#priceGradient)"
+                    name="Close Price"
+                    dot={false}
+                    activeDot={{ r: 5, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

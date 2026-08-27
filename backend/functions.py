@@ -36,9 +36,14 @@ def transform_date_sentiment(df):
             color = 'rgba(0, 150, 136, 0.8)' if val_float >= 0 else 'rgba(255, 82, 82, 0.8)'
 
             # Convert date format to 'YYYY-MM-DD'
-            date = pd.to_datetime(column, format='%m/%d/%Y').strftime('%Y-%m-%d')
+            date = pd.to_datetime(column).strftime('%Y-%m-%d')
 
-            overall_sentiment_data.append({"time": date, "value": val_scaled, "color": color})
+            overall_sentiment_data.append({
+                "time": date,
+                "value": val_scaled,
+                "color": color,
+                "score": round(val_float, 2)
+            })
         except Exception:
             continue
 

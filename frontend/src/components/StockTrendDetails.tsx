@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Stock } from '../types';
 import { getSentimentColor, formatPrice, getArticleSentimentScore, formatArticleSentiment } from '../lib/utils';
 import { X, RefreshCw, AlertCircle, Globe, Calendar, Tag } from 'lucide-react';
-import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { API_URL } from '../config';
 
 interface RecentArticle {
@@ -11,6 +11,110 @@ interface RecentArticle {
   date: string;
   sentiment: Record<string, any> | null;
 }
+
+interface ChartDataPoint {
+  date: string;
+  displayDate: string;
+  fullDate: string;
+  close: number | null;
+  sentiment: number | null;
+  article_count: number;
+  articles: RecentArticle[];
+}
+
+function normalizeDateStr(d: string | undefined): string | null {
+  if (!d) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const parts = d.split('/');
+  if (parts.length === 3) {
+    const month = parts[0].padStart(2, '0');
+    const day = parts[1].padStart(2, '0');
+    const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  try {
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+const CustomChartTooltip = ({ active, payload, currency }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const data: ChartDataPoint = payload[0]?.payload;
+  if (!data) return null;
+
+  const priceVal = data.close;
+  const sentimentVal = data.sentiment;
+  const articleCount = data.article_count || 0;
+  const dateStr = data.fullDate || data.displayDate || data.date;
+
+  const hasSentiment = sentimentVal !== null && sentimentVal !== undefined && !isNaN(sentimentVal);
+  const formattedSentiment = hasSentiment ? (sentimentVal >= 0 ? `+${sentimentVal.toFixed(2)}` : sentimentVal.toFixed(2)) : '--';
+  const signalLabel = hasSentiment 
+    ? (sentimentVal > 0.5 ? 'Strong Bullish' : sentimentVal > 0.15 ? 'Bullish' : sentimentVal < -0.5 ? 'Strong Bearish' : sentimentVal < -0.15 ? 'Bearish' : 'Neutral')
+    : 'No Signal';
+  const signalColor = hasSentiment
+    ? (sentimentVal > 0.15 ? 'text-[#00FF94]' : sentimentVal < -0.15 ? 'text-[#FF3E3E]' : 'text-slate-300 dark:text-white/80')
+    : 'text-slate-500';
+
+  return (
+    <div className="bg-slate-900/95 border border-slate-700/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono min-w-[220px] max-w-[320px] space-y-2 text-slate-200 pointer-events-none">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+        <span className="font-bold text-white">{dateStr}</span>
+        {articleCount > 0 && (
+          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+            {articleCount} {articleCount === 1 ? 'article' : 'articles'}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div>
+          <span className="text-slate-400 block text-[10px] uppercase">Stock Price</span>
+          <span className="font-bold text-white text-sm">
+            {priceVal !== null && priceVal !== undefined ? formatPrice(priceVal, currency) : '--'}
+          </span>
+        </div>
+        <div>
+          <span className="text-slate-400 block text-[10px] uppercase">Daily Sentiment</span>
+          <span className={`font-bold text-sm ${signalColor}`}>
+            {formattedSentiment}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px]">
+        <span className="text-slate-400 uppercase">Market Signal:</span>
+        <span className={`font-bold uppercase ${signalColor}`}>{signalLabel}</span>
+      </div>
+
+      {data.articles && data.articles.length > 0 && (
+        <div className="pt-1.5 border-t border-slate-800 text-[10px] space-y-1">
+          <span className="text-slate-400 uppercase block font-bold">Key Catalysts:</span>
+          {data.articles.slice(0, 2).map((art, idx) => {
+            const artScore = getArticleSentimentScore(art.sentiment);
+            const artScoreStr = artScore !== null ? (artScore >= 0 ? `+${artScore.toFixed(2)}` : artScore.toFixed(2)) : '';
+            return (
+              <div key={idx} className="truncate text-slate-300 flex items-center justify-between gap-2">
+                <span className="truncate">• {art.content}</span>
+                {artScoreStr && (
+                  <span className={`shrink-0 font-bold ${artScore && artScore > 0.15 ? 'text-[#00FF94]' : artScore && artScore < -0.15 ? 'text-[#FF3E3E]' : 'text-slate-400'}`}>
+                    {artScoreStr}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export function StockTrendDetails({ 
   stock, 
@@ -48,60 +152,113 @@ export function StockTrendDetails({
     fetchDetail();
   }, [stock.ticker]);
 
-  // Combine price series (date, Close) and sentiment series (date, score) for the composed chart
-  const chartData = useMemo(() => {
-    // Map dates to clean objects
-    const dataMap: Record<string, { date: string; close: number | null; sentiment: number | null }> = {};
-    
-    // Fill price series
-    priceSeries.forEach(p => {
-      const dateKey = p.time || p.date;
-      if (dateKey) {
-        dataMap[dateKey] = {
-          date: dateKey,
-          close: p.value !== undefined ? p.value : (p.close || p.Close || null),
-          sentiment: null
-        };
+  const currency = stock.currency || (stock.ticker.endsWith('.NS') || stock.ticker.endsWith('.BO') ? 'INR' : 'USD');
+
+  // Construct unified date-aligned dataset
+  const chartData: ChartDataPoint[] = useMemo(() => {
+    const articlesByDate = new Map<string, RecentArticle[]>();
+    recentArticles.forEach(art => {
+      const normDate = normalizeDateStr(art.date);
+      if (normDate) {
+        const list = articlesByDate.get(normDate) || [];
+        list.push(art);
+        articlesByDate.set(normDate, list);
       }
     });
 
-    // Fill sentiment series
+    const sentimentSeriesByDate = new Map<string, { score: number; count: number }>();
     sentimentSeries.forEach(s => {
-      const dateKey = s.time || s.date;
-      if (dateKey) {
-        const val = s.value !== undefined ? s.value : (s.score || 0.0);
-        const isPositive = s.color ? s.color.includes('0, 150') : true;
-        const score = isPositive ? (val / 100.0) : -(val / 100.0);
-
-        if (dataMap[dateKey]) {
-          dataMap[dateKey].sentiment = score;
-        } else {
-          dataMap[dateKey] = {
-            date: dateKey,
-            close: null,
-            sentiment: score
-          };
+      const normDate = normalizeDateStr(s.time || s.date);
+      if (normDate) {
+        let score: number | null = null;
+        if (s.score !== undefined && s.score !== null) {
+          score = Number(s.score);
+        } else if (s.value !== undefined) {
+          const isPositive = s.color ? s.color.includes('0, 150') : true;
+          score = isPositive ? (s.value / 100.0) : -(s.value / 100.0);
+        }
+        if (score !== null && !isNaN(score)) {
+          sentimentSeriesByDate.set(normDate, { score: Number(score.toFixed(2)), count: s.article_count || 1 });
         }
       }
     });
 
-    // Convert back to sorted array
-    const sorted = Object.values(dataMap).sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    const allDates = new Set<string>();
+    priceSeries.forEach(p => {
+      const norm = normalizeDateStr(p.time || p.date);
+      if (norm) allDates.add(norm);
+    });
+    sentimentSeries.forEach(s => {
+      const norm = normalizeDateStr(s.time || s.date);
+      if (norm) allDates.add(norm);
+    });
+    recentArticles.forEach(a => {
+      const norm = normalizeDateStr(a.date);
+      if (norm) allDates.add(norm);
     });
 
-    // Forward fill price for non-trading dates (weekends/holidays) that have sentiment
+    const sortedDates = Array.from(allDates).sort();
     let lastKnownClose: number | null = null;
-    return sorted.map(item => {
-      if (item.close !== null && item.close !== undefined) {
-        lastKnownClose = item.close;
-        return item;
+
+    return sortedDates.map(dateKey => {
+      const priceItem = priceSeries.find(p => normalizeDateStr(p.time || p.date) === dateKey);
+      let close: number | null = null;
+      if (priceItem && priceItem.value !== undefined && priceItem.value !== null) {
+        close = priceItem.value;
+        lastKnownClose = priceItem.value;
       } else if (lastKnownClose !== null) {
-        return { ...item, close: lastKnownClose };
+        close = lastKnownClose;
       }
-      return item;
+
+      let sentiment: number | null = null;
+      let article_count = 0;
+      const articlesOnDate = articlesByDate.get(dateKey) || [];
+
+      const validScores: number[] = [];
+      articlesOnDate.forEach(art => {
+        const sc = getArticleSentimentScore(art.sentiment);
+        if (sc !== null && typeof sc === 'number' && !isNaN(sc)) {
+          validScores.push(sc);
+        }
+      });
+
+      if (validScores.length > 0) {
+        const sum = validScores.reduce((acc, curr) => acc + curr, 0);
+        sentiment = Number((sum / validScores.length).toFixed(2));
+        article_count = articlesOnDate.length;
+      } else if (sentimentSeriesByDate.has(dateKey)) {
+        const seriesEntry = sentimentSeriesByDate.get(dateKey)!;
+        sentiment = seriesEntry.score;
+        article_count = seriesEntry.count;
+      } else {
+        sentiment = null;
+        article_count = 0;
+      }
+
+      const parts = dateKey.split('-');
+      let displayDate = dateKey;
+      let fullDate = dateKey;
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(dateObj.getTime())) {
+          const monthName = dateObj.toLocaleString('en-US', { month: 'short' });
+          const dayNum = dateObj.getDate();
+          displayDate = `${dayNum} ${monthName}`;
+          fullDate = `${dayNum} ${monthName} ${parts[0]}`;
+        }
+      }
+
+      return {
+        date: dateKey,
+        displayDate,
+        fullDate,
+        close,
+        sentiment,
+        article_count,
+        articles: articlesOnDate
+      };
     });
-  }, [priceSeries, sentimentSeries]);
+  }, [priceSeries, sentimentSeries, recentArticles]);
 
   const scoreColor = stock.sentimentScore !== null ? getSentimentColor(stock.sentimentScore) : 'text-slate-400 dark:text-white/40';
 
@@ -163,7 +320,7 @@ export function StockTrendDetails({
                 <div className="p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                   <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-1">Current Price</span>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{formatPrice(stock.price, stock.currency)}</span>
+                    <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{formatPrice(stock.price, currency)}</span>
                     <span className={`text-xs font-mono font-bold ${stock.changePercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
                     </span>
@@ -183,73 +340,87 @@ export function StockTrendDetails({
               </div>
 
               {/* Composed Price and Sentiment Overlay Chart */}
-              <div>
-                <span className="text-[11px] uppercase tracking-widest text-slate-400 dark:text-white/40 block mb-3 font-semibold">
-                  Price Overlay & Sentiment Trajectory (Past 30 Days)
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] uppercase tracking-widest text-slate-400 dark:text-white/40 block font-semibold">
+                    Price Overlay & Sentiment Trajectory (Past 30 Days)
+                  </span>
+                  <div className="flex items-center gap-2 text-[10px] font-mono">
+                    <span className="text-[#38bdf8]">● Price</span>
+                    <span className="text-[#00FF94]">■ Bullish</span>
+                    <span className="text-[#FF3E3E]">■ Bearish</span>
+                  </div>
+                </div>
                 <div className="h-64 w-full bg-slate-50 dark:bg-[#121214] p-4 rounded-lg border border-slate-100 dark:border-white/5">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} margin={{ top: 10, right: -5, left: -20, bottom: 0 }}>
+                    <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="detailPriceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0}/>
+                        </linearGradient>
+                      </defs>
+                      
                       <XAxis 
-                        dataKey="date" 
-                        stroke="#888888" 
+                        dataKey="displayDate" 
+                        stroke="#64748b" 
                         fontSize={9} 
                         tickLine={false} 
-                        axisLine={false} 
+                        axisLine={{ stroke: '#334155' }} 
                       />
                       <YAxis 
                         yAxisId="left"
                         domain={['auto', 'auto']}
-                        stroke="#888888" 
+                        stroke="#64748b" 
                         fontSize={9} 
                         tickLine={false} 
                         axisLine={false} 
-                        label={{ value: 'Price', angle: -90, position: 'insideLeft', style: { fill: '#888888', fontSize: 9 } }}
+                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                        label={{ value: 'Price', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: 9 } }}
                       />
                       <YAxis 
                         yAxisId="right"
                         orientation="right"
-                        domain={[-3.0, 3.0]} 
-                        stroke="#888888" 
+                        domain={[-1.0, 1.0]} 
+                        stroke="#64748b" 
                         fontSize={9} 
                         tickLine={false} 
                         axisLine={false} 
                         ticks={[-1.0, -0.5, 0.0, 0.5, 1.0]}
-                        label={{ value: 'Sentiment', angle: 90, position: 'insideRight', style: { fill: '#888888', fontSize: 9 } }}
+                        tickFormatter={(val) => val === 0 ? '0.00' : val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`}
+                        label={{ value: 'Sentiment', angle: 90, position: 'insideRight', style: { fill: '#94a3b8', fontSize: 9 } }}
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                          border: 'none', 
-                          borderRadius: '8px',
-                          color: '#fff',
-                          fontSize: '11px',
-                          fontFamily: 'monospace'
-                        }}
-                      />
+                      
+                      <ReferenceLine yAxisId="right" y={0} stroke="#64748b" strokeDasharray="3 3" strokeWidth={1} />
+                      <ReferenceLine yAxisId="right" y={0.15} stroke="#00FF94" strokeDasharray="1 4" strokeOpacity={0.4} />
+                      <ReferenceLine yAxisId="right" y={-0.15} stroke="#FF3E3E" strokeDasharray="1 4" strokeOpacity={0.4} />
+                      
+                      <Tooltip content={<CustomChartTooltip currency={currency} />} />
+                      
+                      <Bar 
+                        yAxisId="right"
+                        dataKey="sentiment" 
+                        barSize={12}
+                        name="Daily Sentiment"
+                      >
+                        {chartData.map((entry, index) => {
+                          const val = entry.sentiment;
+                          const color = val === null ? 'transparent' : val > 0.15 ? '#00FF94' : val < -0.15 ? '#FF3E3E' : '#94a3b8';
+                          return <Cell key={`detail-cell-${index}`} fill={color} opacity={0.85} />;
+                        })}
+                      </Bar>
+
                       <Area 
                         yAxisId="left"
                         type="monotone" 
                         dataKey="close" 
-                        stroke="#4facfe" 
-                        strokeWidth={1.5}
-                        fillOpacity={0.05} 
-                        fill="#4facfe" 
+                        stroke="#38bdf8" 
+                        strokeWidth={2}
+                        fill="url(#detailPriceGradient)" 
                         name="Price"
-                        connectNulls={true}
+                        dot={false}
+                        activeDot={{ r: 4, fill: '#38bdf8', stroke: '#0f172a', strokeWidth: 2 }}
                       />
-                      <Bar 
-                        yAxisId="right"
-                        dataKey="sentiment" 
-                        name="Daily Sentiment" 
-                        barSize={6}
-                      >
-                        {chartData.map((entry, index) => {
-                          const val = entry.sentiment;
-                          const color = val !== null && val > 0.15 ? '#00FF94' : val !== null && val < -0.15 ? '#FF3E3E' : '#64748b';
-                          return <Cell key={`cell-${index}`} fill={color} />;
-                        })}
-                      </Bar>
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
