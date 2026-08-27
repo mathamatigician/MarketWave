@@ -26,3 +26,23 @@ export interface MarketSentiment {
   timeline: TimelinePoint[];
   lastUpdated: string;
 }
+
+export interface ImportantEvents {
+  earnings?: string[];
+  layoffs?: string[];
+  lawsuits?: string[];
+  launches?: string[];
+  partnerships?: string[];
+}
+
+export interface AINewsBrief {
+  ticker: string;
+  company_name: string;
+  executive_summary: string[];
+  positive_drivers: string[];
+  negative_drivers: string[];
+  key_risks: string[];
+  important_events: ImportantEvents;
+  sentiment_confidence_score: number;
+  what_changed_since_yesterday: string;
+}

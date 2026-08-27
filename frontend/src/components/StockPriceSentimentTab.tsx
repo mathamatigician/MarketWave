@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getSentimentColor, formatPrice } from '../lib/utils';
+import { AINewsBriefCard } from './AINewsBriefCard';
 import { RefreshCw, AlertCircle, Globe, Calendar, Tag } from 'lucide-react';
 import { ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { API_URL } from '../config';
@@ -258,6 +259,11 @@ export function StockPriceSentimentTab({
               </div>
             </div>
           )}
+
+          {/* Gemma AI News Brief Card */}
+          <div className="mb-6">
+            <AINewsBriefCard ticker={activeTicker} companyName={tickerDetails?.name} />
+          </div>
 
           {/* Composed Price and Sentiment Overlay Chart */}
           <div className="p-4 sm:p-6 bg-slate-50 dark:bg-[#121214] rounded-lg border border-slate-100 dark:border-white/5">

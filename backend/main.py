@@ -439,6 +439,18 @@ def get_stock_history_api(ticker: str = Query(...), period: str = Query("30d")):
         "recent_articles": recent_articles
     }
 
+
+@app.get("/api/ticker/{ticker}/brief")
+def get_ticker_brief_api(ticker: str):
+    """Returns Gemma AI News Brief for a given ticker or company name."""
+    try:
+        brief = pipeline.get_or_generate_ticker_brief(ticker)
+        return brief
+    except Exception as e:
+        logger.error(f"Error generating Gemma brief for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate brief for {ticker}")
+
+
 @app.post("/api/pipeline/run")
 def trigger_pipeline(background_tasks: BackgroundTasks, ticker: Optional[str] = None, admin_key: Optional[str] = Query(None)):
     if ticker and ticker not in database.load_all_watchlist_tickers():

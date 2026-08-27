@@ -5,7 +5,7 @@ import { SectorHeatmap, TopStocks } from './DataWidgets';
 import { StockTrendDetails } from './StockTrendDetails';
 import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity } from './IngestActivity';
-import { Activity, RefreshCcw } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { API_URL } from '../config';
 
@@ -316,7 +316,7 @@ export function Dashboard({ email }: DashboardProps) {
             <IngestActivity />
           </div>
 
-          <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
+          <div className="col-span-12 lg:col-span-5 flex flex-col gap-6 border-t lg:border-t-0 lg:border-l dark:border-white/10 border-slate-200 pt-6 lg:pt-0 lg:pl-6">
             <SectorHeatmap 
               heatmapData={heatmapData} 
               watchlist={watchlist}
