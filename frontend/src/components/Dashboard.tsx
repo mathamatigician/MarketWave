@@ -8,7 +8,13 @@ import { IngestActivity, type ActivityEvent } from './IngestActivity';
 import { MarketIntelligence } from './MarketIntelligence';
 import { RefreshCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS, API_REQUEST_TIMEOUT_MS } from '../config';
+import { 
+  API_URL, 
+  WS_URL, 
+  GEMMA_BRIEFING_DEBOUNCE_SECONDS, 
+  API_REQUEST_TIMEOUT_MS,
+  MARKET_DATA_REFRESH_INTERVAL_MS 
+} from '../config';
 
 interface DashboardProps {
   email: string;
@@ -118,7 +124,7 @@ export function Dashboard({ email }: DashboardProps) {
   const selectedHeatmapTickerRef = useRef<string>('ALL');
   selectedHeatmapTickerRef.current = selectedHeatmapTicker;
 
-  // Real-time Market Intelligence Fetcher
+  // Real-time Market Intelligence Fetcher with Concurrency Guard
   const fetchBriefing = useCallback(async (_isManual = false) => {
     if (isBriefingInProgressRef.current) return;
     const currentWl = watchlistRef.current;
@@ -205,7 +211,7 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, []);
 
-  // Targeted Single Stock Refresh
+  // Targeted Single Stock Refresh (used by WebSocket real-time triggers)
   const refreshSingleStock = useCallback(async (ticker: string) => {
     try {
       const res = await fetchWithTimeout(`${API_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&period=5d`);
@@ -228,11 +234,13 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, []);
 
-  // Stable refs for WebSocket callbacks to decouple socket lifecycle from state changes
+  // Stable refs for callbacks to decouple lifecycle from state re-renders
   const fetchAlertsRef = useRef(fetchAlerts);
   fetchAlertsRef.current = fetchAlerts;
   const fetchHeatmapRef = useRef(fetchHeatmap);
   fetchHeatmapRef.current = fetchHeatmap;
+  const fetchBriefingRef = useRef(fetchBriefing);
+  fetchBriefingRef.current = fetchBriefing;
   const refreshSingleStockRef = useRef(refreshSingleStock);
   refreshSingleStockRef.current = refreshSingleStock;
   const triggerDebouncedBriefingRef = useRef(triggerDebouncedBriefing);
@@ -328,38 +336,42 @@ export function Dashboard({ email }: DashboardProps) {
     }
   }, []);
 
-  // Fetch watchlist, alerts, heatmap, and Yahoo Finance details on initial load or manual refresh
-  const fetchData = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+  // Scheduled Consistency Refresh (runs every 5 minutes and on manual refresh)
+  const refreshAllConsistencyData = useCallback(async (isInitial = false) => {
+    if (isUnmountedRef.current) return;
+    if (!isInitial) setRefreshing(true);
     else setLoading(true);
 
     try {
-      // 1. Fetch Watchlist with bounded timeout
-      let wl: string[] = [];
+      // 1. Fetch Watchlist
+      let wl = watchlistRef.current;
       try {
         const wlRes = await fetchWithTimeout(`${API_URL}/api/watchlist?email=${encodeURIComponent(email)}`);
-        if (!wlRes.ok) {
+        if (wlRes.ok) {
+          const wlData = await wlRes.json();
+          wl = wlData.watchlist || [];
+          setWatchlist(wl);
+          watchlistRef.current = wl;
+          setWatchlistError(null);
+        } else {
           throw new Error(`Failed to load watchlist (HTTP ${wlRes.status})`);
         }
-        const wlData = await wlRes.json();
-        wl = wlData.watchlist || [];
-        setWatchlist(wl);
-        setWatchlistError(null);
       } catch (err: any) {
         console.error("Watchlist fetch error:", err);
-        setWatchlistError(err.name === 'AbortError' ? 'Watchlist request timed out. Retrying...' : 'Datastore temporarily unavailable.');
-        setLoading(false);
-        setRefreshing(false);
-        return;
+        if (isInitial && wl.length === 0) {
+          setWatchlistError(err.name === 'AbortError' ? 'Watchlist request timed out. Retrying...' : 'Datastore temporarily unavailable.');
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
       }
 
-      // Unblock shell rendering immediately once minimum required state is known
-      setLoading(false);
+      // Unblock initial shell immediately once baseline state is verified
+      if (isInitial) {
+        setLoading(false);
+      }
 
-      // 2. Independently fetch Alerts
-      fetchAlerts();
-
-      // 3. Concurrently fetch Stock history summaries
+      // 2. Concurrently refresh Stock Sentiments for all active watchlist equities (Promise.allSettled)
       if (wl.length > 0) {
         const stockPromises = wl.map(async (ticker) => {
           try {
@@ -369,36 +381,57 @@ export function Dashboard({ email }: DashboardProps) {
               return parseStockSummary(ticker, hist);
             }
           } catch (err) {
-            console.error("Error fetching summary for " + ticker, err);
+            console.error("Error refreshing summary for " + ticker, err);
           }
           return null;
         });
 
         const settled = await Promise.allSettled(stockPromises);
-        const stockSummaries: Stock[] = [];
+        const validSummaries: Stock[] = [];
         for (const item of settled) {
           if (item.status === 'fulfilled' && item.value !== null) {
-            stockSummaries.push(item.value);
+            validSummaries.push(item.value);
           }
         }
-        if (stockSummaries.length > 0) {
-          setStocksData(stockSummaries);
+
+        if (validSummaries.length > 0) {
+          setStocksData(prev => {
+            const stockMap = new Map<string, Stock>();
+            for (const s of prev) {
+              stockMap.set(s.ticker.toUpperCase(), s);
+            }
+            for (const s of validSummaries) {
+              stockMap.set(s.ticker.toUpperCase(), s);
+            }
+            // Retain active watchlist equities in accurate order
+            return wl.map(t => stockMap.get(t.toUpperCase())).filter((s): s is Stock => Boolean(s));
+          });
         }
       }
+
+      // 3. Concurrently refresh Alerts, Heatmap, and Market Intelligence Briefing
+      await Promise.allSettled([
+        fetchAlertsRef.current(),
+        fetchHeatmapRef.current(),
+        fetchBriefingRef.current(false)
+      ]);
+
       setLastSyncTimestamp(Date.now());
     } catch (e) {
-      console.error("Error fetching dashboard data:", e);
+      console.error("Error during consistency refresh:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [email]);
+
+  const refreshAllConsistencyDataRef = useRef(refreshAllConsistencyData);
+  refreshAllConsistencyDataRef.current = refreshAllConsistencyData;
 
   // Initial load
   useEffect(() => {
-    fetchData();
-    fetchBriefing();
-  }, [email]);
+    refreshAllConsistencyData(true);
+  }, [refreshAllConsistencyData]);
 
   // Sync selected chart ticker
   useEffect(() => {
@@ -417,14 +450,8 @@ export function Dashboard({ email }: DashboardProps) {
     isUnmountedRef.current = false;
     connectWebSocket();
 
-    // Fallback low-frequency sync (5 minutes) for network resilience
-    const fallbackInterval = setInterval(() => {
-      fetchData(true);
-    }, 300000);
-
     return () => {
       isUnmountedRef.current = true;
-      clearInterval(fallbackInterval);
       if (socketRef.current) {
         socketRef.current.close();
       }
@@ -437,6 +464,19 @@ export function Dashboard({ email }: DashboardProps) {
     };
   }, [connectWebSocket]);
 
+  // Scheduled 5-Minute Consistency Refresh Timer (exactly ONE timer lifecycle per mount)
+  useEffect(() => {
+    const refreshIntervalMs = MARKET_DATA_REFRESH_INTERVAL_MS || 300000;
+
+    const timer = setInterval(() => {
+      refreshAllConsistencyDataRef.current(false);
+    }, refreshIntervalMs);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
   // Handle Watchlist Updates (Star / Add Ticker)
   const handleWatchlistChange = async (newWatchlist: string[]) => {
     try {
@@ -446,8 +486,9 @@ export function Dashboard({ email }: DashboardProps) {
         body: JSON.stringify({ email, tickers: newWatchlist })
       });
       if (res.ok) {
-        fetchData(true);
-        fetchBriefing();
+        setWatchlist(newWatchlist);
+        watchlistRef.current = newWatchlist;
+        refreshAllConsistencyDataRef.current(false);
       }
     } catch (e) {
       console.error("Failed to update watchlist", e);
@@ -517,7 +558,7 @@ export function Dashboard({ email }: DashboardProps) {
           </div>
           <button
             type="button"
-            onClick={() => fetchData(false)}
+            onClick={() => refreshAllConsistencyData(false)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 cursor-pointer"
           >
             <RefreshCcw className="w-3.5 h-3.5" />
@@ -597,10 +638,10 @@ export function Dashboard({ email }: DashboardProps) {
           </span>
           <button 
             type="button"
-            onClick={() => fetchData(true)}
+            onClick={() => refreshAllConsistencyData(false)}
             disabled={refreshing}
             className="p-1 rounded-md dark:text-white text-slate-700 dark:hover:text-[#00FF94] hover:text-emerald-500 transition-colors disabled:opacity-50 cursor-pointer"
-            title="Manual Refresh"
+            title="Manual Consistency Refresh"
           >
             <RefreshCcw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>

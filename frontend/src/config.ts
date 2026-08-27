@@ -23,5 +23,6 @@ export const FEATURES: FeatureFlags = {
 export const GEMMA_BRIEFING_DEBOUNCE_SECONDS = Number(import.meta.env.VITE_GEMMA_BRIEFING_DEBOUNCE_SECONDS) || 10;
 export const API_REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS) || 10000;
 
-
-
+// Scheduled consistency refresh interval for Stock Sentiment Analysis and Market Intelligence
+// Default: 300000 ms (5 minutes)
+export const MARKET_DATA_REFRESH_INTERVAL_MS = Number(import.meta.env.VITE_MARKET_DATA_REFRESH_INTERVAL_MS) || 300000;
