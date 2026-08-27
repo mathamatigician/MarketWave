@@ -56,7 +56,7 @@ class TestAgenticFlow(unittest.TestCase):
     @patch('backend.agents.triggers.pipeline.fetch_news_items')
     @patch('backend.agents.triggers.pipeline.resolve_and_scrape_article')
     @patch('backend.agents.triggers.pipeline.score_sentiment_with_agent', new_callable=AsyncMock)
-    @patch('backend.gemma_service.gemma_generate_catalyst_bullet', new_callable=AsyncMock)
+    @patch('backend.agents.triggers.gemma_service.gemma_generate_catalyst_bullet', new_callable=AsyncMock)
     @patch('backend.agents.triggers.database.db')
     @patch('backend.agents.triggers.get_alerts_file_path')
     def test_watchdog_trigger(self, mock_alerts_path, mock_db, mock_gemma, mock_score, mock_scrape, mock_fetch, mock_load_tickers):

@@ -20,3 +20,6 @@ export const FEATURES: FeatureFlags = {
   feedback: import.meta.env.VITE_ENABLE_FEEDBACK !== 'false',
 };
 
+export const GEMMA_BRIEFING_DEBOUNCE_SECONDS = Number(import.meta.env.VITE_GEMMA_BRIEFING_DEBOUNCE_SECONDS) || 10;
+
+

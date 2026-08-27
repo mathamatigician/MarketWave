@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Stock } from '../types';
 import { OverallSentiment } from './OverallSentiment';
 import { SectorHeatmap, TopStocks } from './DataWidgets';
@@ -7,7 +7,7 @@ import { StockPriceSentimentTab } from './StockPriceSentimentTab';
 import { IngestActivity } from './IngestActivity';
 import { RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
-import { API_URL } from '../config';
+import { API_URL, WS_URL, GEMMA_BRIEFING_DEBOUNCE_SECONDS } from '../config';
 
 interface DashboardProps {
   email: string;
@@ -38,11 +38,26 @@ export function Dashboard({ email }: DashboardProps) {
   const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [dashboardTab, setDashboardTab] = useState<'sentiment' | 'charts'>('sentiment');
+  
+  // Real-time Gemma Flash Briefing State
   const [briefing, setBriefing] = useState<{ ticker: string; bullet: string }[]>([]);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
+  const [briefingTimestamp, setBriefingTimestamp] = useState<number | null>(null);
+  const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
+  const [briefingError, setBriefingError] = useState<string | null>(null);
 
-  const handleGenerateBriefing = async () => {
+  const isBriefingInProgressRef = useRef<boolean>(false);
+  const briefingDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchBriefing = useCallback(async (_isManual = false) => {
+    // Prevent overlapping simultaneous requests (R7)
+    if (isBriefingInProgressRef.current) return;
+    if (!watchlist || watchlist.length === 0) return;
+
+    isBriefingInProgressRef.current = true;
     setLoadingBriefing(true);
+    setBriefingStatus('updating');
+
     try {
       const res = await fetch(`${API_URL}/api/gemma/briefing`, {
         method: 'POST',
@@ -51,14 +66,93 @@ export function Dashboard({ email }: DashboardProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setBriefing(data.briefing || []);
+        if (data.status === 'success' && Array.isArray(data.briefing) && data.briefing.length > 0) {
+          setBriefing(data.briefing);
+          setBriefingTimestamp(data.timestamp ? data.timestamp * 1000 : Date.now());
+          setBriefingStatus('live');
+          setBriefingError(null);
+        } else if (data.status === 'no_data') {
+          // If no new/relevant articles, preserve previous valid briefing if present (R14, R15)
+          setBriefingStatus('live');
+          setBriefingError(null);
+        } else if (data.status === 'error') {
+          // Non-destructive error state: preserves previous valid briefing (R14)
+          setBriefingError(data.message || "Gemma 2 (9B) synthesis temporarily unavailable.");
+          setBriefingStatus('error');
+        }
+      } else {
+        setBriefingError(`Gemma synthesis returned HTTP ${res.status}`);
+        setBriefingStatus('error');
       }
     } catch (err) {
       console.error("Failed to generate Gemma briefing", err);
+      setBriefingError("Gemma inference temporarily unavailable. Showing latest cached briefing.");
+      setBriefingStatus('error');
     } finally {
+      isBriefingInProgressRef.current = false;
       setLoadingBriefing(false);
     }
-  };
+  }, [email, watchlist]);
+
+  // Debounced auto-trigger on real-time article events (R7, R8, R9)
+  const triggerDebouncedBriefing = useCallback(() => {
+    if (watchlist.length === 0) return;
+    setBriefingStatus('updating');
+    if (briefingDebounceTimerRef.current) {
+      clearTimeout(briefingDebounceTimerRef.current);
+    }
+    const debounceMs = (GEMMA_BRIEFING_DEBOUNCE_SECONDS || 10) * 1000;
+    briefingDebounceTimerRef.current = setTimeout(() => {
+      fetchBriefing(false);
+    }, debounceMs);
+  }, [watchlist, fetchBriefing]);
+
+  // Listen to /ws/ingest WebSocket for real-time article ingestion events
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let isUnmounted = false;
+
+    const connectIngestWs = () => {
+      try {
+        ws = new WebSocket(`${WS_URL}/ws/ingest`);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (
+              data.type === 'article_processed' ||
+              data.type === 'new_article' ||
+              (data.type === 'ingestion_cycle_completed' && (data.new_articles_count ?? 0) > 0)
+            ) {
+              const eventTicker = data.ticker?.toLowerCase();
+              const isRelevant = !eventTicker || watchlist.some(w => w.toLowerCase() === eventTicker);
+              if (isRelevant) {
+                triggerDebouncedBriefing();
+              }
+            }
+          } catch (e) {
+            // Ignore malformed messages
+          }
+        };
+        ws.onclose = () => {
+          if (!isUnmounted) {
+            setTimeout(connectIngestWs, 5000);
+          }
+        };
+      } catch (e) {
+        console.error("Dashboard WS connect failed", e);
+      }
+    };
+
+    connectIngestWs();
+
+    return () => {
+      isUnmounted = true;
+      if (ws) ws.close();
+      if (briefingDebounceTimerRef.current) {
+        clearTimeout(briefingDebounceTimerRef.current);
+      }
+    };
+  }, [watchlist, triggerDebouncedBriefing]);
   const [selectedChartTicker, setSelectedChartTicker] = useState<string>('');
   const [selectedHeatmapTicker, setSelectedHeatmapTicker] = useState<string>('ALL');
 
@@ -282,18 +376,29 @@ export function Dashboard({ email }: DashboardProps) {
           <div className="flex items-center gap-2.5">
             <span className="text-xl">⚡</span>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold tracking-tight text-white">Gemma 60s Executive Briefing</h3>
                 <span className="bg-purple-500/20 border border-purple-400/30 text-purple-300 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold">
                   Google Gemma 2 (9B)
                 </span>
+                {(loadingBriefing || briefingStatus === 'updating') && (
+                  <span className="flex items-center gap-1.5 bg-purple-900/60 border border-purple-400/40 text-purple-200 text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+                    Live Synthesis...
+                  </span>
+                )}
+                {briefingTimestamp && !loadingBriefing && briefingStatus !== 'updating' && (
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-700/50">
+                    Updated: {format(new Date(briefingTimestamp), 'HH:mm:ss')}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-400">Instant AI market digest synthesized across your active watchlist.</p>
             </div>
           </div>
           <button
             type="button"
-            onClick={handleGenerateBriefing}
+            onClick={() => fetchBriefing(true)}
             disabled={loadingBriefing}
             className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold tracking-wide transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-1.5 shrink-0"
           >
@@ -301,6 +406,13 @@ export function Dashboard({ email }: DashboardProps) {
             {loadingBriefing ? 'Synthesizing...' : 'Generate Flash Briefing'}
           </button>
         </div>
+
+        {briefingError && briefing.length > 0 && (
+          <div className="bg-amber-950/40 border border-amber-500/30 rounded-lg p-2.5 my-2 text-amber-200 text-xs flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{briefingError}</span>
+          </div>
+        )}
 
         {briefing.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-purple-500/20">
@@ -313,7 +425,9 @@ export function Dashboard({ email }: DashboardProps) {
           </div>
         ) : (
           <p className="text-slate-500 text-[11px] italic mt-1">
-            Click "Generate Flash Briefing" to create a fast, AI-distilled summary of current watchlist drivers.
+            {loadingBriefing
+              ? 'Synthesizing latest watchlist news with Google Gemma 2...'
+              : 'Click "Generate Flash Briefing" or wait for real-time news ingestion to synthesize watchlist catalysts.'}
           </p>
         )}
       </div>

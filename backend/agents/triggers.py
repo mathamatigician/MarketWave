@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import database
 import pipeline
+import gemma_service
 from google.antigravity.triggers import every, TriggerContext
 
 # Set up logger
@@ -54,7 +55,6 @@ async def check_watchlist_sentiment(ctx: TriggerContext):
                 if avg_sentiment < -0.5:
                     headlines = [item['title'] for item in items if item.get('title')]
                     try:
-                        import gemma_service
                         catalyst = await gemma_service.gemma_generate_catalyst_bullet(ticker, headlines)
                     except Exception:
                         catalyst = f"Severe negative sentiment drop detected for {ticker} across recent news."

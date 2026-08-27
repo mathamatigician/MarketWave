@@ -640,7 +640,7 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
     if not tickers and req.tickers:
         tickers = req.tickers
     if not tickers:
-        tickers = ["TSLA", "AAPL", "NVDA", "GOOG", "MSFT"]
+        tickers = database.load_all_watchlist_tickers() or ["TSLA", "AAPL", "NVDA", "GOOG", "MSFT"]
 
     # Gather recent headlines by ticker from Firestore
     headlines_by_ticker = {}
@@ -660,7 +660,7 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
     except Exception as e:
         logger.error(f"Error reading articles for briefing: {e}")
 
-    # Fetch live headlines for any ticker that doesn't have stored articles yet
+    # Fetch live headlines for any watchlist ticker that doesn't have stored articles yet
     for t in tickers[:4]:
         if not headlines_by_ticker.get(t):
             sym = database.COMPANY_TICKER_MAP.get(t, t)
@@ -674,11 +674,32 @@ async def gemma_briefing_endpoint(req: GemmaBriefingRequest):
             except Exception:
                 pass
 
+    current_ts = int(time.time())
     briefing = await gemma_service.gemma_generate_flash_briefing(tickers, headlines_by_ticker)
+
+    if briefing is None:
+        return {
+            "status": "error",
+            "model": "Google Gemma 2 (9B)",
+            "briefing": None,
+            "message": "Gemma 2 (9B) inference unavailable or failed.",
+            "timestamp": current_ts
+        }
+
+    if len(briefing) == 0:
+        return {
+            "status": "no_data",
+            "model": "Google Gemma 2 (9B)",
+            "briefing": [],
+            "message": "No new market catalysts found for active watchlist.",
+            "timestamp": current_ts
+        }
+
     return {
         "status": "success",
         "model": "Google Gemma 2 (9B)",
-        "briefing": briefing
+        "briefing": briefing,
+        "timestamp": current_ts
     }
 
 

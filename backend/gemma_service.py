@@ -157,17 +157,13 @@ Do not include fluff or intros. Return only the 1-sentence summary.
         return f"Severe negative sentiment drop detected on {ticker} based on recent news."
 
 
-async def gemma_generate_flash_briefing(tickers: List[str], headlines_by_ticker: Dict[str, List[str]]) -> List[Dict[str, str]]:
-    """Generates a 60-Second Executive Morning Briefing across the user's active watchlist."""
-    client = get_hf_client()
-    default_briefing = [
-        {"ticker": t, "bullet": f"Continuous sentiment tracking active for {t}."}
-        for t in tickers[:5]
-    ]
-
-    if not client:
-        return default_briefing
-
+async def gemma_generate_flash_briefing(tickers: List[str], headlines_by_ticker: Dict[str, List[str]]) -> Optional[List[Dict[str, str]]]:
+    """Generates a 60-Second Executive Flash Briefing across the user's active watchlist.
+    Returns:
+      - List of {ticker, bullet} items on successful synthesis
+      - [] (empty list) when no relevant headlines exist for the tickers
+      - None when the model request fails (allowing caller to preserve previous valid briefing)
+    """
     context_lines = []
     for ticker in tickers[:5]:
         headlines = headlines_by_ticker.get(ticker, [])
@@ -179,8 +175,15 @@ async def gemma_generate_flash_briefing(tickers: List[str], headlines_by_ticker:
         if headlines:
             context_lines.append(f"[{ticker}]: " + " | ".join(headlines[:2]))
 
+    # If there is no relevant information for the tickers, return empty list without hallucinating
     if not context_lines:
-        return default_briefing
+        logger.info("No relevant news headlines available for requested watchlist tickers.")
+        return []
+
+    client = get_hf_client()
+    if not client:
+        logger.warning("Hugging Face client is not configured for Gemma flash briefing.")
+        return None
 
     prompt = f"""
 You are an executive market intelligence synthesizer.
@@ -210,7 +213,7 @@ Return a valid JSON array of objects with keys:
             if "briefing" in parsed and isinstance(parsed["briefing"], list):
                 return parsed["briefing"]
             return [{"ticker": k, "bullet": str(v)} for k, v in parsed.items()]
-        return default_briefing
+        return None
     except Exception as e:
         logger.warning(f"Gemma flash briefing generation failed: {e}")
-        return default_briefing
+        return None
