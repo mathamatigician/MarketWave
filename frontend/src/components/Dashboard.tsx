@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Stock, MainNavTab, BriefingItem, ArticleItem } from '../types';
 import { 
   TrendingUp, 
-  Sparkles, 
+  Cpu, 
   AlertTriangle, 
   BarChart3, 
   Zap, 
@@ -474,7 +474,7 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
         <div className="surface-card p-4 bg-gradient-to-r from-emerald-500/[0.03] to-cyan-500/[0.03] border-slate-200/80 dark:border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-emerald-500 dark:text-[#00E599]" />
+              <Cpu className="w-4 h-4 text-emerald-500 dark:text-[#00E599]" />
             </div>
             <div className="overflow-hidden">
               <div className="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-[#00E599] flex items-center gap-1.5">

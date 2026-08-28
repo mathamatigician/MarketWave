@@ -5,7 +5,7 @@ import {
   Layers, 
   Globe2, 
   Activity, 
-  Sparkles, 
+  Cpu, 
   Bot 
 } from 'lucide-react';
 
@@ -85,7 +85,7 @@ export function Home({ onEnter }: HomeProps) {
 
         <div className="surface-card p-6 space-y-3">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-500">
-            <Sparkles className="w-5 h-5" />
+            <Cpu className="w-5 h-5" />
           </div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
             Gemma AI Market Briefings

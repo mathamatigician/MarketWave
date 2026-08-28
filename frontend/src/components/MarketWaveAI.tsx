@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, 
   Bot, 
-  Sparkles, 
+  Cpu, 
+  Loader2, 
   X, 
   Trash2, 
   ArrowRight,
@@ -421,7 +422,7 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
                     {/* Initial Chat State */}
                     <div className="surface-card p-4 space-y-2 border-l-4 border-l-emerald-500 dark:border-l-[#00E599]">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-[#00E599]" />
+                        <Cpu className="w-3.5 h-3.5 text-emerald-500 dark:text-[#00E599]" />
                         <h4 className="font-bold text-xs text-slate-900 dark:text-white">
                           Hi, I'm Market Wave AI.
                         </h4>
@@ -596,7 +597,7 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
                   <div className="surface-card p-3 rounded-xl border border-dashed border-emerald-500/30 space-y-1.5 animate-pulse">
                     <div className="flex items-center justify-between text-[9px] font-mono text-emerald-600 dark:text-[#00E599] font-bold uppercase">
                       <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3 animate-spin" />
+                        <Loader2 className="w-3 h-3 animate-spin text-emerald-500 dark:text-[#00E599]" />
                         Market Wave AI is analyzing...
                       </span>
                     </div>

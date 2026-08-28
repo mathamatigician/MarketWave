@@ -6,7 +6,7 @@ import {
   Check, 
   ExternalLink, 
   Layers, 
-  Sparkles, 
+  Cpu, 
   Clock, 
   BarChart3,
   Bot
@@ -455,7 +455,7 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
         <div className="surface-card p-6 lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold dark:text-white text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-cyan-500" />
+              <Cpu className="w-4 h-4 text-cyan-500" />
               Primary Sentiment Catalysts & News
             </h4>
             <span className="text-[10px] font-mono text-slate-400">{recentArticles.length} Verified Sources</span>

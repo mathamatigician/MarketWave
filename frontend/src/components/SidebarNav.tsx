@@ -4,7 +4,7 @@ import {
   Globe, 
   TrendingUp, 
   Bookmark, 
-  Sparkles, 
+  Cpu, 
   Newspaper, 
   BarChart2, 
   Bell, 
@@ -70,7 +70,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       id: 'intelligence',
       title: 'INTELLIGENCE',
       items: [
-        { id: 'intelligence', label: 'Intelligence', icon: Sparkles, isAI: true },
+        { id: 'intelligence', label: 'Intelligence', icon: Cpu, isAI: true },
         { id: 'news', label: 'News Feed', icon: Newspaper },
         { id: 'analytics', label: 'Analytics', icon: BarChart2 },
       ]

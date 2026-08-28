@@ -4,7 +4,7 @@ import {
   ChevronDown, 
   ChevronUp, 
   Bot, 
-  Sparkles, 
+  Loader2, 
   X 
 } from 'lucide-react';
 import { WS_URL } from '../config';
@@ -199,7 +199,7 @@ export const AgentChat: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               className="flex items-center justify-between w-full text-[10px] font-mono text-emerald-600 dark:text-[#00E599] uppercase font-bold"
             >
               <span className="flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-3 h-3 animate-spin" />
                 Agents Synthesizing Multi-Source Data...
               </span>
               {showThoughts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
