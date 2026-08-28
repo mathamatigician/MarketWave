@@ -8,7 +8,8 @@ import {
   Clock, 
   ExternalLink, 
   Newspaper,
-  Globe
+  Globe,
+  Bot
 } from 'lucide-react';
 import type { Stock, ArticleItem, BriefingItem } from '../types';
 import { 
@@ -17,6 +18,7 @@ import {
   getArticleSentimentScore 
 } from '../lib/utils';
 import { format } from 'date-fns';
+import { triggerAIPrompt } from './MarketWaveAI';
 
 interface MarketIntelligenceViewProps {
   briefing: BriefingItem[];
@@ -189,8 +191,17 @@ export const MarketIntelligenceView: React.FC<MarketIntelligenceViewProps> = ({
                   </p>
 
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1 border-t border-slate-200/50 dark:border-white/[0.04]">
-                    <span>Source: Verified RSS / Finnhub</span>
-                    <span className="text-emerald-600 dark:text-[#00E599] group-hover:underline">Deep Analysis →</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerAIPrompt(`Analyze and explain this market intelligence signal for ${b.ticker} (${b.keyDriver}): "${b.bullet}"`, { ticker: b.sym });
+                      }}
+                      className="text-emerald-600 dark:text-[#00E599] hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Bot className="w-3 h-3" />
+                      <span>Ask AI About This</span>
+                    </button>
+                    <span className="text-slate-400 group-hover:text-slate-200">Terminal →</span>
                   </div>
                 </div>
               );

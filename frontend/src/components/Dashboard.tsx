@@ -7,7 +7,7 @@ import {
   BarChart3, 
   Zap, 
   ChevronRight,
-  Briefcase
+  Bot
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -35,6 +35,7 @@ import {
   getArticleSentimentScore,
   generateSyntheticSparkline 
 } from '../lib/utils';
+import { triggerAIPrompt } from './MarketWaveAI';
 
 interface DashboardProps {
   email: string;
@@ -64,7 +65,6 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
   const watchlistRef = useRef<string[]>([]);
   watchlistRef.current = watchlist;
 
-  // Helper for bounded fetch
   const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = API_REQUEST_TIMEOUT_MS) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -358,10 +358,16 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Market Mood Card */}
-        <div className="surface-card p-5 space-y-2 border-l-4 border-l-emerald-500 dark:border-l-[#00E599]">
+        <div className="surface-card p-5 space-y-2 border-l-4 border-l-emerald-500 dark:border-l-[#00E599] relative group">
           <div className="flex items-center justify-between text-xs text-slate-400 font-mono uppercase">
-            <span>Market Sentiment Mood</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 live-beacon"></span>
+            <span>Market Mood</span>
+            <button
+              onClick={() => triggerAIPrompt(`Explain why today's composite market sentiment is rated ${overallMood.label} (${overallMood.score.toFixed(2)})`)}
+              className="text-[10px] font-mono text-emerald-600 dark:text-[#00E599] hover:underline flex items-center gap-1 font-bold"
+            >
+              <Bot className="w-3 h-3" />
+              <span>Ask AI</span>
+            </button>
           </div>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-black font-mono tracking-tight dark:text-white text-slate-900">
@@ -374,16 +380,22 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
             </span>
           </div>
           <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-            <span>Aggregated from {stocksData.length} equities</span>
-            <span>Confidence: High</span>
+            <span>{stocksData.length} Equities Scored</span>
+            <span>Confidence: 96%</span>
           </div>
         </div>
 
         {/* Watchlist Value */}
         <div className="surface-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400 font-mono uppercase">
-            <span>Active Watchlist</span>
-            <Briefcase className="w-4 h-4 text-emerald-500 dark:text-[#00E599]" />
+            <span>Watchlist Monitored</span>
+            <button
+              onClick={() => triggerAIPrompt(`Analyze and summarize the overall momentum and risk balance of my active watchlist: ${watchlist.join(', ')}`)}
+              className="text-[10px] font-mono text-emerald-600 dark:text-[#00E599] hover:underline flex items-center gap-1 font-bold"
+            >
+              <Bot className="w-3 h-3" />
+              <span>Audit Watchlist</span>
+            </button>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-black font-mono dark:text-white text-slate-900">
@@ -405,7 +417,7 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
         {/* Top Bullish Driver */}
         <div className="surface-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400 font-mono uppercase">
-            <span>Top Sentiment Catalyst</span>
+            <span>Top Bullish Driver</span>
             <TrendingUp className="w-4 h-4 text-[#00E599]" />
           </div>
           <div className="flex items-baseline justify-between">
@@ -419,8 +431,14 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
               {topGainer?.sentimentScore !== null && topGainer?.sentimentScore !== undefined ? `+${topGainer.sentimentScore.toFixed(2)}` : '+0.74'}
             </span>
           </div>
-          <div className="text-[11px] text-slate-500 font-mono truncate">
-            {topGainer?.name || 'Semiconductors & AI'}
+          <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+            <span className="truncate max-w-[120px]">{topGainer?.name || 'Semiconductors'}</span>
+            <button
+              onClick={() => triggerAIPrompt(`Why is ${topGainer?.ticker || 'NVDA'} exhibiting strong bullish sentiment today?`, { ticker: topGainer?.ticker || 'NVDA' })}
+              className="text-emerald-600 dark:text-[#00E599] hover:underline font-bold"
+            >
+              Ask AI →
+            </button>
           </div>
         </div>
 
@@ -439,7 +457,7 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
             </span>
           </div>
           <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-            <span>Automated Trigger</span>
+            <span>Rule: Sentiment &lt; -0.50</span>
             <button 
               onClick={() => onNavigateTab('alerts')}
               className="text-amber-600 dark:text-amber-400 hover:underline font-bold"
@@ -470,13 +488,22 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
             </div>
           </div>
 
-          <button
-            onClick={() => onNavigateTab('intelligence')}
-            className="btn-secondary text-xs shrink-0 self-start md:self-center"
-          >
-            <span>Explore Full Briefing</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => triggerAIPrompt(`Synthesize and explain today's market intelligence briefing for ${briefing[0]?.ticker}: "${briefing[0]?.bullet}"`, { ticker: briefing[0]?.ticker })}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1.5"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Ask AI About This</span>
+            </button>
+            <button
+              onClick={() => onNavigateTab('intelligence')}
+              className="btn-secondary text-xs"
+            >
+              <span>Full Briefing</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -511,21 +538,32 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
               </div>
             </div>
 
-            {/* Timeframe Controls */}
-            <div className="flex items-center gap-1 surface-inset p-1 rounded-lg">
-              {(['1d', '5d', '1mo', '6mo'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setChartPeriod(p)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
-                    chartPeriod === p 
-                      ? 'bg-white dark:bg-[#141A24] text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-white/10' 
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
+            {/* Timeframe Controls & AI Analysis Action */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => triggerAIPrompt(`Analyze the price trajectory, technical support levels, and daily news sentiment correlation for ${activeChartTicker}`, { ticker: activeChartTicker, price: activeStockQuote.price, sentimentScore: activeStockQuote.sentimentScore })}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1 transition-all"
+                title="Analyze this chart with MarketWave AI"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Analyze Chart with AI</span>
+              </button>
+
+              <div className="flex items-center gap-1 surface-inset p-1 rounded-lg">
+                {(['1d', '5d', '1mo', '6mo'] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setChartPeriod(p)}
+                    className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                      chartPeriod === p 
+                        ? 'bg-white dark:bg-[#141A24] text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-white/10' 
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {p.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -703,7 +741,7 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
                   <th className="py-2.5 px-3">Price</th>
                   <th className="py-2.5 px-3">24h Change</th>
                   <th className="py-2.5 px-3">Sentiment</th>
-                  <th className="py-2.5 px-3 text-right">Trend</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
@@ -733,16 +771,14 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
                           {sentMeta.labelText}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right">
-                        <div className="h-4 w-16 ml-auto flex items-end gap-0.5">
-                          {(stock.sparkline || [30, 40, 50, 45, 60]).map((pt, idx) => (
-                            <div 
-                              key={idx} 
-                              style={{ height: `${Math.max(20, (pt / 300) * 100)}%` }} 
-                              className={`flex-1 rounded-t-xs ${isPos ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                            />
-                          ))}
-                        </div>
+                      <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => triggerAIPrompt(`Analyze current momentum, risks, and sentiment drivers for ${stock.ticker} (${stock.name})`, { ticker: stock.ticker, price: stock.price, sentimentScore: stock.sentimentScore })}
+                          className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] text-[10px] font-mono font-bold transition-colors inline-flex items-center gap-1"
+                        >
+                          <Bot className="w-3 h-3" />
+                          <span>Ask AI</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -781,6 +817,13 @@ export function Dashboard({ email, onNavigateTab, onSelectStock }: DashboardProp
                   <p className="text-slate-800 dark:text-slate-200 line-clamp-2 leading-relaxed text-[11px]">
                     {art.content}
                   </p>
+                  <button
+                    onClick={() => triggerAIPrompt(`Analyze this market news headline and its potential stock impact: "${art.content}"`)}
+                    className="text-[10px] font-mono text-emerald-600 dark:text-[#00E599] hover:underline flex items-center gap-1 font-bold pt-0.5"
+                  >
+                    <Bot className="w-3 h-3" />
+                    <span>Ask AI About This Story →</span>
+                  </button>
                 </div>
               );
             })}

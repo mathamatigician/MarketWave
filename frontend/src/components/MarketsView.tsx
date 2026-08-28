@@ -7,7 +7,8 @@ import {
   Plus, 
   Check, 
   BarChart2,
-  Layers
+  Layers,
+  Bot
 } from 'lucide-react';
 import type { Stock } from '../types';
 import { 
@@ -17,6 +18,7 @@ import {
   formatArticleSentiment,
   generateSyntheticSparkline 
 } from '../lib/utils';
+import { triggerAIPrompt } from './MarketWaveAI';
 
 interface MarketsViewProps {
   stocksData: Stock[];
@@ -310,6 +312,14 @@ export const MarketsView: React.FC<MarketsViewProps> = ({
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => triggerAIPrompt(`Analyze current momentum, growth drivers, and market risks for ${stock.ticker} (${stock.name})`, { ticker: stock.ticker, price: stock.price, sentimentScore: stock.sentimentScore })}
+                          className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] text-[10px] font-mono font-bold transition-all flex items-center gap-1 border border-emerald-500/20"
+                          title="Analyze with MarketWave AI"
+                        >
+                          <Bot className="w-3 h-3" />
+                          <span>Ask AI</span>
+                        </button>
                         <button
                           onClick={() => onToggleWatchlist(stock.ticker)}
                           className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${

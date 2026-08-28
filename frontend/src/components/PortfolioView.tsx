@@ -10,7 +10,8 @@ import {
   ArrowUpRight, 
   ArrowDownRight, 
   Search, 
-  Check 
+  Check,
+  Bot
 } from 'lucide-react';
 import type { Stock, PortfolioHolding } from '../types';
 import { 
@@ -19,6 +20,7 @@ import {
   formatPercent, 
   formatArticleSentiment 
 } from '../lib/utils';
+import { triggerAIPrompt } from './MarketWaveAI';
 
 interface PortfolioViewProps {
   watchlist: string[];
@@ -219,13 +221,25 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Asset</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => triggerAIPrompt(`Audit my portfolio of ${watchlist.length} positions (${watchlist.join(', ')}). Analyze total returns, asset allocation risk, and sentiment exposure.`, {
+                portfolioSummary: { totalValue: totalPortfolioValue, totalReturn: totalTotalReturn, holdingsCount: holdings.length }
+              })}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Audit Portfolio with AI</span>
+            </button>
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Asset</span>
+            </button>
+          </div>
         </div>
 
         {holdingsWithAllocation.length > 0 ? (
@@ -320,13 +334,23 @@ export const PortfolioView: React.FC<PortfolioViewProps> = ({
 
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => onToggleWatchlist(h.ticker)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                          title="Remove from Watchlist"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => triggerAIPrompt(`Analyze holding ${h.ticker} (${h.name}): Market Value: ${formatPrice(h.marketValue, h.currency)}, Total P&L: ${formatPrice(h.totalReturn, h.currency)} (${formatPercent(h.totalReturnPercent)}), Sentiment: ${h.sentimentScore || 0}`, { ticker: h.ticker, price: h.currentPrice, sentimentScore: h.sentimentScore })}
+                            className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] text-[10px] font-mono font-bold transition-colors inline-flex items-center gap-1 border border-emerald-500/20"
+                            title="Analyze this holding with MarketWave AI"
+                          >
+                            <Bot className="w-3 h-3" />
+                            <span>Ask AI</span>
+                          </button>
+                          <button
+                            onClick={() => onToggleWatchlist(h.ticker)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            title="Remove from Watchlist"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

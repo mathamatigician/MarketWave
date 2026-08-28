@@ -100,8 +100,48 @@ export type MainNavTab =
   | 'markets' 
   | 'stocks' 
   | 'watchlist' 
+  | 'portfolio'
   | 'intelligence' 
   | 'news' 
   | 'analytics' 
   | 'alerts'
+  | 'settings'
   | 'feedback';
+
+// AI Agent & Chat Models
+export interface RichFinancialCard {
+  ticker?: string;
+  name?: string;
+  price?: number;
+  changePercent?: number;
+  sentimentScore?: number;
+  sentimentLabel?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  drivers?: string[];
+  risks?: string[];
+  catalysts?: string[];
+  sources?: { title: string; url?: string }[];
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  card?: RichFinancialCard;
+  contextTag?: string;
+  suggestedActions?: string[];
+}
+
+export interface AIContext {
+  activeTab: MainNavTab;
+  selectedTicker?: string;
+  stockName?: string;
+  currentPrice?: number;
+  sentimentScore?: number;
+  articleSnippet?: string;
+  portfolioSummary?: {
+    totalValue: number;
+    totalReturn: number;
+    holdingsCount: number;
+  };
+}

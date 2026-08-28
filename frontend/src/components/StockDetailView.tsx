@@ -8,7 +8,8 @@ import {
   Layers, 
   Sparkles, 
   Clock, 
-  BarChart3
+  BarChart3,
+  Bot
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -30,6 +31,7 @@ import {
   getArticleSentimentScore 
 } from '../lib/utils';
 import { API_URL } from '../config';
+import { triggerAIPrompt } from './MarketWaveAI';
 
 interface StockDetailViewProps {
   initialTicker?: string;
@@ -291,21 +293,32 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
             </p>
           </div>
 
-          {/* Timeframe Controls */}
-          <div className="flex items-center gap-1 surface-inset p-1 rounded-lg self-start sm:self-auto">
-            {(['1d', '5d', '1mo', '6mo', '1y'] as const).map((period) => (
-              <button
-                key={period}
-                onClick={() => setTimePeriod(period)}
-                className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
-                  timePeriod === period 
-                    ? 'bg-white dark:bg-[#141A24] text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-white/10' 
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                {period.toUpperCase()}
-              </button>
-            ))}
+          {/* Timeframe Controls & AI Analysis */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => triggerAIPrompt(`Analyze the ${timePeriod.toUpperCase()} chart trajectory, volume momentum, and sentiment correlation for ${activeTicker} (${stockMeta.name})`, { ticker: activeTicker, price: currentPrice, sentimentScore: latestPoint?.sentiment })}
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-[#00E599] border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all"
+              title="Analyze chart with AI"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Analyze with AI</span>
+            </button>
+
+            <div className="flex items-center gap-1 surface-inset p-1 rounded-lg self-start sm:self-auto">
+              {(['1d', '5d', '1mo', '6mo', '1y'] as const).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                    timePeriod === period 
+                      ? 'bg-white dark:bg-[#141A24] text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-white/10' 
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {period.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
