@@ -63,6 +63,7 @@ export default function App() {
   const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
 
   // Modals & Panels
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -566,6 +567,8 @@ export default function App() {
           user={user}
           onLogout={handleLogout}
           onOpenPricing={() => setIsSubscriptionOpen(true)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
         />
       </div>
 

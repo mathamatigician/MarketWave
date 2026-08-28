@@ -1,18 +1,18 @@
 import React from 'react';
 import { 
-  LayoutDashboard, 
-  Globe2, 
-  Eye, 
+  LayoutGrid, 
+  Globe, 
+  TrendingUp, 
+  Bookmark, 
   Sparkles, 
   Newspaper, 
-  BarChart3, 
+  BarChart2, 
   Bell, 
-  TrendingUp, 
   LogOut, 
   Crown,
   Activity,
-  ChevronRight,
-  User as UserIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageSquare
 } from 'lucide-react';
 import type { MainNavTab } from '../types';
@@ -36,170 +36,221 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   user,
   onLogout,
   onOpenPricing,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
-  const mainNavItems: { id: MainNavTab; label: string; icon: React.FC<any>; badge?: string | number }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'markets', label: 'Markets', icon: Globe2 },
-    { id: 'stocks', label: 'Terminal', icon: TrendingUp },
-    { id: 'watchlist', label: 'Watchlist', icon: Eye },
-    { id: 'intelligence', label: 'Intelligence', icon: Sparkles, badge: 'AI' },
-    { id: 'news', label: 'News Feed', icon: Newspaper },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  ];
 
-  const bottomNavItems: { id: MainNavTab; label: string; icon: React.FC<any>; badge?: string | number }[] = [
-    { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount > 0 ? alertCount : undefined },
+  const navSections: {
+    id: string;
+    title: string;
+    items: {
+      id: MainNavTab;
+      label: string;
+      icon: React.FC<any>;
+      badge?: string | number;
+      isAI?: boolean;
+    }[];
+  }[] = [
+    {
+      id: 'overview',
+      title: 'OVERVIEW',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
+      ]
+    },
+    {
+      id: 'markets',
+      title: 'MARKETS',
+      items: [
+        { id: 'markets', label: 'Markets', icon: Globe },
+        { id: 'stocks', label: 'Terminal', icon: TrendingUp },
+        { id: 'watchlist', label: 'Watchlist', icon: Bookmark },
+      ]
+    },
+    {
+      id: 'intelligence',
+      title: 'INTELLIGENCE',
+      items: [
+        { id: 'intelligence', label: 'Intelligence', icon: Sparkles, isAI: true },
+        { id: 'news', label: 'News Feed', icon: Newspaper },
+        { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+      ]
+    },
+    {
+      id: 'monitoring',
+      title: 'MONITORING',
+      items: [
+        { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount > 0 ? alertCount : undefined },
+        ...(FEATURES.feedback ? [{ id: 'feedback' as MainNavTab, label: 'Feedback', icon: MessageSquare }] : [])
+      ]
+    }
   ];
-
-  if (FEATURES.feedback) {
-    bottomNavItems.push({ id: 'feedback', label: 'Feedback', icon: MessageSquare });
-  }
 
   return (
-    <aside className="w-56 h-full flex flex-col justify-between bg-white dark:bg-[#090C13] border-r border-slate-200/80 dark:border-white/[0.06] select-none transition-colors duration-200">
+    <aside 
+      className={`h-full flex flex-col justify-between bg-white dark:bg-[#0A0D14] border-r border-slate-200/90 dark:border-white/[0.06] select-none transition-all duration-200 ${
+        isCollapsed ? 'w-16' : 'w-[220px]'
+      }`}
+    >
       
-      {/* 1. Brand Logo Header */}
-      <div className="p-4 pb-3 border-b border-slate-200/60 dark:border-white/[0.04]">
+      {/* 1. Brand Area */}
+      <div className="h-14 px-3.5 flex items-center justify-between border-b border-slate-200/80 dark:border-white/[0.05] shrink-0">
         <button 
           onClick={() => onSelectTab('dashboard')} 
-          className="flex items-center gap-2.5 group text-left w-full focus:outline-none"
+          className="flex items-center gap-2.5 text-left group overflow-hidden focus:outline-none"
+          title="MarketWave Terminal"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 dark:from-[#00E599] dark:to-[#00B8FF] p-0.5 shadow-sm group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
-            <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center">
-              <Activity className="w-4 h-4 text-[#00E599]" />
-            </div>
+          <div className="w-7 h-7 rounded-md bg-slate-900 dark:bg-[#141A24] border border-slate-700/40 dark:border-white/10 flex items-center justify-center text-emerald-500 dark:text-[#00E599] shrink-0 group-hover:border-emerald-500/40 transition-colors">
+            <Activity className="w-3.5 h-3.5" strokeWidth={2.2} />
           </div>
-          <div>
-            <div className="text-sm font-extrabold tracking-tight dark:text-white text-slate-900 leading-none flex items-center gap-1">
-              MarketWave<span className="text-emerald-500 dark:text-[#00E599] font-black">AI</span>
+
+          {!isCollapsed && (
+            <div className="overflow-hidden">
+              <div className="text-xs font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-1">
+                <span>MarketWave</span>
+                <span className="text-[10px] font-mono font-black text-emerald-600 dark:text-[#00E599]">AI</span>
+              </div>
+              <span className="text-[9px] font-mono tracking-wider text-slate-400 dark:text-slate-500 uppercase block">
+                Market Terminal
+              </span>
             </div>
-            <span className="text-[9px] uppercase tracking-wider font-mono text-slate-400 dark:text-slate-500 block mt-0.5">
-              Market Terminal
-            </span>
-          </div>
+          )}
         </button>
+
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-3.5 h-3.5" /> : <PanelLeftClose className="w-3.5 h-3.5" />}
+          </button>
+        )}
       </div>
 
-      {/* 2. Main Navigation List */}
-      <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto no-scrollbar">
-        <div className="px-3 pb-1 text-[9px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 font-bold">
-          Workspace
-        </div>
-
-        {mainNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 group ${
-                isActive
-                  ? 'bg-slate-900 text-white dark:bg-[#141A24] dark:text-[#00E599] dark:border dark:border-[#00E599]/30 shadow-sm font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Icon className={`w-4 h-4 shrink-0 transition-colors ${
-                  isActive 
-                    ? 'text-emerald-400 dark:text-[#00E599]' 
-                    : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                }`} />
-                <span className="truncate">{item.label}</span>
+      {/* 2. Structured Grouped Navigation */}
+      <div className="flex-1 py-3 px-2 space-y-4 overflow-y-auto no-scrollbar">
+        {navSections.map((section) => (
+          <div key={section.id} className="space-y-0.5">
+            
+            {/* Subtle Section Label */}
+            {!isCollapsed && (
+              <div className="px-2.5 pb-1 text-[9px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 font-semibold">
+                {section.title}
               </div>
+            )}
 
-              {item.badge && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  item.badge === 'AI'
-                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-black'
-                    : 'bg-rose-500 text-white'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+            {/* Navigation Items */}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentTab === item.id;
 
-        {/* Section Divider */}
-        <div className="pt-4 px-3 pb-1 text-[9px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 font-bold">
-          System & Watchdog
-        </div>
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onSelectTab(item.id)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all duration-150 relative group ${
+                      isActive
+                        ? 'bg-slate-100/90 dark:bg-white/[0.06] text-slate-900 dark:text-white font-semibold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.03] font-normal'
+                    }`}
+                    title={isCollapsed ? item.label : undefined}
+                  >
+                    {/* Left Active Accent Indicator */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-emerald-500 dark:bg-[#00E599] rounded-r" />
+                    )}
 
-        {bottomNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
+                    <div className={`flex items-center ${isCollapsed ? 'mx-auto justify-center' : 'gap-2.5'}`}>
+                      <Icon 
+                        className={`w-[18px] h-[18px] shrink-0 transition-colors ${
+                          isActive 
+                            ? 'text-emerald-600 dark:text-[#00E599]' 
+                            : 'text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+                        }`} 
+                        strokeWidth={1.75}
+                      />
+                      
+                      {!isCollapsed && (
+                        <span className="truncate tracking-tight flex items-center gap-1.5">
+                          {item.label}
+                          {item.isAI && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 dark:bg-[#00E599]/90 inline-block" title="AI-Assisted Feed" />
+                          )}
+                        </span>
+                      )}
+                    </div>
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 group ${
-                isActive
-                  ? 'bg-slate-900 text-white dark:bg-[#141A24] dark:text-[#00E599] dark:border dark:border-[#00E599]/30 shadow-sm font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.04]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Icon className={`w-4 h-4 shrink-0 transition-colors ${
-                  isActive 
-                    ? 'text-emerald-400 dark:text-[#00E599]' 
-                    : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                }`} />
-                <span className="truncate">{item.label}</span>
-              </div>
+                    {/* Subtle Count Badge for Alerts */}
+                    {!isCollapsed && item.badge !== undefined && (
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                        {item.badge}
+                      </span>
+                    )}
 
-              {item.badge && (
-                <span className="text-[10px] font-bold font-mono px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-500 border border-rose-500/30">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                    {/* Hover Tooltip when Collapsed */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white dark:bg-[#141A24] text-[11px] font-mono rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap border border-white/10">
+                        {item.label} {item.badge !== undefined ? `(${item.badge})` : ''}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+        ))}
       </div>
 
-      {/* 3. Bottom User Profile & Tier Card */}
-      <div className="p-3 border-t border-slate-200/60 dark:border-white/[0.04] space-y-2 bg-slate-50/50 dark:bg-black/20">
-        {FEATURES.pricing && (
+      {/* 3. Refined Bottom Account Profile Area */}
+      <div className="p-2 border-t border-slate-200/80 dark:border-white/[0.05] bg-slate-50/50 dark:bg-black/20 shrink-0 space-y-1.5">
+        
+        {/* Tier Status Pill */}
+        {FEATURES.pricing && !isCollapsed && (
           <button
             onClick={onOpenPricing}
-            className="w-full flex items-center justify-between p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 transition-all text-xs font-mono font-bold"
+            className="w-full flex items-center justify-between px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-600 dark:text-amber-400 transition-colors text-[10px] font-mono font-bold"
           >
             <span className="flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5" />
+              <Crown className="w-3 h-3" />
               <span>{user?.subscription?.badge || 'PRO TIER'}</span>
             </span>
-            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-[9px] uppercase tracking-wider text-amber-500/70">Plan</span>
           </button>
         )}
 
-        <div className="flex items-center justify-between p-1.5">
+        {/* User Card */}
+        <div className={`flex items-center justify-between p-1 rounded-md ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-white/10 flex items-center justify-center shrink-0 text-slate-700 dark:text-slate-200">
-              <UserIcon className="w-3.5 h-3.5" />
+            <div className="w-7 h-7 rounded-md bg-slate-200 dark:bg-white/10 flex items-center justify-center shrink-0 font-bold font-mono text-slate-700 dark:text-slate-300 text-xs">
+              {user?.first_name ? user.first_name[0].toUpperCase() : 'A'}
             </div>
-            <div className="overflow-hidden">
-              <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                {user ? (user.first_name || user.email.split('@')[0]) : 'Guest Analyst'}
+
+            {!isCollapsed && (
+              <div className="overflow-hidden">
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-tight">
+                  {user ? (user.first_name || user.email.split('@')[0]) : 'Analyst'}
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
+                  {user ? user.email : 'demo1@marketwave.com'}
+                </span>
               </div>
-              <span className="text-[9px] font-mono text-emerald-600 dark:text-[#00E599] block truncate">
-                {user ? user.email : 'Read-Only Mode'}
-              </span>
-            </div>
+            )}
           </div>
 
-          {user && (
+          {!isCollapsed && user && (
             <button
               onClick={onLogout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+              className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
               title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
+
       </div>
 
     </aside>
