@@ -52,8 +52,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       case 'dashboard': return 'Command Center';
       case 'markets': return 'Global Markets Screener';
       case 'stocks': return selectedTicker ? `${selectedTicker} Terminal` : 'Stock Terminal';
-      case 'watchlist': return 'Watchlist Monitor';
-      case 'portfolio': return 'Portfolio Holdings';
+      case 'watchlist': return 'Watchlist & Holdings';
       case 'intelligence': return 'Gemma AI Briefing';
       case 'news': return 'Verified News Stream';
       case 'analytics': return '18-Factor Topic Analytics';

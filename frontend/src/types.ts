@@ -100,7 +100,6 @@ export type MainNavTab =
   | 'markets' 
   | 'stocks' 
   | 'watchlist' 
-  | 'portfolio'
   | 'intelligence' 
   | 'news' 
   | 'analytics' 

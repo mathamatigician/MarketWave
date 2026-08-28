@@ -498,7 +498,6 @@ export default function App() {
           />
         );
       case 'watchlist':
-      case 'portfolio':
         return (
           <PortfolioView 
             watchlist={watchlist}
