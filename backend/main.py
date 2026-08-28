@@ -26,7 +26,7 @@ from google.antigravity import Agent, LocalAgentConfig
 from backend.agents.orchestrator import orchestrator_config
 
 # Initialize Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s')
 logger = logging.getLogger("MarketWaveBackend")
 
 app = FastAPI(title="MarketWave API Backend")
