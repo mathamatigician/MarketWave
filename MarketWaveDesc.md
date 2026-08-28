@@ -42,7 +42,6 @@ What makes this system remarkable for users is our **real-time thought stream**.
 | Backend Framework | FastAPI on Uvicorn | Async REST API (`/api/*`), streaming WebSocket server (`/ws/chat`), background ingestion tasks |
 | Frontend Framework | React 18 + Vite + TypeScript + Tailwind CSS | Interactive dashboard with dark/light themes, TradingView-style price/sentiment charts, sentiment heatmap, expandable agent thought viewer |
 | Database & DB | Google Cloud Firestore (emulator) & `users.json` / `alerts.json` | Persists user accounts, watchlists, scraped articles with 18-topic sentiment maps, and watchdog alerts with zero-config local fallbacks |
-| Payment Gateway | Razorpay Payment API & HMAC SHA256 Verifier | 3-tier subscription management (Free ₹0, Pro ₹159, Enterprise ₹299), Razorpay modal checkout, and server-side signature verification |
 | Market Data & Ingestion | `yahooquery`, Finnhub `/company-news` (primary), Google News RSS + `googlenewsdecoder` (local-dev fallback), BeautifulSoup4 | Pulls historical stock price series, discovers per-ticker news, and scrapes live web articles |
 | Alerting Watchdog | Async Background Watchdog (`agents/triggers.py`) | Hourly autonomous watchdog evaluating watchlist overall sentiment against critical thresholds (`< -0.5`) |
 

@@ -17,7 +17,6 @@ It continuously ingests live market-moving news, performs structured 18-topic se
 - 🛰️ **Live Ingestion Activity Broadcaster**: WebSocket channel (`/ws/ingest`) broadcasts ingestion status (fetching, cleaning, scoring, saving) live to the dashboard.
 - ⏰ **Proactive Sentiment Watchdog**: Hourly autonomous trigger (`backend/agents/triggers.py`) monitors user watchlists for severe negative sentiment drops (`< -0.5`) and generates alert notifications.
 - 🔒 **User Authentication**: Secure PBKDF2 HMAC-SHA256 email/password login and **Google Sign-In** (OAuth 2.0 ID token verification).
-- 💳 **3-Tier Monetization & Payments**: Built-in Razorpay integration (`Starter ₹0`, `Pro Trader ₹159/mo`, `Enterprise ₹299/mo`) with server-side HMAC-SHA256 signature verification.
 - ☁️ **Resilient Cloud & Local Persistence**: Backed by **Google Cloud Firestore** in production with zero-config local emulation and fallback JSON stores (`users.json`, `alerts.json`, `orders.json`, `feedback.json`).
 
 ---
@@ -55,7 +54,6 @@ Each ingested article is evaluated across 18 distinct financial dimensions:
 - **Agentic Runtime & LLM**: Google Antigravity SDK (`google-antigravity`), Google Gemini (`gemini-2.5-flash` / `gemini-3.5-flash`), `google-genai`
 - **Market Data & Ingestion**: Finnhub `/company-news` (primary), YahooQuery (stock price candles), BeautifulSoup4, Google News RSS decoder (fallback)
 - **Database & Cloud**: Google Cloud Firestore, Firebase Hosting, Google Cloud Run
-- **Payments & Auth**: Razorpay Payment API & HMAC SHA-256 verifier, Google OAuth 2.0
 
 ---
 
@@ -94,9 +92,6 @@ AGENT_MODEL=gemini-2.5-flash
 FIRESTORE_PROJECT_ID=marketwave-demo
 FIRESTORE_EMULATOR_HOST=localhost:8080
 
-# Razorpay Test Keys (optional for payment testing)
-RAZORPAY_KEY_ID=rzp_test_your_key_id
-RAZORPAY_KEY_SECRET=your_test_key_secret
 ```
 
 ### 4. Start All Services
