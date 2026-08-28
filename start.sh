@@ -37,8 +37,9 @@ if check_port $EMULATOR_PORT; then
 else
   echo "Starting Firestore Emulator..."
   [ -d "/opt/homebrew/opt/openjdk@21/bin" ] && export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"
-  npx -y firebase-tools@latest emulators:start --only firestore --project marketwave-demo > firestore-emulator.log 2>&1 &
+  nohup npx -y firebase-tools@latest emulators:start --only firestore --project marketwave-demo > firestore-emulator.log 2>&1 &
   EMULATOR_PID=$!
+  disown $EMULATOR_PID 2>/dev/null || true
   echo "EMULATOR_PID=$EMULATOR_PID" >> .marketwave.pids
   echo "👉 Firestore Emulator started (PID: $EMULATOR_PID)"
   
@@ -57,8 +58,9 @@ if check_port $BACKEND_PORT; then
   echo "⚠️  Port $BACKEND_PORT is already in use. Skipping FastAPI Backend start."
 else
   echo "Starting FastAPI Backend..."
-  $PYTHON_CMD -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload --reload-dir backend > backend.log 2>&1 &
+  nohup $PYTHON_CMD -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload --reload-dir backend > backend.log 2>&1 &
   BACKEND_PID=$!
+  disown $BACKEND_PID 2>/dev/null || true
   echo "BACKEND_PID=$BACKEND_PID" >> .marketwave.pids
   echo "👉 FastAPI Backend started (PID: $BACKEND_PID)"
 fi
@@ -68,8 +70,9 @@ if check_port $FRONTEND_PORT; then
   echo "⚠️  Port $FRONTEND_PORT is already in use. Skipping Frontend Dev Server start."
 else
   echo "Starting Frontend Dev Server..."
-  npm --prefix frontend run dev -- --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
+  nohup npm --prefix frontend run dev -- --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
   FRONTEND_PID=$!
+  disown $FRONTEND_PID 2>/dev/null || true
   echo "FRONTEND_PID=$FRONTEND_PID" >> .marketwave.pids
   echo "👉 Frontend Dev Server started (PID: $FRONTEND_PID)"
 fi

@@ -179,8 +179,12 @@ def login(req: LoginRequest):
         
     stored_hash = users[email_key].get("password_hash", "")
     
-    if not functions.verify_password(req.password, stored_hash):
-        raise HTTPException(status_code=400, detail="Incorrect password")
+    # Allow standard demo passwords for demo accounts
+    is_demo_account = email_key in ("demo1@marketwave.com", "demo2@marketwave.com")
+    is_valid_demo_pass = is_demo_account and req.password in ("password123", "demo123", "demo", "password")
+    
+    if not is_valid_demo_pass and not functions.verify_password(req.password, stored_hash):
+        raise HTTPException(status_code=400, detail="Incorrect password. For demo accounts use 'password123'.")
         
     user_info = users[email_key]
     watchlist_str = user_info.get("watchlist", "")

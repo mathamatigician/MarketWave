@@ -54,7 +54,8 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
 
   const handleQuickDemo = (demoEmail: string) => {
     setEmail(demoEmail);
-    setPassword('demo123');
+    setPassword('password123');
+    setErrorMsg('');
   };
 
   return (
@@ -137,19 +138,19 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
 
         {/* Demo Fast Login Pills */}
         <div className="pt-2 border-t border-slate-200 dark:border-white/10 text-center space-y-2">
-          <span className="text-[10px] font-mono text-slate-400 uppercase">1-Click Demo Accounts:</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase">1-Click Demo Accounts (Pass: password123):</span>
           <div className="flex justify-center gap-2">
             <button
               type="button"
               onClick={() => handleQuickDemo('demo1@marketwave.com')}
-              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300"
+              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300 transition-colors"
             >
               demo1@marketwave.com
             </button>
             <button
               type="button"
               onClick={() => handleQuickDemo('demo2@marketwave.com')}
-              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300"
+              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300 transition-colors"
             >
               demo2@marketwave.com
             </button>
