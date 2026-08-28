@@ -39,12 +39,14 @@ class TestE2ERealtimeFlow(unittest.IsolatedAsyncioTestCase):
     @patch('backend.pipeline.gemma_service.gemma_triage_news', new_callable=AsyncMock)
     @patch('backend.pipeline.clean_article_with_agent', new_callable=AsyncMock)
     @patch('backend.pipeline.analyze_sentiment', new_callable=AsyncMock)
+    @patch('backend.pipeline._save_single_article_sync')
     @patch('backend.pipeline._save_new_articles_sync')
     @patch('backend.gemma_service.gemma_generate_flash_briefing', new_callable=AsyncMock)
     async def test_full_realtime_event_driven_pipeline_e2e(
         self,
         mock_briefing,
         mock_save,
+        mock_save_single,
         mock_sentiment,
         mock_clean,
         mock_triage,

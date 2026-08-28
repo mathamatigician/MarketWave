@@ -103,6 +103,7 @@ class TestFailureResilience(unittest.IsolatedAsyncioTestCase):
              patch('backend.gemma_service.gemma_triage_news', new_callable=AsyncMock, return_value={"market_impact": "MEDIUM"}), \
              patch('backend.pipeline.clean_article_with_agent', new_callable=AsyncMock, return_value="Cleaned"), \
              patch('backend.pipeline.analyze_sentiment', new_callable=AsyncMock, return_value='{"overall_sentiment": 0.5}'), \
+             patch('backend.pipeline._save_single_article_sync', side_effect=RuntimeError("Firestore connection refused")), \
              patch('backend.pipeline._save_new_articles_sync', side_effect=RuntimeError("Firestore connection refused")):
 
             new_articles = await pipeline.ingest_news_for_ticker(

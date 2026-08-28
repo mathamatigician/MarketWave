@@ -68,7 +68,7 @@ if check_port $FRONTEND_PORT; then
   echo "⚠️  Port $FRONTEND_PORT is already in use. Skipping Frontend Dev Server start."
 else
   echo "Starting Frontend Dev Server..."
-  npx --prefix frontend vite frontend --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
+  npm --prefix frontend run dev -- --host 0.0.0.0 --port $FRONTEND_PORT > frontend.log 2>&1 &
   FRONTEND_PID=$!
   echo "FRONTEND_PID=$FRONTEND_PID" >> .marketwave.pids
   echo "👉 Frontend Dev Server started (PID: $FRONTEND_PID)"

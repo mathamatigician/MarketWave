@@ -1,23 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @layer base {
   body {
-    @apply bg-slate-100 text-slate-900 dark:bg-[#070709] dark:text-white antialiased selection:bg-[#00FF94]/30;
+    @apply bg-slate-50 text-slate-900 dark:bg-[#07090E] dark:text-slate-100 antialiased selection:bg-[#00E599]/30 font-sans;
   }
 }
 
-/* Collapsible and custom scrollbars */
+/* Modern FinTech Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -25,29 +25,71 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(148, 163, 184, 0.4);
 }
 
-.gradient-btn {
-  background: linear-gradient(135deg, #00FF94 0%, #00b8ff 100%);
-  color: #000000;
-  font-weight: 700;
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 255, 148, 0.2);
-  transition: all 0.2s ease-out;
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
-.gradient-btn:hover {
-  opacity: 0.95;
-  transform: scale(1.02);
-  box-shadow: 0 6px 20px rgba(0, 255, 148, 0.3);
+/* Glass & Card Elevation Utilities */
+.surface-card {
+  @apply bg-white dark:bg-[#0E121B] border border-slate-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.02)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.4),0_8px_24px_rgba(0,0,0,0.25)] rounded-xl transition-all duration-200;
 }
 
-.gradient-btn:active {
-  transform: scale(0.98);
+.surface-card-hover {
+  @apply bg-white dark:bg-[#0E121B] border border-slate-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.02)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.4),0_8px_24px_rgba(0,0,0,0.25)] rounded-xl transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.16] hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)];
+}
+
+.surface-inset {
+  @apply bg-slate-100/70 dark:bg-black/30 border border-slate-200/60 dark:border-white/[0.04] rounded-lg;
+}
+
+.badge-bullish {
+  @apply bg-emerald-500/10 text-emerald-600 dark:text-[#00E599] border border-emerald-500/20 font-mono font-semibold;
+}
+
+.badge-bearish {
+  @apply bg-rose-500/10 text-rose-600 dark:text-[#FF4757] border border-rose-500/20 font-mono font-semibold;
+}
+
+.badge-neutral {
+  @apply bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20 font-mono font-semibold;
+}
+
+/* Interactive Button Variants */
+.btn-primary {
+  @apply bg-slate-900 hover:bg-slate-800 text-white dark:bg-[#00E599] dark:hover:bg-[#00c985] dark:text-black font-semibold text-xs px-4 py-2 rounded-lg transition-all duration-150 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2;
+}
+
+.btn-secondary {
+  @apply bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] dark:text-slate-200 border border-slate-200 dark:border-white/[0.08] font-semibold text-xs px-3.5 py-2 rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2;
+}
+
+.btn-ghost {
+  @apply text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.06] text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5;
+}
+
+/* Subtle glowing pulse */
+@keyframes softPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.92); }
+}
+
+.live-beacon {
+  animation: softPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Tabular numbers for financial metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

@@ -81,12 +81,14 @@ class TestIngestionScheduler(unittest.IsolatedAsyncioTestCase):
     @patch('backend.pipeline.resolve_and_scrape_article')
     @patch('backend.pipeline.clean_article_with_agent', new_callable=AsyncMock)
     @patch('backend.pipeline.analyze_sentiment', new_callable=AsyncMock)
+    @patch('backend.pipeline._save_single_article_sync')
     @patch('backend.pipeline._save_new_articles_sync')
     @patch('backend.pipeline.gemma_service.gemma_triage_news', new_callable=AsyncMock)
     async def test_duplicate_prevention_and_firestore_save(
         self,
         mock_triage,
         mock_save,
+        mock_save_single,
         mock_sentiment,
         mock_clean,
         mock_scrape,
@@ -125,10 +127,9 @@ class TestIngestionScheduler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(new_articles[0]['company_name'], "TSLA")
 
         # 2. Verify Firestore save was called for the new article
-        mock_save.assert_called_once()
-        saved_batch = mock_save.call_args[0][0]
-        self.assertEqual(len(saved_batch), 1)
-        self.assertEqual(saved_batch[0]['url'], new_url)
+        mock_save_single.assert_called_once()
+        saved_record = mock_save_single.call_args[0][0]
+        self.assertEqual(saved_record['url'], new_url)
 
         # 3. Verify deduplication: existing_urls_set now contains new_url
         self.assertIn(new_url, existing_urls_set)
