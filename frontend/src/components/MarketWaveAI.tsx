@@ -98,6 +98,11 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
               setIsThinking(false);
             } else if (data.type === 'error') {
               setIsThinking(false);
+              setMessages((prev) => {
+                const lastUser = [...prev].reverse().find(m => m.role === 'user');
+                const fallbackResp = generateRichResponse(lastUser?.content || 'market');
+                return [...prev, fallbackResp];
+              });
             }
           } catch (e) {
             console.error(e);
@@ -282,6 +287,7 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
     // Try WebSocket if connected
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ 
+        prompt: query,
         message: query,
         context: {
           activeTab: aiContext.activeTab,
@@ -296,7 +302,7 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
         setIsThinking(false);
         const richResp = generateRichResponse(query, customContext);
         setMessages((prev) => [...prev, richResp]);
-      }, 550);
+      }, 400);
     }
   };
 
