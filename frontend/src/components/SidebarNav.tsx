@@ -10,7 +10,6 @@ import {
   Bell, 
   LogOut, 
   Crown,
-  Activity,
   PanelLeftClose,
   PanelLeftOpen,
   MessageSquare
@@ -100,8 +99,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           className="flex items-center gap-2.5 text-left group overflow-hidden focus:outline-none"
           title="MarketWave Terminal"
         >
-          <div className="w-7 h-7 rounded-md bg-slate-900 dark:bg-[#141A24] border border-slate-700/40 dark:border-white/10 flex items-center justify-center text-emerald-500 dark:text-[#00E599] shrink-0 group-hover:border-emerald-500/40 transition-colors">
-            <Activity className="w-3.5 h-3.5" strokeWidth={2.2} />
+          <div className="w-7 h-7 rounded-md overflow-hidden flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <img src="/favicon.svg" alt="MarketWave" className="w-full h-full object-contain" />
           </div>
 
           {!isCollapsed && (
