@@ -63,8 +63,6 @@ export default function App() {
   const [briefingStatus, setBriefingStatus] = useState<'idle' | 'updating' | 'live' | 'error'>('idle');
 
   // Modals & Panels
-  const [isMobileAIOpen, setIsMobileAIOpen] = useState(false);
-  const [isAIPanelExpanded, setIsAIPanelExpanded] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -608,7 +606,6 @@ export default function App() {
           alertCount={alerts.length}
           onOpenAlerts={() => setCurrentTab('alerts')}
           onOpenSearch={() => setIsSearchOpen(true)}
-          onToggleMobileAI={() => setIsMobileAIOpen(true)}
           onTriggerIngest={triggerIngestNews}
           isIngesting={isIngesting}
           onManualRefresh={handleManualRefresh}
@@ -618,7 +615,7 @@ export default function App() {
           onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
         />
 
-        {/* Scrollable Center Workspace */}
+        {/* Scrollable Center Full-Width Workspace */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 no-scrollbar">
           <div className="max-w-[1600px] mx-auto pb-10">
             {renderWorkspaceContent()}
@@ -627,30 +624,12 @@ export default function App() {
       </div>
 
       {/* ========================================================
-          3. RIGHT ZONE: Persistent AI Market Analyst Panel
+          3. FLOATING BOTTOM-RIGHT AI MARKET ANALYST ASSISTANT
           ======================================================== */}
-      <div className={`hidden xl:block ${isAIPanelExpanded ? 'w-[480px]' : 'w-[380px]'} h-full shrink-0 transition-all duration-300`}>
-        <MarketWaveAI
-          aiContext={aiContext}
-          onSelectStock={handleSelectStock}
-          isExpanded={isAIPanelExpanded}
-          onToggleExpand={() => setIsAIPanelExpanded(!isAIPanelExpanded)}
-        />
-      </div>
-
-      {/* Mobile Slide-Over AI Analyst Drawer */}
-      {isMobileAIOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden flex justify-end">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setIsMobileAIOpen(false)} />
-          <div className="relative w-full max-w-md h-full z-10 shadow-2xl animate-in slide-in-from-right duration-300">
-            <MarketWaveAI
-              aiContext={aiContext}
-              onSelectStock={handleSelectStock}
-              onClose={() => setIsMobileAIOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+      <MarketWaveAI
+        aiContext={aiContext}
+        onSelectStock={handleSelectStock}
+      />
 
       {/* ========================================================
           4. GLOBAL SEARCH MODAL (⌘K)

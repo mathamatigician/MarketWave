@@ -4,10 +4,9 @@ import {
   Sun, 
   Moon, 
   Bell, 
-  Bot, 
   RefreshCw, 
   Play, 
-  Menu,
+  Menu, 
   ChevronRight
 } from 'lucide-react';
 import type { MainNavTab } from '../types';
@@ -20,7 +19,6 @@ interface TopHeaderProps {
   alertCount: number;
   onOpenAlerts: () => void;
   onOpenSearch: () => void;
-  onToggleMobileAI?: () => void;
   onTriggerIngest: () => void;
   isIngesting: boolean;
   onManualRefresh: () => void;
@@ -38,7 +36,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   alertCount,
   onOpenAlerts,
   onOpenSearch,
-  onToggleMobileAI,
   onTriggerIngest,
   isIngesting,
   onManualRefresh,
@@ -177,17 +174,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         >
           {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-700" />}
         </button>
-
-        {/* Mobile AI Drawer Button */}
-        {onToggleMobileAI && (
-          <button
-            onClick={onToggleMobileAI}
-            className="xl:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 text-emerald-700 dark:text-[#00E599] font-bold text-xs shadow-sm"
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span className="font-mono">AI Analyst</span>
-          </button>
-        )}
 
       </div>
 
