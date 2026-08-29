@@ -80,6 +80,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'stocks', label: 'Terminal', icon: TrendingUp },
     { id: 'watchlist', label: 'Portfolio & Watchlist', icon: Briefcase },
     { id: 'intelligence', label: 'Intelligence', icon: Cpu, badge: 'AI' },
+    { id: 'agent_traces', label: 'Agent Traces', icon: Activity, badge: 'LIVE' },
     { id: 'news', label: 'News Feed', icon: Newspaper },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount > 0 ? alertCount : undefined },

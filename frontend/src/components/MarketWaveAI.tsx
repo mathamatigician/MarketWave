@@ -66,7 +66,11 @@ export const MarketWaveAI: React.FC<MarketWaveAIProps> = ({
             const data = JSON.parse(event.data);
             if (data.type === 'thought') {
               setIsThinking(true);
-              setThoughts((prev) => prev + data.content);
+              setThoughts((prev) => prev + (prev ? '\n' : '') + data.content);
+            } else if (data.type === 'trace_step' && data.step) {
+              setIsThinking(true);
+              const stepLine = `⚡ [${data.step.agent_name}] ${data.step.title}${data.step.latency_ms ? ` (${data.step.latency_ms}ms)` : ''}`;
+              setThoughts((prev) => prev + (prev ? '\n' : '') + stepLine);
             } else if (data.type === 'token') {
               setIsThinking(false);
               setMessages((prev) => {

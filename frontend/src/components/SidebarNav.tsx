@@ -12,7 +12,8 @@ import {
   Crown,
   PanelLeftClose,
   PanelLeftOpen,
-  MessageSquare
+  MessageSquare,
+  Activity
 } from 'lucide-react';
 import type { MainNavTab } from '../types';
 import { FEATURES } from '../config';
@@ -71,6 +72,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       title: 'INTELLIGENCE',
       items: [
         { id: 'intelligence', label: 'Intelligence', icon: Cpu, isAI: true },
+        { id: 'agent_traces', label: 'Agent Traces', icon: Activity, badge: 'LIVE' },
         { id: 'news', label: 'News Feed', icon: Newspaper },
         { id: 'analytics', label: 'Analytics', icon: BarChart2 },
       ]

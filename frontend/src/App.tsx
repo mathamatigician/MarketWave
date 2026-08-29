@@ -12,6 +12,7 @@ import { AlertsView } from './components/AlertsView';
 import { Home } from './components/Home';
 import { SignIn, SignUp } from './components/AuthForms';
 import { About, Contact, FAQ } from './components/StaticPages';
+import { AgentTracesView } from './components/AgentTracesView';
 import { Feedback } from './components/Feedback';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { API_URL, WS_URL, MARKET_DATA_REFRESH_INTERVAL_MS, API_REQUEST_TIMEOUT_MS } from './config';
@@ -537,6 +538,12 @@ export default function App() {
           <AlertsView 
             alerts={alerts}
             watchlist={watchlist}
+            onSelectStock={handleSelectStock}
+          />
+        );
+      case 'agent_traces':
+        return (
+          <AgentTracesView 
             onSelectStock={handleSelectStock}
           />
         );

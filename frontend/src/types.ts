@@ -104,8 +104,36 @@ export type MainNavTab =
   | 'news' 
   | 'analytics' 
   | 'alerts'
+  | 'agent_traces'
   | 'settings'
   | 'feedback';
+
+// Agent Execution Traces Models
+export interface TraceStep {
+  step_id: string;
+  step_type: 'agent_start' | 'thought' | 'tool_call' | 'tool_result' | 'subagent_delegation' | 'subagent_result' | 'final_response' | 'error';
+  agent_name: string;
+  title: string;
+  details?: any;
+  latency_ms?: number;
+  timestamp: number;
+  time_formatted: string;
+}
+
+export interface TraceSession {
+  trace_id: string;
+  agent_name: string;
+  user_query: string;
+  ticker?: string;
+  status: 'running' | 'completed' | 'failed';
+  start_time: number;
+  end_time?: number;
+  duration_ms?: number;
+  start_time_formatted: string;
+  steps: TraceStep[];
+  total_steps: number;
+  final_output?: string;
+}
 
 // AI Agent & Chat Models
 export interface RichFinancialCard {
@@ -144,3 +172,4 @@ export interface AIContext {
     holdingsCount: number;
   };
 }
+
