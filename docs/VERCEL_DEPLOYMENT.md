@@ -34,7 +34,7 @@ Under **Project Settings > Environment Variables**, add:
 
 ## 2. ☁️ Part 2: Deploying the Backend on GCP Cloud Run
 
-The backend includes a production-ready container definition in [`backend/Dockerfile`](file:///home/hp/AgentHackathon/MarketWave/backend/Dockerfile).
+The backend includes a production-ready container definition in [`backend/Dockerfile`](../backend/Dockerfile).
 
 ### Deploy with Google Cloud CLI (`gcloud`):
 ```bash

@@ -77,7 +77,7 @@ flowchart TB
     class fs,localjson data;
 ```
 
-![Current architecture](docs/diagrams/01_current_architecture.png)
+![Current architecture](diagrams/01_current_architecture.png)
 
 ### Frontend (`frontend/`)
 
@@ -169,7 +169,7 @@ flowchart LR
     class finnhub,rss,score ext;
 ```
 
-![News ingestion pipeline](docs/diagrams/02_databricks_pipeline.png)
+![News ingestion pipeline](diagrams/02_databricks_pipeline.png)
 
 **Sentiment schema.** Every article carries a `sentiment` map scoring 18 financial
 topics (`layoffs`, `revenue_growth`, `product_launches`, `overall_sentiment`, …), each in
@@ -227,7 +227,7 @@ sequenceDiagram
     end
 ```
 
-![Information flow — request lifecycle](docs/diagrams/03_information_flow.png)
+![Information flow — request lifecycle](diagrams/03_information_flow.png)
 
 ### How the data is shaped
 
@@ -287,4 +287,4 @@ AI agents and the sentiment pipeline. See `make help` for individual dev targets
 (`make dev-backend`, `make dev-frontend`, `make dev-emulator`).
 
 > Historical design docs for the earlier pre-migration system are preserved under
-> [`docs/archive/`](docs/archive/).
+> [`archive/`](archive/).

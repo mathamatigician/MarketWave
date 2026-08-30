@@ -2,7 +2,7 @@
 
 **Who this is for:** anyone setting up MarketWave on a fresh laptop/desktop for the first time.
 This is a beginner guide — do every step in order. For the day-to-day Git/PR workflow *after* setup,
-see [DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md).
+see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 **What you're installing:** MarketWave runs as three local services —
 a **React** frontend, a **FastAPI** backend, and a local **Google Firestore emulator** —
