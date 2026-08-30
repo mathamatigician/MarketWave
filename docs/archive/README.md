@@ -5,7 +5,7 @@ Streamlit/Databricks system and the plans that guided the move to the current
 **React + FastAPI + Firestore + Gemini** stack). They are kept for historical context and
 are **no longer accurate** for the running system.
 
-For the current architecture, see [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md).
+For the current architecture, see [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 | File | Original purpose |
 |------|------------------|

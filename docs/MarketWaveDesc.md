@@ -87,14 +87,14 @@ What makes this system remarkable for users is our **real-time thought stream**.
 
 The complete end-to-end product flow operates across six synchronized stages:
 
-![MarketWaveAI.com Product Workflow & Data Flow](docs/diagrams/04_product_workflow.png)
+![MarketWaveAI.com Product Workflow & Data Flow](diagrams/04_product_workflow.png)
 
 The pipeline operates as a multi-tier architecture:
 Stage 0 intake receives watchlist tickers or user search queries. Stage 1 executes parallel news retrieval via Finnhub's `/company-news` endpoint (falling back to Google News RSS + `googlenewsdecoder` for local development), and scrapes raw HTML body text. Stage 2 passes clean articles through Gemini with strict JSON schema constraints (`TopicSentimentSchema`) across 18 financial categories. Stage 3 persists structured articles into Firestore and computes daily median topic aggregates. Stage 4 maps daily sentiment timelines against Yahoo Finance stock price histories. Stage 5 hands interactive queries to the Antigravity Orchestrator, which streams thought logs and delegates tasks across sub-agents in real time. Stage 6 enables tier upgrades via Razorpay modal with server-side HMAC SHA256 signature verification.
 
 Architecture diagram: MarketWaveAI.com multi-agent pipeline and React/FastAPI architecture (with Payment Gateway)
 
-![MarketWaveAI.com AI System Architecture](docs/diagrams/05_system_architecture.png)
+![MarketWaveAI.com AI System Architecture](diagrams/05_system_architecture.png)
 
 
 Google Antigravity SDK turns the backend into a transparent agentic system. The orchestrator configuration in `backend/agents/orchestrator.py` defines tools (`fetch_news_tool`, `get_stock_history_tool`), sub-agents (`ResearchAgent`, `SentimentAnalyst`, `MarketCorrelator`), and security policies. When a user connects to `/ws/chat`, FastAPI streams both execution thoughts and response tokens live to the UI.

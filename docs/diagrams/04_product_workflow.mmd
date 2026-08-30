@@ -32,12 +32,6 @@ flowchart TB
         ws["Streaming WebSocket<br/>/ws/chat"]
     end
 
-    subgraph S6["Stage 6 · Monetization"]
-        modal["Subscription modal"]
-        razorpay["Razorpay API"]
-        hmac["HMAC SHA256<br/>signature verification"]
-    end
-
     input --> S1
     finnhub --> scrape
     rss --> scrape
@@ -49,8 +43,6 @@ flowchart TB
     yahoo --> price --> overlay
     S4 --> S5
     orch --> subagents --> ws
-    S5 --> S6
-    modal --> razorpay --> hmac
 
     classDef ext fill:#fde,stroke:#c39;
-    class finnhub,rss,gemini,yahoo,razorpay ext;
+    class finnhub,rss,gemini,yahoo ext;
