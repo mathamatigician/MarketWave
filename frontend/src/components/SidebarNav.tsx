@@ -13,7 +13,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   MessageSquare,
-  Activity
+  Activity,
+  LogIn
 } from 'lucide-react';
 import type { MainNavTab } from '../types';
 import { FEATURES } from '../config';
@@ -25,6 +26,7 @@ interface SidebarNavProps {
   user: any;
   onLogout: () => void;
   onOpenPricing: () => void;
+  onOpenSignIn?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -36,6 +38,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   user,
   onLogout,
   onOpenPricing,
+  onOpenSignIn,
   isCollapsed = false,
   onToggleCollapse,
 }) => {
@@ -232,7 +235,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <div className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-tight">
-                  {user ? (user.first_name || user.email.split('@')[0]) : 'Analyst'}
+                  {user ? (user.first_name || user.email.split('@')[0]) : 'Analyst (Guest)'}
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
                   {user ? user.email : 'demo1@marketwave.com'}
@@ -241,14 +244,27 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             )}
           </div>
 
-          {!isCollapsed && user && (
-            <button
-              onClick={onLogout}
-              className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+          {!isCollapsed && (
+            <div className="flex items-center gap-1">
+              {onOpenSignIn && (
+                <button
+                  onClick={onOpenSignIn}
+                  className="p-1 rounded text-emerald-600 dark:text-[#00E599] hover:bg-emerald-500/10 transition-colors"
+                  title="Sign In / Switch Account"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {user && (
+                <button
+                  onClick={onLogout}
+                  className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
