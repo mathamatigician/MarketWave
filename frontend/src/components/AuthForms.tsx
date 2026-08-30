@@ -14,9 +14,10 @@ interface UserInfo {
 interface SignInProps {
   onToggleMode: () => void;
   onLoginSuccess: (user: UserInfo) => void;
+  onBackToApp?: () => void;
 }
 
-export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
+export function SignIn({ onToggleMode, onLoginSuccess, onBackToApp }: SignInProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -50,12 +51,6 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setErrorMsg('');
   };
 
   return (
@@ -136,32 +131,20 @@ export function SignIn({ onToggleMode, onLoginSuccess }: SignInProps) {
           </button>
         </form>
 
-        {/* Demo Fast Login Pills */}
-        <div className="pt-2 border-t border-slate-200 dark:border-white/10 text-center space-y-2">
-          <span className="text-[10px] font-mono text-slate-400 uppercase">1-Click Demo Accounts (Pass: password123):</span>
-          <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('demo1@marketwave.com')}
-              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300 transition-colors"
-            >
-              demo1@marketwave.com
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('demo2@marketwave.com')}
-              className="px-2.5 py-1 rounded-lg surface-inset hover:border-emerald-500/40 text-[10px] font-mono text-slate-600 dark:text-slate-300 transition-colors"
-            >
-              demo2@marketwave.com
+        <div className="text-center text-xs text-slate-500 space-y-2">
+          <div>
+            Don't have an account?{' '}
+            <button onClick={onToggleMode} className="text-emerald-600 dark:text-[#00E599] font-bold hover:underline">
+              Sign up here
             </button>
           </div>
-        </div>
-
-        <div className="text-center text-xs text-slate-500">
-          Don't have an account?{' '}
-          <button onClick={onToggleMode} className="text-emerald-600 dark:text-[#00E599] font-bold hover:underline">
-            Sign up here
-          </button>
+          {onBackToApp && (
+            <div>
+              <button onClick={onBackToApp} className="text-slate-400 hover:text-slate-200 text-xs font-mono underline">
+                ← Back to Market Terminal
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -172,9 +155,10 @@ interface SignUpProps {
   onToggleMode: () => void;
   onSignupSuccess: () => void;
   onLoginSuccess: (user: UserInfo) => void;
+  onBackToApp?: () => void;
 }
 
-export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUpProps) {
+export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess, onBackToApp }: SignUpProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -320,11 +304,20 @@ export function SignUp({ onToggleMode, onSignupSuccess, onLoginSuccess }: SignUp
           </button>
         </form>
 
-        <div className="text-center text-xs text-slate-500">
-          Already have an account?{' '}
-          <button onClick={onToggleMode} className="text-emerald-600 dark:text-[#00E599] font-bold hover:underline">
-            Sign in
-          </button>
+        <div className="text-center text-xs text-slate-500 space-y-2">
+          <div>
+            Already have an account?{' '}
+            <button onClick={onToggleMode} className="text-emerald-600 dark:text-[#00E599] font-bold hover:underline">
+              Sign in
+            </button>
+          </div>
+          {onBackToApp && (
+            <div>
+              <button onClick={onBackToApp} className="text-slate-400 hover:text-slate-200 text-xs font-mono underline">
+                ← Back to Market Terminal
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

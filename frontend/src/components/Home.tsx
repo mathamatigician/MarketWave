@@ -11,12 +11,14 @@ import {
 
 interface HomeProps {
   onEnter: () => void;
+  onSignIn?: () => void;
+  onSignUp?: () => void;
 }
 
-export function Home({ onEnter }: HomeProps) {
+export function Home({ onEnter, onSignIn }: HomeProps) {
   return (
-    <div className="space-y-16 py-8 sm:py-16 animate-in fade-in duration-500 max-w-6xl mx-auto">
-      
+    <div className="space-y-12 py-6 sm:py-12 animate-in fade-in duration-500 max-w-6xl mx-auto">
+
       {/* 1. Hero Section */}
       <div className="text-center space-y-6 max-w-4xl mx-auto px-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full surface-inset text-emerald-600 dark:text-[#00E599] text-xs font-mono font-bold">
@@ -43,6 +45,15 @@ export function Home({ onEnter }: HomeProps) {
             <span>Launch Market Terminal</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+
+          {onSignIn && (
+            <button
+              onClick={onSignIn}
+              className="btn-secondary text-sm px-6 py-3 rounded-xl font-bold border border-slate-300 dark:border-white/10"
+            >
+              Sign In to Account
+            </button>
+          )}
         </div>
       </div>
 

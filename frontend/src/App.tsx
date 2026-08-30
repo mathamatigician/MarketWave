@@ -438,7 +438,13 @@ export default function App() {
 
   // Public Static and Auth View Rendering
   if (view === 'home') {
-    return <Home onEnter={() => setView('app')} />;
+    return (
+      <Home 
+        onEnter={() => setView('app')} 
+        onSignIn={() => setView('signin')}
+        onSignUp={() => setView('signup')}
+      />
+    );
   }
 
   if (view === 'signin') {
@@ -447,6 +453,7 @@ export default function App() {
         <SignIn 
           onLoginSuccess={handleLoginSuccess}
           onToggleMode={() => setView('signup')}
+          onBackToApp={() => setView('app')}
         />
       </div>
     );
@@ -459,6 +466,7 @@ export default function App() {
           onSignupSuccess={() => setView('signin')}
           onLoginSuccess={handleLoginSuccess}
           onToggleMode={() => setView('signin')}
+          onBackToApp={() => setView('app')}
         />
       </div>
     );
@@ -574,6 +582,7 @@ export default function App() {
           user={user}
           onLogout={handleLogout}
           onOpenPricing={() => setIsSubscriptionOpen(true)}
+          onOpenSignIn={() => setView('signin')}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
         />
@@ -595,6 +604,10 @@ export default function App() {
               onLogout={handleLogout}
               onOpenPricing={() => {
                 setIsSubscriptionOpen(true);
+                setIsMobileSidebarOpen(false);
+              }}
+              onOpenSignIn={() => {
+                setView('signin');
                 setIsMobileSidebarOpen(false);
               }}
             />
