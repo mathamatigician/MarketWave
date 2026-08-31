@@ -1,6 +1,6 @@
 # MarketWave AI: Autonomous Financial News Monitoring & Multi-Agent Sentiment Engine
 
-![MarketWave AI Architecture](docs/diagrams/01_current_architecture.png)
+![MarketWave AI Architecture](docs/diagrams/MarketWaveArchitecture.png)
 
 **MarketWave AI** is an intelligent, agentic market research and financial monitoring platform powered by **Google Gemini** and the **Google Antigravity SDK (`google-antigravity`)**. 
 
